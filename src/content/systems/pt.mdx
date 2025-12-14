@@ -1,0 +1,65 @@
+# Engenharia de Sistemas & Engenharia Reversa
+
+Bem-vindo à divisão de Engenharia de Sistemas e Engenharia Reversa deste jardim digital. Esta seção funciona como um caderno de laboratório especializado focado em análise de baixo nível, manipulação de firmware customizado, ecossistemas Android embarcados e interfaces hardware/software.
+
+Eu abordo sistemas não apenas como camadas abstratas de software, mas como máquinas de estados físicas complexas, limitadas por latência, energia e restrições físicas.
+
+---
+
+## Diretrizes Técnicas & Áreas de Foco
+
+Aqui você encontrará logs ativos, relatórios de engenharia reversa e especificações de arquitetura sobre:
+
+*   **Componentes Internos do Android:** Análise de arquiteturas de sistemas em chip (SoC) baseadas em MediaTek, layouts de partição e extração de partições (`boot`, `vendor`, `super`).
+*   **Avaliações de Segurança Automatizadas:** Uso do `Android Debug Bridge (ADB)` e pipelines de automação em shell para executar testes de verificação não interativos em dispositivos corporativos.
+*   **Infraestrutura como Código (IaC) & Resiliência:** Criação de deploys imutáveis, topologias de orquestração de containers e endpoints de API resilientes com tipagem estática rigorosa.
+
+---
+
+## Análise de Entropia de Payloads Binários
+
+Ao analisar imagens de firmware desconhecidas, uma das principais dificuldades é localizar onde começa a ofuscação, compressão ou criptografia. Utilizamos a **Entropia de Shannon** para mapear a densidade de informação em buffers binários brutos.
+
+Uma distribuição uniforme de valores de bytes resulta em uma entropia de exatamente $8.0$ bits por byte, indicando caos máximo (geralmente arquivos compactados ou blocos criptografados com AES).
+
+$$
+H(S) = -\sum_{i=0}^{255} P(b_i) \log_2 P(b_i)
+$$
+
+Onde $P(b_i)$ representa a probabilidade empírica de ocorrência do valor do byte $b_i$ dentro de uma janela deslizante $S$.
+
+### Scanner de Entropia Automatizado (Python)
+
+Abaixo está um utilitário que executo rotineiramente em minha ferramenta local para inspecionar seções de firmware antes de analisá-las com o Ghidra:
+
+```python
+def calculate_entropy(data: bytes) -> float:
+    if not data:
+        return 0.0
+    
+    # Calcula a frequência de ocorrência de cada valor de byte
+    counts = [0] * 256
+    for byte in data:
+        counts[byte] += 1
+        
+    entropy = 0.0
+    total_len = len(data)
+    
+    for count in counts:
+        if count == 0:
+            continue
+        p = count / total_len
+        entropy -= p * math.log2(p)
+        
+    return entropy
+```
+
+---
+
+## Backlog de Cultivo Ativo
+
+> ⚠️ **Status:** As notas de campo detalhadas abaixo estão atualmente passando por transcrição final de rascunhos em markdown para artigos estáticos e estruturados.
+
+1.  **[Draft-01]** Extração de tabelas de partição MediaTek e metodologias de descriptografia de Preloader em chips da família MT67xx.
+2.  **[Draft-02]** Caminhos de escalabilidade de privilégios em Android sem root usando configurações de recovery de OEMs específicas.
+3.  **[Draft-03]** Reconstrução de infraestrutura de virtualização local usando KVM bare-metal e NixOS.
