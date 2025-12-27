@@ -23,7 +23,7 @@ const dict = {
     systems: "⚙️ Systems Engineering",
     essays: "🧠 Essays & Logic",
     lab: "🧪 Laboratory / Logistics",
-    finance: "📈 Quantitative Finance",
+    finance: "📈 B3 Screener",
     footerText: "Analytically and statically built.",
   },
   pt: {
@@ -34,7 +34,7 @@ const dict = {
     systems: "⚙️ Engenharia de Sistemas",
     essays: "🧠 Ensaios e Lógica",
     lab: "🧪 Laboratório / Logística",
-    finance: "📈 Finanças Quantitativas",
+    finance: "📈 Screener B3",
     footerText: "Construído de forma analítica e estática.",
   },
 };
