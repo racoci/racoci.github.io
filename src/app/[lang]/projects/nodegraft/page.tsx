@@ -24,7 +24,7 @@ export default async function NodeGraftPage({ params }: PageProps) {
       </div>
 
       {/* Interactive 3D WebGPU & CPU Fallback Viewer */}
-      <NodeGraftViewer />
+      <NodeGraftViewer lang={lang as "en" | "pt"} />
 
       {/* Localized Technical Documentation Section */}
       <div className="border-t border-zinc-200 dark:border-zinc-800 pt-8 mt-12">
