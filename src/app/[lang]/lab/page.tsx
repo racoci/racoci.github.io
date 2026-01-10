@@ -7,5 +7,9 @@ interface PageProps {
 
 export default async function LabPage({ params }: PageProps) {
   const { lang } = await params;
-  return lang === "pt" ? <LabPt /> : <LabEn />;
+  return (
+    <article className="prose dark:prose-invert prose-emerald max-w-4xl mx-auto">
+      {lang === "pt" ? <LabPt /> : <LabEn />}
+    </article>
+  );
 }

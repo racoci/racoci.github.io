@@ -103,7 +103,7 @@ export default function ProjectsPage({ params }: PageProps) {
   );
 
   return (
-    <div className="space-y-8 font-sans">
+    <div className="max-w-5xl mx-auto space-y-8 font-sans">
       <div>
         <h1 className="text-3xl font-extrabold tracking-tight text-zinc-900 dark:text-zinc-50 mb-3">
           {t.title}

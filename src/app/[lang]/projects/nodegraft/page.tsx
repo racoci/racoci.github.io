@@ -11,8 +11,8 @@ export default async function NodeGraftPage({ params }: PageProps) {
   const isPt = lang === "pt";
 
   return (
-    <div className="space-y-8 max-w-5xl mx-auto">
-      <div>
+    <div className="space-y-8 w-full">
+      <div className="max-w-4xl mx-auto">
         <h1 className="text-3xl font-extrabold tracking-tight text-zinc-900 dark:text-zinc-50 mb-3 font-sans">
           {isPt ? "Módulo NodeGraft / PolyGraft 3D" : "NodeGraft Module / PolyGraft 3D"}
         </h1>
@@ -27,9 +27,9 @@ export default async function NodeGraftPage({ params }: PageProps) {
       <NodeGraftViewer lang={lang as "en" | "pt"} />
 
       {/* Localized Technical Documentation Section */}
-      <div className="border-t border-zinc-200 dark:border-zinc-800 pt-8 mt-12">
+      <article className="prose dark:prose-invert prose-emerald max-w-4xl mx-auto mt-16 border-t border-zinc-200 dark:border-zinc-800 pt-10">
         {isPt ? <NodeGraftPt /> : <NodeGraftEn />}
-      </div>
+      </article>
     </div>
   );
 }

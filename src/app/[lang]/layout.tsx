@@ -149,10 +149,8 @@ export default async function RootLayout({
         </header>
 
         {/* Main Content */}
-        <main className="flex-1 w-full max-w-4xl mx-auto px-6 py-10 md:py-16">
-          <article className="prose dark:prose-invert prose-emerald max-w-none">
-            {children}
-          </article>
+        <main className="flex-1 w-full max-w-7xl xl:max-w-[1450px] mx-auto px-6 py-10 md:py-16">
+          {children}
         </main>
 
         {/* Footer */}
