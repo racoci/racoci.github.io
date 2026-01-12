@@ -1,4 +1,5 @@
 import Link from "next/link";
+import InteractiveHero from "../../components/InteractiveHero";
 
 interface PageProps {
   params: Promise<{ lang: string }>;
@@ -81,6 +82,8 @@ export default async function Home({ params }: PageProps) {
           {t.intro}
         </p>
       </div>
+
+      <InteractiveHero lang={lang as "en" | "pt"} />
 
       {/* Alerta de Construção / Desenvolvimento */}
       <div className="p-5 border border-dashed border-amber-300 dark:border-amber-700/50 bg-amber-500/5 dark:bg-amber-500/[0.02] rounded-xl space-y-3">
