@@ -56,7 +56,7 @@ const PROPS_LIBRARY: PropItem[] = [
     id: "gyroid-core",
     name: "Gyroid Reactor Core",
     tags: ["procedural", "organic", "ornament", "energetics"],
-    defaultTraits: { Size: 0.75, Complexity: 4.0, Twist: 1.5, Hollow: 0.0 },
+    defaultTraits: { Size: 0.75, Complexity: 4.0, Twist: 1.5, Hollow: 0.0, Texture: 0.0 },
     description: {
       en: "Procedural reactor core modulated by high-frequency trigonometric noise fields.",
       pt: "Núcleo de reator procedural modulado por campos de ruído trigonométrico senoidal."
@@ -69,6 +69,7 @@ const PROPS_LIBRARY: PropItem[] = [
  * @trait Complexity [1.0, 10.0, 4.0]
  * @trait Twist [-5.0, 5.0, 1.5]
  * @trait Hollow [0.0, 1.0, 0.0]
+ * @trait Texture [0.0, 3.0, 0.0]
  */
 
 struct Trait {
@@ -76,6 +77,7 @@ struct Trait {
   complexity: f32,
   twist: f32,
   hollow: f32,
+  texture: f32,
 }
 
 fn sdf(p: vec3f, t: Trait) -> f32 {
@@ -98,7 +100,7 @@ fn sdf(p: vec3f, t: Trait) -> f32 {
     id: "threaded-bolt",
     name: "Threaded Mechanical Bolt",
     tags: ["mechanical", "hard-surface", "kitbash", "joint"],
-    defaultTraits: { Size: 0.8, Complexity: 8.0, Twist: 2.0, Hollow: 0.0 },
+    defaultTraits: { Size: 0.8, Complexity: 8.0, Twist: 2.0, Hollow: 0.0, Texture: 0.0 },
     description: {
       en: "Hexagonal head structural bolt featuring helical thread pitch modulation.",
       pt: "Parafuso estrutural de cabeça hexagonal com passo de rosca helicoidal regulável."
@@ -111,6 +113,7 @@ fn sdf(p: vec3f, t: Trait) -> f32 {
  * @trait Complexity [1.0, 20.0, 8.0]
  * @trait Twist [-5.0, 5.0, 2.0]
  * @trait Hollow [0.0, 1.0, 0.0]
+ * @trait Texture [0.0, 3.0, 0.0]
  */
 
 struct Trait {
@@ -118,6 +121,7 @@ struct Trait {
   complexity: f32,
   twist: f32,
   hollow: f32,
+  texture: f32,
 }
 
 fn sdf(p: vec3f, t: Trait) -> f32 {
@@ -137,7 +141,7 @@ fn sdf(p: vec3f, t: Trait) -> f32 {
     id: "industrial-gear",
     name: "Industrial Spur Gear",
     tags: ["mechanical", "hard-surface", "kitbash", "procedural"],
-    defaultTraits: { Size: 0.85, Complexity: 10.0, Twist: 1.5, Hollow: 1.0 },
+    defaultTraits: { Size: 0.85, Complexity: 10.0, Twist: 1.5, Hollow: 1.0, Texture: 0.0 },
     description: {
       en: "Heavy transmission pinion with variable gear teeth frequency and hollow shaft.",
       pt: "Pinhão de transmissão pesada com frequência de dentes variável e furo axial."
@@ -150,6 +154,7 @@ fn sdf(p: vec3f, t: Trait) -> f32 {
  * @trait Complexity [4.0, 16.0, 10.0]
  * @trait Twist [-5.0, 5.0, 1.5]
  * @trait Hollow [0.0, 1.0, 1.0]
+ * @trait Texture [0.0, 3.0, 0.0]
  */
 
 struct Trait {
@@ -157,6 +162,7 @@ struct Trait {
   complexity: f32,
   twist: f32,
   hollow: f32,
+  texture: f32,
 }
 
 fn sdf(p: vec3f, t: Trait) -> f32 {
@@ -177,7 +183,7 @@ fn sdf(p: vec3f, t: Trait) -> f32 {
     id: "organic-root",
     name: "Organic Root Knot",
     tags: ["organic", "procedural", "ornament"],
-    defaultTraits: { Size: 0.7, Complexity: 6.0, Twist: 3.0, Hollow: 0.0 },
+    defaultTraits: { Size: 0.7, Complexity: 6.0, Twist: 3.0, Hollow: 0.0, Texture: 0.0 },
     description: {
       en: "Biomorphic knotted vine structured as a twisted wave-modulated torus.",
       pt: "Trepadeira nodosa biomórfica estruturada como um toro de onda torcida."
@@ -190,6 +196,7 @@ fn sdf(p: vec3f, t: Trait) -> f32 {
  * @trait Complexity [1.0, 12.0, 6.0]
  * @trait Twist [-5.0, 5.0, 3.0]
  * @trait Hollow [0.0, 1.0, 0.0]
+ * @trait Texture [0.0, 3.0, 0.0]
  */
 
 struct Trait {
@@ -197,6 +204,7 @@ struct Trait {
   complexity: f32,
   twist: f32,
   hollow: f32,
+  texture: f32,
 }
 
 fn sdf(p: vec3f, t: Trait) -> f32 {
@@ -215,7 +223,7 @@ fn sdf(p: vec3f, t: Trait) -> f32 {
     id: "scifi-crate",
     name: "Modular Sci-Fi Crate",
     tags: ["structural", "hard-surface", "kitbash", "procedural"],
-    defaultTraits: { Size: 0.8, Complexity: 5.0, Twist: 1.0, Hollow: 0.0 },
+    defaultTraits: { Size: 0.8, Complexity: 5.0, Twist: 1.0, Hollow: 0.0, Texture: 0.0 },
     description: {
       en: "Heavy reinforced cargo crate with mathematical panel grooves and beveled edges.",
       pt: "Caixa de carga reforçada com ranhuras geométricas e cantos chanfrados."
@@ -228,6 +236,7 @@ fn sdf(p: vec3f, t: Trait) -> f32 {
  * @trait Complexity [2.0, 10.0, 5.0]
  * @trait Twist [-5.0, 5.0, 1.0]
  * @trait Hollow [0.0, 1.0, 0.0]
+ * @trait Texture [0.0, 3.0, 0.0]
  */
 
 struct Trait {
@@ -235,6 +244,7 @@ struct Trait {
   complexity: f32,
   twist: f32,
   hollow: f32,
+  texture: f32,
 }
 
 fn sdf(p: vec3f, t: Trait) -> f32 {
@@ -820,7 +830,11 @@ export default function NodeGraftViewer({ lang }: NodeGraftViewerProps) {
       const sx = width / 2 + (x1 * fov) / (z2 + distance);
       const sy = height / 2 - (y2 * fov) / (z2 + distance);
 
-      return { sx, sy, depth: z2, xRot: x1, yRot: y2, zRot: z2 };
+      return { 
+        sx, sy, depth: z2, 
+        xRot: x1, yRot: y2, zRot: z2,
+        rawX: v.x, rawY: v.y, rawZ: v.z 
+      };
     });
 
     quads.forEach((q) => {
@@ -858,11 +872,19 @@ export default function NodeGraftViewer({ lang }: NodeGraftViewerProps) {
     lightDir.y /= lightLen;
     lightDir.z /= lightLen;
 
+    // Detect the selected texture mode from the "Texture" trait slider
+    const textureMode = traits["Texture"] !== undefined ? Math.floor(traits["Texture"]) : 0;
+
     quads.forEach((q) => {
       const p0 = projectedVertices[q.indices[0]];
       const p1 = projectedVertices[q.indices[1]];
       const p2 = projectedVertices[q.indices[2]];
       const p3 = projectedVertices[q.indices[3]];
+
+      // Calculate model space coordinates for procedural textures
+      const avgX = (p0.rawX + p1.rawX + p2.rawX + p3.rawX) / 4;
+      const avgY = (p0.rawY + p1.rawY + p2.rawY + p3.rawY) / 4;
+      const avgZ = (p0.rawZ + p1.rawZ + p2.rawZ + p3.rawZ) / 4;
 
       const n = q.normal;
       let nx1 = n.x * cosY - n.z * sinY;
@@ -873,14 +895,50 @@ export default function NodeGraftViewer({ lang }: NodeGraftViewerProps) {
       const dot = nx1 * lightDir.x + ny2 * lightDir.y + nz2 * lightDir.z;
       const intensity = Math.max(0.1, dot);
 
-      const baseAlpha = 0.55;
-      const r = Math.floor(16 + intensity * 20);
-      const g = Math.floor(185 * intensity + 30);
-      const b = Math.floor(129 * intensity + 40);
+      let r = Math.floor(16 + intensity * 20);
+      let g = Math.floor(185 * intensity + 30);
+      let b = Math.floor(129 * intensity + 40);
+      let baseAlpha = 0.55;
+      let strokeColor = "rgba(16, 185, 129, 0.45)";
+      let strokeWidth = 0.75;
+
+      // Apply procedural texture modulations based on trait value
+      if (textureMode === 1) {
+        // Mode 1: Technical Grid / Checkboard
+        const checker = (Math.floor(avgX * 9.0) + Math.floor(avgY * 9.0) + Math.floor(avgZ * 9.0)) % 2;
+        if (checker === 0) {
+          r = Math.floor(r * 0.5);
+          g = Math.floor(g * 0.5);
+          b = Math.floor(b * 0.5);
+        }
+      } else if (textureMode === 2) {
+        // Mode 2: Carbon Fiber Stripes
+        const stripes = Math.abs(Math.sin(avgY * 22.0 + avgX * 11.0)) > 0.55 ? 1 : 0;
+        if (stripes === 1) {
+          // Dark charcoal Carbon Fiber look
+          r = Math.floor(30 * intensity + 10);
+          g = Math.floor(30 * intensity + 15);
+          b = Math.floor(35 * intensity + 15);
+          strokeColor = "rgba(63, 63, 70, 0.3)";
+        }
+      } else if (textureMode === 3) {
+        // Mode 3: Bioluminescent Veins / Glowing Pulse lines
+        const time = performance.now() * 0.003;
+        const pulse = Math.sin(avgX * 7.0 + time) * Math.cos(avgY * 7.0) * Math.sin(avgZ * 7.0) * 0.5 + 0.5;
+        if (pulse > 0.73) {
+          // Neon glow!
+          r = 52;
+          g = 211;
+          b = 153;
+          baseAlpha = 0.95;
+          strokeColor = "rgba(52, 211, 153, 0.9)";
+          strokeWidth = 1.5;
+        }
+      }
 
       ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${baseAlpha})`;
-      ctx.strokeStyle = "rgba(16, 185, 129, 0.45)";
-      ctx.lineWidth = 0.75;
+      ctx.strokeStyle = strokeColor;
+      ctx.lineWidth = strokeWidth;
 
       ctx.beginPath();
       ctx.moveTo(p0.sx, p0.sy);
@@ -1262,7 +1320,6 @@ export default function NodeGraftViewer({ lang }: NodeGraftViewerProps) {
 
   return (
     <div className="border border-zinc-200 dark:border-zinc-800 rounded-xl overflow-hidden bg-white dark:bg-zinc-950/60 shadow-xl flex flex-col font-sans mb-12">
-      {/* Workspace Global Controller Header */}
       <div className="bg-zinc-100 dark:bg-zinc-900 px-5 py-3 border-b border-zinc-200 dark:border-zinc-800 flex flex-wrap gap-3 items-center justify-between">
         <div className="flex items-center gap-2">
           <span className="flex h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
@@ -1278,7 +1335,6 @@ export default function NodeGraftViewer({ lang }: NodeGraftViewerProps) {
         </button>
       </div>
 
-      {/* Main Grid: Responsive layouts that dynamically load the active widgets */}
       <div className="grid grid-cols-1 lg:grid-cols-12 divide-y lg:divide-y-0 lg:divide-x divide-zinc-200 dark:divide-zinc-800 min-h-[450px]">
         {panes.map((pane) => {
           let colSpan = "col-span-1 lg:col-span-4";
@@ -1359,7 +1415,7 @@ export default function NodeGraftViewer({ lang }: NodeGraftViewerProps) {
                     step={0.05}
                     value={traits[t.name] !== undefined ? traits[t.name] : t.value}
                     onChange={(e) => handleTraitChange(t.name, parseFloat(e.target.value))}
-                    className="w-full h-1 bg-zinc-200 dark:bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-emerald-500"
+                    className="w-full h-1 bg-zinc-200 rounded-lg appearance-none cursor-pointer accent-emerald-500"
                   />
                 ) : (
                   <button
