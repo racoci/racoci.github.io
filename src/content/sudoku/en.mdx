@@ -1,0 +1,80 @@
+# The Mathematics of Sudoku: Backtracking & CSP Theory
+
+Sudoku is not merely an exercise in pattern recognition; it is a highly structured **Constraint Satisfaction Problem (CSP)** that maps directly to graph coloring and logical pruning theories. 
+
+By modeling a Sudoku board mathematically, we can replace naive search spaces with highly optimized **Backtracking Depth-First Search (DFS)** algorithms and **Topological Constraint Pruning** techniques.
+
+---
+
+## 1. Sudoku as a Constraint Satisfaction Problem (CSP)
+
+A Constraint Satisfaction Problem is defined by a triplet $(X, D, C)$:
+* **Variables ($X$):** The set of $81$ cells on the grid:
+  $$X = \{x_{r,c} \mid 0 \le r, c < 9\}$$
+* **Domains ($D$):** The set of allowable values for each variable. In standard Sudoku, every cell has the same initial domain:
+  $$D_{r,c} = \{1, 2, 3, 4, 5, 6, 7, 8, 9\}$$
+* **Constraints ($C$):** The algebraic and logical restrictions that prevent variables from taking conflicting values.
+
+The constraints can be broken down into three mutually overlapping sets of pairwise inequality constraints:
+
+1. **Row Constraints:** Cells in the same row $r$ must have pairwise distinct values:
+   $$\forall r, \forall c_1 \ne c_2: x_{r,c_1} \ne x_{r,c_2}$$
+2. **Column Constraints:** Cells in the same column $c$ must have pairwise distinct values:
+   $$\forall c, \forall r_1 \ne r_2: x_{r_1,c} \ne x_{r_2,c}$$
+3. **Box (Sector) Constraints:** Cells in the same $3 \times 3$ subgrid (block) must have pairwise distinct values:
+   $$\forall b \in \{0..8\}, \forall (r_1,c_1) \ne (r_2,c_2) \in \text{Box}(b): x_{r_1,c_1} \ne x_{r_2,c_2}$$
+
+Where the box assignment function maps cell coordinates to box indices $b \in \{0..8\}$:
+$$\text{BoxIdx}(r, c) = \left\lfloor \frac{r}{3} \right\rfloor \times 3 + \left\lfloor \frac{c}{3} \right\rfloor$$
+
+---
+
+## 2. Solving via Backtracking Search with Branch and Bound
+
+An unconstrained grid of size $9 \times 9$ has $9^{81} \approx 1.96 \times 10^{77}$ possible configurations. However, the number of valid completed Sudoku grids (the solution space size) is restricted by the constraints $C$ to:
+
+$$N = 6,670,903,752,021,072,936,960 \approx 6.67 \times 10^{21}$$
+
+To search for a valid solution, we employ a depth-first search of the state space. On each recursive step, we pick an unassigned variable $x_{r,c}$ and attempt to assign a value $v \in D_{r,c}$ that is mathematically consistent with current assignments.
+
+### Backtracking DFS Logic
+
+```mermaid
+graph TD
+    A[Start Search: empty cells] --> B{Any empty cell left?}
+    B -- No --> C[Board is Solved - Success!]
+    B -- Yes --> D[Select empty cell index x]
+    D --> E[Shuffle/Choose candidate v from 1..9]
+    E --> F{Is placement of v consistent with constraints?}
+    F -- No --> G[Try next candidate]
+    F -- Yes --> H[Assign x = v]
+    H --> I[Recursively call Solve]
+    I -- True (Solved) --> C
+    I -- False (Conflict ahead) --> J[Undo assignment x = 0 (Backtrack)]
+    J --> G
+    G --> K{Any candidates left?}
+    K -- Yes --> E
+    K -- No --> L[Return False to trigger parent backtrack]
+```
+
+By sorting or shuffling the domains randomly before executing DFS, our **Procedural Generator** produces a completely different, mathematically unique valid Sudoku grid in microseconds, which is then pruned down to the target difficulty.
+
+---
+
+## 3. Topological Pruning & Node Consistency
+
+Modern Sudoku engines optimize search steps using **Constraint Propagation**. Before branching, we can prune variable domains using node and arc consistency.
+
+### 3.1 Arc Consistency (AC-3)
+An arc constraint between $x_1$ and $x_2$ is consistent if, for every value in the domain of $x_1$, there exists a valid corresponding value in the domain of $x_2$. By maintaining AC-3 during search (MAC), we can instantly detect dead-ends and prune hundreds of subtrees:
+
+$$\text{Domain}(x_{r,c}) \leftarrow \text{Domain}(x_{r,c}) \setminus \left( \bigcup_{y \in \text{Neighbors}(x_{r,c})} \{ \text{Value}(y) \} \right)$$
+
+### 3.2 Naked Singles
+A **Naked Single** is a topological limit where constraint propagation reduces a variable's domain to exactly one value:
+
+$$|D_{r,c}| = 1 \implies D_{r,c} = \{v\}$$
+
+Since there is only one mathematical value that can occupy this coordinate, we bypass backtracking branch decisions and place $v$ directly.
+
+The interactive **Sudoku Mentor Panel** implements this exact constraint propagation scan. When you click **"Find Next Naked Single"**, it executes this domain calculation across all empty coordinates, highlighting cells where $|D_{r,c}| = 1$ and explaining step-by-step why the other 8 numbers are logically and algebraically blocked.

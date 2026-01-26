@@ -1,0 +1,80 @@
+# A Matemática do Sudoku: Busca por Backtracking e Teoria de CSP
+
+O Sudoku não é apenas um simples passatempo de reconhecimento de padrões; é um **Problema de Satisfação de Restrições (CSP - Constraint Satisfaction Problem)** altamente estruturado que se conecta diretamente à coloração de grafos e teorias de poda lógica.
+
+Ao modelar matematicamente o tabuleiro, podemos substituir buscas ingênuas por algoritmos otimizados de **Busca em Profundidade com Backtracking (DFS)** e técnicas de **Poda de Restrições Topológicas**.
+
+---
+
+## 1. O Sudoku como um Problema de Satisfação de Restrições (CSP)
+
+Um Problema de Satisfação de Restrições é definido formalmente por uma trinca $(X, D, C)$:
+* **Variáveis ($X$):** O conjunto das $81$ células do tabuleiro:
+  $$X = \{x_{l,c} \mid 0 \le l, c < 9\}$$
+* **Domínios ($D$):** O conjunto de valores permitidos para cada variável. No Sudoku tradicional, toda célula compartilha o mesmo domínio inicial:
+  $$D_{l,c} = \{1, 2, 3, 4, 5, 6, 7, 8, 9\}$$
+* **Restrições ($C$):** As regras algébricas e lógicas que impedem que variáveis vizinhas adotem valores conflitantes.
+
+As restrições do Sudoku se dividem em três conjuntos sobrepostos de inequações binárias:
+
+1. **Restrições de Linha:** Células na mesma linha $l$ devem possuir valores distintos dois a dois:
+   $$\forall l, \forall c_1 \ne c_2: x_{l,c_1} \ne x_{l,c_2}$$
+2. **Restrições de Coluna:** Células na mesma coluna $c$ devem possuir valores distintos dois a dois:
+   $$\forall c, \forall l_1 \ne l_2: x_{l_1,c} \ne x_{l_2,c}$$
+3. **Restrições de Bloco (Setor 3x3):** Células na mesma subgrade $3 \times 3$ devem possuir valores distintos dois a dois:
+   $$\forall b \in \{0..8\}, \forall (l_1,c_1) \ne (l_2,c_2) \in \text{Bloco}(b): x_{l_1,c_1} \ne x_{l_2,c_2}$$
+
+Onde a função de mapeamento de blocos associa coordenadas de linha e coluna a um índice de bloco $b \in \{0..8\}$:
+$$\text{BlocoIdx}(l, c) = \left\lfloor \frac{l}{3} \right\rfloor \times 3 + \left\lfloor \frac{c}{3} \right\rfloor$$
+
+---
+
+## 2. Solução via Busca com Backtracking e Ramificação
+
+Um tabuleiro de tamanho $9 \times 9$ sem restrições possui $9^{81} \approx 1,96 \times 10^{77}$ configurações possíveis. Contudo, a quantidade de tabuleiros de Sudoku válidos e completos (o tamanho do espaço de soluções) é drasticamente reduzida por $C$ para:
+
+$$N = 6.670.903.752.021.072.936.960 \approx 6,67 \times 10^{21}$$
+
+Para encontrar uma solução válida, empregamos uma busca em profundidade no espaço de estados. A cada etapa recursiva, selecionamos uma variável não preenchida $x_{l,c}$ e tentamos atribuir um valor $v \in D_{l,c}$ que seja matematicamente consistente com as atribuições ativas.
+
+### Fluxograma do Backtracking DFS
+
+```mermaid
+graph TD
+    A[Iniciar Busca: células vazias] --> B{Há células vazias?}
+    B -- Não --> C[Tabuleiro Resolvido - Sucesso!]
+    B -- Sim --> D[Selecionar índice de célula vazia x]
+    D --> E[Embaralhar/Escolher candidato v de 1..9]
+    E --> F{Posicionamento de v respeita as restrições?}
+    F -- Não --> G[Tentar próximo candidato]
+    F -- Yes --> H[Atribuir x = v]
+    H --> I[Chamar recursivamente resolver]
+    I -- True (Resolvido) --> C
+    I -- False (Conflito à frente) --> J[Desfazer atribuição x = 0 (Backtrack)]
+    J --> G
+    G --> K{Restam candidatos?}
+    K -- Sim --> E
+    K -- Não --> L[Retornar Falso para acionar backtrack anterior]
+```
+
+Ao embaralhar aleatoriamente os domínios antes de executar a busca DFS, nosso **Gerador Procedural** gera um tabuleiro válido inteiramente no cliente em menos de um milissegundo, o qual é então podado para atingir a dificuldade desejada.
+
+---
+
+## 3. Poda Topológica e Consistência de Nós
+
+Motores modernos de Sudoku otimizam os passos de busca utilizando **Propagação de Restrições**. Antes de ramificar a árvore de busca, podemos podar os domínios das variáveis usando consistência de arcos e nós.
+
+### 3.1 Consistência de Arcos (AC-3)
+Uma restrição de arco entre $x_1$ e $x_2$ é consistente se, para cada valor no domínio de $x_1$, existe um valor correspondente válido no domínio de $x_2$. Ao manter a consistência de arcos durante a busca (algoritmo MAC), podemos identificar caminhos sem saída antecipadamente:
+
+$$\text{Domínio}(x_{l,c}) \leftarrow \text{Domínio}(x_{l,c}) \setminus \left( \bigcup_{y \in \text{Vizinhos}(x_{l,c})} \{ \text{Valor}(y) \} \right)$$
+
+### 3.2 Naked Singles (Único Nu)
+O **Naked Single** é um limite topológico onde a propagação de restrições reduz o domínio de uma variável a exatamente um elemento:
+
+$$|D_{l,c}| = 1 \implies D_{l,c} = \{v\}$$
+
+Como existe apenas um único valor matemático possível para esta célula, podemos preenchê-la diretamente com $v$, ignorando ramificações de backtracking.
+
+O painel interativo **Mentor de Sudoku** executa essa busca por propagação de restrições em tempo real. Ao clicar em **"Buscar Próximo Naked Single"**, o tutor varre todas as coordenadas vazias, destacando onde $|D_{l,c}| = 1$ e explicando passo a passo quais células vizinhas estão bloqueando os outros 8 dígitos.

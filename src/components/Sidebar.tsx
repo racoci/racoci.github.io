@@ -26,6 +26,7 @@ export default function Sidebar({ lang }: SidebarProps) {
       featuredHeader: "Interactive Demos",
       finance: "📈 B3 Screener (Finance)",
       nodegraft: "🎮 NodeGraft 3D (WebGPU)",
+      sudoku: "🧩 Sudoku Mentor",
       mobileMenuBtn: "Menu",
       copyright: "Statically cultivated.",
     },
@@ -40,6 +41,7 @@ export default function Sidebar({ lang }: SidebarProps) {
       featuredHeader: "Demos Interativas",
       finance: "📈 Screener B3 (Finanças)",
       nodegraft: "🎮 NodeGraft 3D (WebGPU)",
+      sudoku: "🧩 Mentor de Sudoku",
       mobileMenuBtn: "Menu",
       copyright: "Cultivado estaticamente.",
     }
@@ -67,6 +69,7 @@ export default function Sidebar({ lang }: SidebarProps) {
   const featuredLinks = [
     { href: `/${lang}/projects/nodegraft`, label: t.nodegraft },
     { href: `/${lang}/finance`, label: t.finance },
+    { href: `/${lang}/projects/sudoku`, label: t.sudoku },
   ];
 
   const renderNavContent = () => (
