@@ -217,6 +217,9 @@ export default function SudokuViewer({ lang }: SudokuViewerProps) {
       ctrlTip: "Hold Ctrl to select multiple cells.",
       missingHeader: "Sector Assistant (Remaining Candidates)",
       missingNone: "No sectors with ≤ 4 missing candidates are currently selected.",
+      nakedSubsetBtn: "🔍 Highlight Naked Subsets",
+      nakedSubsetTitle: "Naked Subsets Highlighted!",
+      nakedSubsetDesc: "Cells highlighted with unique colors form a closed set where the union of candidates exactly matches the set size.",
       hintHeader: "Logical Tutor Explanation",
       hintEmpty: "Click 'Find Next Naked Single' to reveal logical step-by-step tutors.",
       hintNakedSingleTitle: "Naked Single Discovered!",
@@ -251,7 +254,10 @@ export default function SudokuViewer({ lang }: SudokuViewerProps) {
       keyboardTip: "Pressione 1-9 no teclado para preencher, Backspace/Delete para apagar.",
       ctrlTip: "Segure Ctrl para selecionar múltiplas células.",
       missingHeader: "Assistente de Setores (Candidatos Restantes)",
-      missingNone: "Nenhum setor com ≤ 4 candidatos restantes está selecionado.",
+      missingNone: "Nenhum setor com ≤ 4 candidatos ausentes selecionado.",
+      nakedSubsetBtn: "🔍 Destacar Subconjuntos (Naked Subsets)",
+      nakedSubsetTitle: "Naked Subsets Destacados!",
+      nakedSubsetDesc: "Células com cores de fundo únicas formam um conjunto fechado onde a união das possibilidades tem exatamente o tamanho do conjunto.",
       hintHeader: "Explicação do Tutor Lógico",
       hintEmpty: "Clique em 'Buscar Próximo Naked Single' para revelar explicações lógicas passo a passo.",
       hintNakedSingleTitle: "Naked Single Encontrado!",
@@ -284,6 +290,21 @@ export default function SudokuViewer({ lang }: SudokuViewerProps) {
   const [hint, setHint] = useState<NakedSingleHint | null>(null);
   const [hintMessage, setHintMessage] = useState<string | null>(null);
   const [isDarkMode, setIsDarkMode] = useState(false);
+  
+  // New state for long-press pencil marks
+  const [longPressCellIdx, setLongPressCellIdx] = useState<number | null>(null);
+  const pressTimer = useRef<NodeJS.Timeout | null>(null);
+
+  const startLongPress = (idx: number) => {
+    pressTimer.current = setTimeout(() => {
+      setLongPressCellIdx(idx);
+    }, 400); // 400ms for long press
+  };
+
+  const endLongPress = () => {
+    if (pressTimer.current) clearTimeout(pressTimer.current);
+    setLongPressCellIdx(null);
+  };
 
   // Initialize game on mount
   useEffect(() => {
@@ -581,6 +602,116 @@ export default function SudokuViewer({ lang }: SudokuViewerProps) {
     setHint(null);
   };
 
+  // Compute Combined Possibilities (Bitwise OR of candidates) for Selection Widget
+  const getCombinedPossibilities = (): number[] => {
+    if (selectedIndices.length === 0) return [];
+    
+    let combinedBitset = 0;
+    selectedIndices.forEach((idx) => {
+      if (board[idx] === 0) {
+        const cands = getCandidates(board, idx);
+        cands.forEach((c) => {
+          combinedBitset |= (1 << c);
+        });
+      }
+    });
+
+    const res: number[] = [];
+    for (let n = 1; n <= 9; n++) {
+      if ((combinedBitset & (1 << n)) !== 0) res.push(n);
+    }
+    return res;
+  };
+
+  const combinedPossibilities = getCombinedPossibilities();
+
+  // Highlight Naked Subsets Algorithm
+  const [highlightedSubsetCells, setHighlightedSubsetCells] = useState<number[]>([]);
+  
+  const highlightNakedSubsets = () => {
+    if (hasConflicts()) {
+      setHintMessage(t.errorsInBoard);
+      return;
+    }
+
+    setHighlightedSubsetCells([]); // reset
+
+    // We search through every region (row, col, box)
+    const regions: number[][] = [];
+    // Rows
+    for (let r = 0; r < 9; r++) regions.push(Array.from({length: 9}, (_, c) => r * 9 + c));
+    // Cols
+    for (let c = 0; c < 9; c++) regions.push(Array.from({length: 9}, (_, r) => r * 9 + c));
+    // Boxes
+    for (let b = 0; b < 9; b++) {
+      const bRow = Math.floor(b / 3) * 3;
+      const bCol = (b % 3) * 3;
+      const box: number[] = [];
+      for(let r=0; r<3; r++) for(let c=0; c<3; c++) box.push((bRow+r)*9 + (bCol+c));
+      regions.push(box);
+    }
+
+    let foundCells: number[] = [];
+    
+    for (const region of regions) {
+      // Find empty cells and their candidate bitsets
+      const emptyCells = region.filter(idx => board[idx] === 0);
+      if (emptyCells.length === 0) continue;
+
+      const candidatesMap = emptyCells.map(idx => {
+        let bitset = 0;
+        getCandidates(board, idx).forEach(c => bitset |= (1 << c));
+        return { idx, bitset };
+      });
+
+      // Check for subsets of size N (2, 3, or 4)
+      for (let N = 2; N <= Math.min(4, emptyCells.length - 1); N++) {
+        // Combination generator
+        const getCombinations = (arr: typeof candidatesMap, k: number) => {
+          const result: (typeof candidatesMap)[] = [];
+          const f = (prefix: typeof candidatesMap, elements: typeof candidatesMap) => {
+            if (prefix.length === k) {
+              result.push(prefix);
+              return;
+            }
+            for (let i = 0; i < elements.length; i++) {
+              f([...prefix, elements[i]], elements.slice(i + 1));
+            }
+          };
+          f([], arr);
+          return result;
+        };
+
+        const combs = getCombinations(candidatesMap, N);
+        for (const comb of combs) {
+          let unionBitset = 0;
+          comb.forEach(c => unionBitset |= c.bitset);
+          
+          let count = 0;
+          for (let n = 1; n <= 9; n++) {
+            if ((unionBitset & (1 << n)) !== 0) count++;
+          }
+
+          if (count === N) {
+            // Naked subset found!
+            foundCells = comb.map(c => c.idx);
+            break; 
+          }
+        }
+        if (foundCells.length > 0) break;
+      }
+      if (foundCells.length > 0) break;
+    }
+
+    if (foundCells.length > 0) {
+      setHighlightedSubsetCells(foundCells);
+      setHintMessage(t.nakedSubsetTitle + " " + t.nakedSubsetDesc);
+      setSelectedIndices([]);
+    } else {
+      setHintMessage(t.noNakedSingleFound);
+    }
+  };
+
   const handleNumPadClear = () => {
     if (selectedIndices.length === 0) return;
     setBoard((prev) => {
@@ -636,114 +767,183 @@ export default function SudokuViewer({ lang }: SudokuViewerProps) {
           </div>
         </div>
 
-        {/* The 9x9 Sudoku Grid */}
-        <div className="relative w-full max-w-[500px] aspect-square bg-white dark:bg-zinc-950 border-4 border-zinc-900 dark:border-zinc-300 rounded-xl overflow-hidden shadow-2xl">
-          {isSolved() && (
-            <div className="absolute inset-0 z-30 bg-emerald-950/90 flex flex-col items-center justify-center text-center p-6 space-y-4 animate-fade-in">
-              <span className="text-4xl animate-bounce">🏆</span>
-              <h3 className="text-2xl font-extrabold text-emerald-400 font-sans tracking-tight">
-                {isPt ? "Sudoku Resolvido!" : "Sudoku Concluded!"}
-              </h3>
-              <p className="text-emerald-100 font-serif leading-relaxed text-sm max-w-sm">
-                {t.wellDone}
-              </p>
-              <button
-                onClick={() => startNewGame()}
-                className="px-5 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-extrabold text-sm rounded-xl hover:shadow-lg hover:-translate-y-0.5 transition-all"
-              >
-                {t.newGameBtn}
-              </button>
-            </div>
-          )}
-
-          <div className="grid grid-cols-9 h-full w-full">
-            {board.map((cellValue, idx) => {
-              const r = Math.floor(idx / 9);
-              const c = idx % 9;
-              const isGiven = initialBoard[idx] !== 0;
-              const isSelected = selectedIndices.includes(idx);
-              const isHovered = hoveredCellIdx === idx;
-              const isHint = hint?.cellIdx === idx;
-              const isCrosshair = isCrosshairCell(idx);
-
-              // 3x3 Sector Thicker Borders
-              const borderTop = r % 3 === 0 && r !== 0 ? "border-t-[3px] border-t-zinc-900 dark:border-t-zinc-300" : "border-t border-t-zinc-100 dark:border-t-zinc-900/60";
-              const borderLeft = c % 3 === 0 && c !== 0 ? "border-l-[3px] border-l-zinc-900 dark:border-l-zinc-300" : "border-l border-l-zinc-100 dark:border-l-zinc-900/60";
-
-              // Number Matching Hover Highlight
-              const isMatchHover = cellValue !== 0 && hoveredCellNum === cellValue;
-
-              // Color mappings
-              const customColor = cellValue !== 0 ? getNumColor(cellValue, isDarkMode) : "";
-              const customBg = cellValue !== 0 ? getNumBgColor(cellValue, isDarkMode) : "";
-
-              // Handle keyboard focus
-              return (
-                <div
-                  key={idx}
-                  onMouseEnter={() => {
-                    setHoveredCellIdx(idx);
-                    if (cellValue !== 0) setHoveredCellNum(cellValue);
-                  }}
-                  onMouseLeave={() => {
-                    setHoveredCellIdx(null);
-                    setHoveredCellNum(null);
-                  }}
-                  onClick={(e) => handleCellClick(idx, e)}
-                  style={{
-                    color: cellValue !== 0 ? customColor : undefined,
-                    backgroundColor: isMatchHover ? customBg : undefined,
-                  }}
-                  className={`relative flex items-center justify-center select-none aspect-square cursor-pointer transition-all ${borderTop} ${borderLeft} ${
-                    isSelected
-                      ? "bg-emerald-500/20 dark:bg-emerald-400/20 ring-2 ring-emerald-500/80 z-10 font-bold"
-                      : isCrosshair
-                      ? "bg-zinc-100/50 dark:bg-zinc-900/50"
-                      : isHint
-                      ? "bg-amber-500/20 dark:bg-amber-400/20 ring-2 ring-amber-500 z-10 animate-pulse"
-                      : isGiven
-                      ? "bg-zinc-50 dark:bg-zinc-900/20 hover:bg-zinc-100 dark:hover:bg-zinc-900/40"
-                      : "bg-white dark:bg-zinc-950 hover:bg-zinc-50 dark:hover:bg-zinc-900/10"
-                  } ${isMatchHover ? "shadow-inner scale-102 font-extrabold z-10" : ""}`}
-                >
-                  {/* Cell Value Rendering */}
-                  {cellValue !== 0 ? (
-                    <span
-                      className={`text-base md:text-xl font-sans leading-none ${
-                        isGiven ? "font-extrabold" : "font-semibold"
-                      }`}
-                    >
-                      {cellValue}
-                    </span>
-                  ) : (
-                    // Candidate Pencil Marks (Hover or Hold Preview)
-                    (isHovered || isSelected) && (
-                      <div className="absolute inset-0.5 grid grid-cols-3 grid-rows-3 p-0.5 gap-0.5 pointer-events-none opacity-80 animate-fade-in">
-                        {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => {
-                          const isCand = getCandidates(board, idx).includes(n);
-                          return (
-                            <span
-                              key={n}
-                              style={{ color: isCand ? getNumColor(n, isDarkMode) : "transparent" }}
-                              className="text-[8px] md:text-[10px] font-mono font-bold leading-none flex items-center justify-center"
-                            >
-                              {n}
-                            </span>
-                          );
-                        })}
-                      </div>
-                    )
-                  )}
-
-                  {/* Conflict detection marker */}
-                  {cellValue !== 0 && !isGiven && cellValue !== solution[idx] && (
-                    <div className="absolute bottom-0.5 right-0.5 h-1.5 w-1.5 rounded-full bg-red-500" />
-                  )}
+          {/* Top Column Selectors */}
+          <div className="grid grid-cols-[auto_1fr] mb-2">
+            <div className="w-8"></div> {/* Corner spacer */}
+            <div className="flex-1 grid grid-cols-3 gap-2">
+              {[0, 1, 2].map(boxCol => (
+                <div key={boxCol} className="grid grid-cols-3 gap-0 flex-1">
+                  {[0, 1, 2].map(colIdx => {
+                    const c = boxCol * 3 + colIdx;
+                    return (
+                      <button
+                        key={c}
+                        onClick={() => selectCol(c)}
+                        className="text-xs font-mono text-zinc-400 hover:text-emerald-500 transition-colors pb-1"
+                      >
+                        C{c+1}
+                      </button>
+                    );
+                  })}
                 </div>
-              );
-            })}
+              ))}
+            </div>
           </div>
-        </div>
+
+          <div className="flex">
+            {/* Left Row Selectors */}
+            <div className="flex flex-col w-8 pr-2 gap-2">
+              {[0, 1, 2].map(boxRow => (
+                <div key={boxRow} className="flex flex-col flex-1">
+                  {[0, 1, 2].map(rowIdx => {
+                    const r = boxRow * 3 + rowIdx;
+                    return (
+                      <button
+                        key={r}
+                        onClick={() => selectRow(r)}
+                        className="flex-1 text-xs font-mono text-zinc-400 hover:text-emerald-500 transition-colors flex items-center justify-end pr-1"
+                      >
+                        R{r+1}
+                      </button>
+                    );
+                  })}
+                </div>
+              ))}
+            </div>
+
+            {/* The 9x9 Sudoku Grid (3x3 of 3x3s) */}
+            <div className="relative flex-1 aspect-square bg-zinc-200/50 dark:bg-zinc-800/50 border-[3px] border-zinc-900 dark:border-zinc-300 p-[3px] rounded-xl overflow-hidden shadow-2xl flex flex-col gap-1.5">
+              {isSolved() && (
+                <div className="absolute inset-0 z-30 bg-emerald-950/90 flex flex-col items-center justify-center text-center p-6 space-y-4 animate-fade-in">
+                  <span className="text-4xl animate-bounce">🏆</span>
+                  <h3 className="text-2xl font-extrabold text-emerald-400 font-sans tracking-tight">
+                    {isPt ? "Sudoku Resolvido!" : "Sudoku Concluded!"}
+                  </h3>
+                  <p className="text-emerald-100 font-serif leading-relaxed text-sm max-w-sm">
+                    {t.wellDone}
+                  </p>
+                  <button
+                    onClick={() => startNewGame()}
+                    className="px-5 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-extrabold text-sm rounded-xl hover:shadow-lg hover:-translate-y-0.5 transition-all"
+                  >
+                    {t.newGameBtn}
+                  </button>
+                </div>
+              )}
+
+              {[0, 1, 2].map(boxRow => (
+                <div key={boxRow} className="flex flex-1 gap-1.5">
+                  {[0, 1, 2].map(boxCol => {
+                    const boxIdx = boxRow * 3 + boxCol;
+                    return (
+                      <div
+                        key={boxCol}
+                        className="flex-1 grid grid-cols-3 grid-rows-3 bg-white dark:bg-zinc-950 outline outline-1 outline-zinc-900 dark:outline-zinc-300 hover:outline-emerald-500 cursor-pointer transition-all"
+                        onClick={(e) => {
+                          if (e.target === e.currentTarget) selectBox(boxIdx); // Allow clicking empty space in box to select box
+                        }}
+                      >
+                        {[0, 1, 2].map(r => (
+                          [0, 1, 2].map(c => {
+                            const globalRow = boxRow * 3 + r;
+                            const globalCol = boxCol * 3 + c;
+                            const idx = globalRow * 9 + globalCol;
+
+                            const cellValue = board[idx];
+                            const isGiven = initialBoard[idx] !== 0;
+                            const isSelected = selectedIndices.includes(idx);
+                            const isHovered = hoveredCellIdx === idx;
+                            const isLongPressed = longPressCellIdx === idx;
+                            const isHint = hint?.cellIdx === idx;
+                            const isCrosshair = isCrosshairCell(idx);
+                            const isHighlightedSubset = highlightedSubsetCells.includes(idx);
+
+                            const borderTop = r !== 0 ? "border-t border-t-zinc-100 dark:border-t-zinc-900/60" : "";
+                            const borderLeft = c !== 0 ? "border-l border-l-zinc-100 dark:border-l-zinc-900/60" : "";
+
+                            const isMatchHover = cellValue !== 0 && hoveredCellNum === cellValue;
+
+                            const customColor = cellValue !== 0 ? getNumColor(cellValue, isDarkMode) : "";
+                            const customBg = cellValue !== 0 ? getNumBgColor(cellValue, isDarkMode) : "";
+                            
+                            // Naked subset distinct coloring (generate hue from cell index)
+                            const subsetBg = isHighlightedSubset ? `hsla(${(idx * 67) % 360}, 60%, 50%, 0.2)` : undefined;
+
+                            return (
+                              <div
+                                key={idx}
+                                onMouseEnter={() => {
+                                  setHoveredCellIdx(idx);
+                                  if (cellValue !== 0) setHoveredCellNum(cellValue);
+                                }}
+                                onMouseLeave={() => {
+                                  setHoveredCellIdx(null);
+                                  setHoveredCellNum(null);
+                                  endLongPress();
+                                }}
+                                onMouseDown={() => startLongPress(idx)}
+                                onMouseUp={endLongPress}
+                                onClick={(e) => handleCellClick(idx, e)}
+                                style={{
+                                  color: cellValue !== 0 ? customColor : undefined,
+                                  backgroundColor: subsetBg || (isMatchHover ? customBg : undefined),
+                                }}
+                                className={`relative flex items-center justify-center select-none cursor-pointer transition-all ${borderTop} ${borderLeft} ${
+                                  isSelected
+                                    ? "bg-zinc-200/80 dark:bg-zinc-700/60 ring-1 ring-inset ring-zinc-400 dark:ring-zinc-500 z-10"
+                                    : isCrosshair
+                                    ? "bg-zinc-100/50 dark:bg-zinc-900/50"
+                                    : isHint
+                                    ? "bg-amber-500/20 dark:bg-amber-400/20 ring-2 ring-amber-500 z-10 animate-pulse"
+                                    : isGiven
+                                    ? "bg-zinc-50 dark:bg-zinc-900/20 hover:bg-zinc-100 dark:hover:bg-zinc-900/40"
+                                    : "bg-white dark:bg-zinc-950 hover:bg-zinc-50 dark:hover:bg-zinc-900/10"
+                                } ${isMatchHover ? "shadow-inner scale-102 font-extrabold z-10" : ""}`}
+                              >
+                                {/* Cell Value Rendering */}
+                                {cellValue !== 0 ? (
+                                  <span
+                                    className={`text-base md:text-xl font-sans leading-none ${
+                                      isGiven ? "font-extrabold" : "font-medium"
+                                    }`}
+                                  >
+                                    {cellValue}
+                                  </span>
+                                ) : (
+                                  // Candidate Pencil Marks (Only on Long Press if unselected)
+                                  (isLongPressed) && (
+                                    <div className="absolute inset-0.5 grid grid-cols-3 grid-rows-3 p-0.5 gap-0.5 pointer-events-none opacity-80 animate-fade-in">
+                                      {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => {
+                                        const isCand = getCandidates(board, idx).includes(n);
+                                        return (
+                                          <span
+                                            key={n}
+                                            style={{ color: isCand ? getNumColor(n, isDarkMode) : "transparent" }}
+                                            className="text-[8px] md:text-[10px] font-mono font-bold leading-none flex items-center justify-center"
+                                          >
+                                            {n}
+                                          </span>
+                                        );
+                                      })}
+                                    </div>
+                                  )
+                                )}
+
+                                {/* Conflict detection marker */}
+                                {cellValue !== 0 && !isGiven && cellValue !== solution[idx] && (
+                                  <div className="absolute bottom-0.5 right-0.5 h-1.5 w-1.5 rounded-full bg-red-500" />
+                                )}
+                              </div>
+                            );
+                          })
+                        ))}
+                      </div>
+                    );
+                  })}
+                </div>
+              ))}
+            </div>
+          </div>
 
         {/* Visual Number Pad for Touch Devices */}
         <div className="w-full max-w-[500px] flex flex-col space-y-2 p-3 border border-zinc-200 dark:border-zinc-800/80 bg-zinc-50/50 dark:bg-zinc-900/5 rounded-xl">
@@ -858,7 +1058,40 @@ export default function SudokuViewer({ lang }: SudokuViewerProps) {
                 ))}
               </div>
             </div>
+            
+            {/* Combined possibilities widget based on bitset OR of selection */}
+            {selectedIndices.length > 0 && combinedPossibilities.length > 0 && (
+              <div className="pt-2 mt-2 border-t border-zinc-200 dark:border-zinc-800/60">
+                 <span className="text-[10px] font-mono font-bold text-zinc-400 dark:text-zinc-500 block mb-1.5">
+                   {lang === 'pt' ? 'União de Possibilidades da Seleção (OR)' : 'Selection Union Possibilities (OR)'}
+                 </span>
+                 <div className="inline-grid grid-cols-3 grid-rows-3 gap-1 p-2 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-lg">
+                    {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => {
+                      const isCand = combinedPossibilities.includes(n);
+                      return (
+                        <span
+                          key={n}
+                          style={{ color: isCand ? getNumColor(n, isDarkMode) : "transparent" }}
+                          className="h-4 w-4 text-[10px] font-mono font-bold flex items-center justify-center bg-zinc-100 dark:bg-zinc-900 rounded-sm"
+                        >
+                          {n}
+                        </span>
+                      );
+                    })}
+                 </div>
+              </div>
+            )}
           </div>
+        </div>
+
+        {/* Naked Subset Action Tool */}
+        <div className="p-5 border border-zinc-200 dark:border-zinc-800/80 bg-white dark:bg-zinc-900/20 rounded-xl shadow-sm space-y-3">
+           <button
+             onClick={highlightNakedSubsets}
+             className="w-full px-4 py-2.5 border border-zinc-300 dark:border-zinc-700 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-200 text-sm font-bold rounded-lg shadow-sm transition-all"
+           >
+             {t.nakedSubsetBtn}
+           </button>
         </div>
 
         {/* Sector Candidate Assistance Panel */}
