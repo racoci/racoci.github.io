@@ -812,7 +812,7 @@ export default function SudokuViewer({ lang }: SudokuViewerProps) {
             </div>
 
             {/* The 9x9 Sudoku Grid (3x3 of 3x3s) */}
-            <div className="relative flex-1 aspect-square bg-zinc-200/50 dark:bg-zinc-800/50 border-[3px] border-zinc-900 dark:border-zinc-300 p-[3px] rounded-xl overflow-hidden shadow-2xl flex flex-col gap-1.5">
+            <div className="relative w-full max-w-[460px] aspect-square bg-zinc-200/50 dark:bg-zinc-800/50 border-[3px] border-zinc-900 dark:border-zinc-300 p-1 rounded-xl overflow-hidden shadow-2xl grid grid-cols-3 grid-rows-3 gap-1.5">
               {isSolved() && (
                 <div className="absolute inset-0 z-30 bg-emerald-950/90 flex flex-col items-center justify-center text-center p-6 space-y-4 animate-fade-in">
                   <span className="text-4xl animate-bounce">🏆</span>
@@ -831,117 +831,121 @@ export default function SudokuViewer({ lang }: SudokuViewerProps) {
                 </div>
               )}
 
-              {[0, 1, 2].map(boxRow => (
-                <div key={boxRow} className="flex flex-1 gap-1.5">
-                  {[0, 1, 2].map(boxCol => {
-                    const boxIdx = boxRow * 3 + boxCol;
-                    return (
-                      <div
-                        key={boxCol}
-                        className="flex-1 grid grid-cols-3 grid-rows-3 bg-white dark:bg-zinc-950 outline outline-1 outline-zinc-900 dark:outline-zinc-300 hover:outline-emerald-500 cursor-pointer transition-all"
-                        onClick={(e) => {
-                          if (e.target === e.currentTarget) selectBox(boxIdx); // Allow clicking empty space in box to select box
-                        }}
-                      >
-                        {[0, 1, 2].map(r => (
-                          [0, 1, 2].map(c => {
-                            const globalRow = boxRow * 3 + r;
-                            const globalCol = boxCol * 3 + c;
-                            const idx = globalRow * 9 + globalCol;
+              {Array.from({ length: 9 }, (_, boxIdx) => {
+                const boxRow = Math.floor(boxIdx / 3) * 3;
+                const boxCol = (boxIdx % 3) * 3;
+                
+                // Get the list of 9 cells belonging to this box
+                const cells: number[] = [];
+                for (let r = 0; r < 3; r++) {
+                  for (let c = 0; c < 3; c++) {
+                    cells.push((boxRow + r) * 9 + (boxCol + c));
+                  }
+                }
 
-                            const cellValue = board[idx];
-                            const isGiven = initialBoard[idx] !== 0;
-                            const isSelected = selectedIndices.includes(idx);
-                            const isHovered = hoveredCellIdx === idx;
-                            const isLongPressed = longPressCellIdx === idx;
-                            const isHint = hint?.cellIdx === idx;
-                            const isCrosshair = isCrosshairCell(idx);
-                            const isHighlightedSubset = highlightedSubsetCells.includes(idx);
+                return (
+                  <div
+                    key={boxIdx}
+                    className="grid grid-cols-3 grid-rows-3 bg-white dark:bg-zinc-950 outline outline-1 outline-zinc-900 dark:outline-zinc-300 hover:outline-emerald-500 cursor-pointer transition-all rounded-md overflow-hidden"
+                    onClick={(e) => {
+                      if (e.target === e.currentTarget) selectBox(boxIdx);
+                    }}
+                  >
+                    {cells.map((idx) => {
+                      const r = Math.floor(idx / 9);
+                      const c = idx % 9;
+                      
+                      const cellValue = board[idx];
+                      const isGiven = initialBoard[idx] !== 0;
+                      const isSelected = selectedIndices.includes(idx);
+                      const isHovered = hoveredCellIdx === idx;
+                      const isLongPressed = longPressCellIdx === idx;
+                      const isHint = hint?.cellIdx === idx;
+                      const isCrosshair = isCrosshairCell(idx);
+                      const isHighlightedSubset = highlightedSubsetCells.includes(idx);
 
-                            const borderTop = r !== 0 ? "border-t border-t-zinc-100 dark:border-t-zinc-900/60" : "";
-                            const borderLeft = c !== 0 ? "border-l border-l-zinc-100 dark:border-l-zinc-900/60" : "";
+                      // Draw borders inside the 3x3 block
+                      const borderTop = (r % 3) !== 0 ? "border-t border-t-zinc-100 dark:border-t-zinc-900/60" : "";
+                      const borderLeft = (c % 3) !== 0 ? "border-l border-l-zinc-100 dark:border-l-zinc-900/60" : "";
 
-                            const isMatchHover = cellValue !== 0 && hoveredCellNum === cellValue;
+                      const isMatchHover = cellValue !== 0 && hoveredCellNum === cellValue;
 
-                            const customColor = cellValue !== 0 ? getNumColor(cellValue, isDarkMode) : "";
-                            const customBg = cellValue !== 0 ? getNumBgColor(cellValue, isDarkMode) : "";
-                            
-                            // Naked subset distinct coloring (generate hue from cell index)
-                            const subsetBg = isHighlightedSubset ? `hsla(${(idx * 67) % 360}, 60%, 50%, 0.2)` : undefined;
+                      const customColor = cellValue !== 0 ? getNumColor(cellValue, isDarkMode) : "";
+                      const customBg = cellValue !== 0 ? getNumBgColor(cellValue, isDarkMode) : "";
+                      
+                      // Naked subset distinct coloring (generate hue from cell index)
+                      const subsetBg = isHighlightedSubset ? `hsla(${(idx * 67) % 360}, 60%, 50%, 0.2)` : undefined;
 
-                            return (
-                              <div
-                                key={idx}
-                                onMouseEnter={() => {
-                                  setHoveredCellIdx(idx);
-                                  if (cellValue !== 0) setHoveredCellNum(cellValue);
-                                }}
-                                onMouseLeave={() => {
-                                  setHoveredCellIdx(null);
-                                  setHoveredCellNum(null);
-                                  endLongPress();
-                                }}
-                                onMouseDown={() => startLongPress(idx)}
-                                onMouseUp={endLongPress}
-                                onClick={(e) => handleCellClick(idx, e)}
-                                style={{
-                                  color: cellValue !== 0 ? customColor : undefined,
-                                  backgroundColor: subsetBg || (isMatchHover ? customBg : undefined),
-                                }}
-                                className={`relative flex items-center justify-center select-none cursor-pointer transition-all ${borderTop} ${borderLeft} ${
-                                  isSelected
-                                    ? "bg-zinc-200/80 dark:bg-zinc-700/60 ring-1 ring-inset ring-zinc-400 dark:ring-zinc-500 z-10"
-                                    : isCrosshair
-                                    ? "bg-zinc-100/50 dark:bg-zinc-900/50"
-                                    : isHint
-                                    ? "bg-amber-500/20 dark:bg-amber-400/20 ring-2 ring-amber-500 z-10 animate-pulse"
-                                    : isGiven
-                                    ? "bg-zinc-50 dark:bg-zinc-900/20 hover:bg-zinc-100 dark:hover:bg-zinc-900/40"
-                                    : "bg-white dark:bg-zinc-950 hover:bg-zinc-50 dark:hover:bg-zinc-900/10"
-                                } ${isMatchHover ? "shadow-inner scale-102 font-extrabold z-10" : ""}`}
-                              >
-                                {/* Cell Value Rendering */}
-                                {cellValue !== 0 ? (
-                                  <span
-                                    className={`text-base md:text-xl font-sans leading-none ${
-                                      isGiven ? "font-extrabold" : "font-medium"
-                                    }`}
-                                  >
-                                    {cellValue}
-                                  </span>
-                                ) : (
-                                  // Candidate Pencil Marks (Only on Long Press if unselected)
-                                  (isLongPressed) && (
-                                    <div className="absolute inset-0.5 grid grid-cols-3 grid-rows-3 p-0.5 gap-0.5 pointer-events-none opacity-80 animate-fade-in">
-                                      {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => {
-                                        const isCand = getCandidates(board, idx).includes(n);
-                                        return (
-                                          <span
-                                            key={n}
-                                            style={{ color: isCand ? getNumColor(n, isDarkMode) : "transparent" }}
-                                            className="text-[8px] md:text-[10px] font-mono font-bold leading-none flex items-center justify-center"
-                                          >
-                                            {n}
-                                          </span>
-                                        );
-                                      })}
-                                    </div>
-                                  )
-                                )}
-
-                                {/* Conflict detection marker */}
-                                {cellValue !== 0 && !isGiven && cellValue !== solution[idx] && (
-                                  <div className="absolute bottom-0.5 right-0.5 h-1.5 w-1.5 rounded-full bg-red-500" />
-                                )}
+                      return (
+                        <div
+                          key={idx}
+                          onMouseEnter={() => {
+                            setHoveredCellIdx(idx);
+                            if (cellValue !== 0) setHoveredCellNum(cellValue);
+                          }}
+                          onMouseLeave={() => {
+                            setHoveredCellIdx(null);
+                            setHoveredCellNum(null);
+                            endLongPress();
+                          }}
+                          onMouseDown={() => startLongPress(idx)}
+                          onMouseUp={endLongPress}
+                          onClick={(e) => handleCellClick(idx, e)}
+                          style={{
+                            color: cellValue !== 0 ? customColor : undefined,
+                            backgroundColor: subsetBg || (isMatchHover ? customBg : undefined),
+                          }}
+                          className={`relative flex items-center justify-center select-none cursor-pointer transition-all ${borderTop} ${borderLeft} ${
+                            isSelected
+                              ? "bg-zinc-200/80 dark:bg-zinc-700/60 ring-1 ring-inset ring-zinc-400 dark:ring-zinc-500 z-10"
+                              : isCrosshair
+                              ? "bg-zinc-100/50 dark:bg-zinc-900/50"
+                              : isHint
+                              ? "bg-amber-500/20 dark:bg-amber-400/20 ring-2 ring-amber-500 z-10 animate-pulse"
+                              : isGiven
+                              ? "bg-zinc-50 dark:bg-zinc-900/20 hover:bg-zinc-100 dark:hover:bg-zinc-900/40"
+                              : "bg-white dark:bg-zinc-950 hover:bg-zinc-50 dark:hover:bg-zinc-900/10"
+                          }\n                          ${isMatchHover ? "shadow-inner scale-102 font-extrabold z-10" : ""}`}
+                        >
+                          {/* Cell Value Rendering */}
+                          {cellValue !== 0 ? (
+                            <span
+                              className={`text-base md:text-xl font-sans leading-none ${
+                                isGiven ? "font-extrabold" : "font-medium"
+                              }`}
+                            >
+                              {cellValue}
+                            </span>
+                          ) : (
+                            // Candidate Pencil Marks (Only on Long Press if unselected)
+                            (isLongPressed) && (
+                              <div className="absolute inset-0.5 grid grid-cols-3 grid-rows-3 p-0.5 gap-0.5 pointer-events-none opacity-80 animate-fade-in">
+                                {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => {
+                                  const isCand = getCandidates(board, idx).includes(n);
+                                  return (
+                                    <span
+                                      key={n}
+                                      style={{ color: isCand ? getNumColor(n, isDarkMode) : "transparent" }}
+                                      className="text-[8px] md:text-[10px] font-mono font-bold leading-none flex items-center justify-center"
+                                    >
+                                      {n}
+                                    </span>
+                                  );
+                                })}
                               </div>
-                            );
-                          })
-                        ))}
-                      </div>
-                    );
-                  })}
-                </div>
-              ))}
+                            )
+                          )}
+
+                          {/* Conflict detection marker */}
+                          {cellValue !== 0 && !isGiven && cellValue !== solution[idx] && (
+                            <div className="absolute bottom-0.5 right-0.5 h-1.5 w-1.5 rounded-full bg-red-500" />
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })}
             </div>
           </div>
 
