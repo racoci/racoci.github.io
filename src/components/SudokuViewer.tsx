@@ -291,6 +291,9 @@ export default function SudokuViewer({ lang }: SudokuViewerProps) {
   const [hintMessage, setHintMessage] = useState<string | null>(null);
   const [isDarkMode, setIsDarkMode] = useState(false);
   
+  // Guard state to defer inline styles until mounted (prevents Dark Reader hydration mismatch)
+  const [isMounted, setIsMounted] = useState(false);
+  
   // New state for long-press pencil marks
   const [longPressCellIdx, setLongPressCellIdx] = useState<number | null>(null);
   const pressTimer = useRef<NodeJS.Timeout | null>(null);
@@ -323,6 +326,7 @@ export default function SudokuViewer({ lang }: SudokuViewerProps) {
     observer.observe(document.documentElement, { attributes: true });
 
     startNewGame("easy");
+    setIsMounted(true);
 
     return () => observer.disconnect();
   }, []);
@@ -891,10 +895,10 @@ export default function SudokuViewer({ lang }: SudokuViewerProps) {
                           onMouseDown={() => startLongPress(idx)}
                           onMouseUp={endLongPress}
                           onClick={(e) => handleCellClick(idx, e)}
-                          style={{
+                          style={isMounted ? {
                             color: cellValue !== 0 ? customColor : undefined,
                             backgroundColor: subsetBg || (isMatchHover ? customBg : undefined),
-                          }}
+                          } : undefined}
                           className={`relative flex items-center justify-center select-none cursor-pointer transition-all ${borderTop} ${borderLeft} ${
                             isSelected
                               ? "bg-zinc-200/80 dark:bg-zinc-700/60 ring-1 ring-inset ring-zinc-400 dark:ring-zinc-500 z-10"
@@ -905,7 +909,8 @@ export default function SudokuViewer({ lang }: SudokuViewerProps) {
                               : isGiven
                               ? "bg-zinc-50 dark:bg-zinc-900/20 hover:bg-zinc-100 dark:hover:bg-zinc-900/40"
                               : "bg-white dark:bg-zinc-950 hover:bg-zinc-50 dark:hover:bg-zinc-900/10"
-                          }\n                          ${isMatchHover ? "shadow-inner scale-102 font-extrabold z-10" : ""}`}
+                          }
+                          ${isMatchHover ? "shadow-inner scale-102 font-extrabold z-10" : ""}`}
                         >
                           {/* Cell Value Rendering */}
                           {cellValue !== 0 ? (
@@ -925,7 +930,7 @@ export default function SudokuViewer({ lang }: SudokuViewerProps) {
                                   return (
                                     <span
                                       key={n}
-                                      style={{ color: isCand ? getNumColor(n, isDarkMode) : "transparent" }}
+                                      style={isMounted ? { color: isCand ? getNumColor(n, isDarkMode) : "transparent" } : undefined}
                                       className="text-[8px] md:text-[10px] font-mono font-bold leading-none flex items-center justify-center"
                                     >
                                       {n}
@@ -956,10 +961,10 @@ export default function SudokuViewer({ lang }: SudokuViewerProps) {
               <button
                 key={n}
                 onClick={() => handleNumPadInput(n)}
-                style={{
+                style={isMounted ? {
                   color: getNumColor(n, isDarkMode),
                   borderColor: getNumColor(n, isDarkMode) + "30",
-                }}
+                } : undefined}
                 className="py-2 bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800 border font-extrabold rounded-lg shadow-sm text-sm hover:scale-105 active:scale-95 transition-all"
               >
                 {n}
@@ -971,10 +976,10 @@ export default function SudokuViewer({ lang }: SudokuViewerProps) {
               <button
                 key={n}
                 onClick={() => handleNumPadInput(n)}
-                style={{
+                style={isMounted ? {
                   color: getNumColor(n, isDarkMode),
                   borderColor: getNumColor(n, isDarkMode) + "30",
-                }}
+                } : undefined}
                 className="py-2 bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800 border font-extrabold rounded-lg shadow-sm text-sm hover:scale-105 active:scale-95 transition-all"
               >
                 {n}
@@ -1075,7 +1080,7 @@ export default function SudokuViewer({ lang }: SudokuViewerProps) {
                       return (
                         <span
                           key={n}
-                          style={{ color: isCand ? getNumColor(n, isDarkMode) : "transparent" }}
+                          style={isMounted ? { color: isCand ? getNumColor(n, isDarkMode) : "transparent" } : undefined}
                           className="h-4 w-4 text-[10px] font-mono font-bold flex items-center justify-center bg-zinc-100 dark:bg-zinc-900 rounded-sm"
                         >
                           {n}
@@ -1120,10 +1125,10 @@ export default function SudokuViewer({ lang }: SudokuViewerProps) {
                     {sec.missing.map((num) => (
                       <span
                         key={num}
-                        style={{
+                        style={isMounted ? {
                           color: getNumColor(num, isDarkMode),
                           backgroundColor: getNumBgColor(num, isDarkMode),
-                        }}
+                        } : undefined}
                         className="h-6 w-6 font-extrabold text-xs flex items-center justify-center rounded-md border border-zinc-200/40 dark:border-zinc-800/40 shadow-sm"
                       >
                         {num}
@@ -1183,7 +1188,7 @@ export default function SudokuViewer({ lang }: SudokuViewerProps) {
                   <div>
                     <span className="text-zinc-400 mr-1">Value:</span>
                     <strong
-                      style={{ color: getNumColor(hint.val, isDarkMode) }}
+                      style={isMounted ? { color: getNumColor(hint.val, isDarkMode) } : undefined}
                       className="font-extrabold text-sm"
                     >
                       {hint.val}
