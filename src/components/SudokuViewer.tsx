@@ -957,7 +957,7 @@ export default function SudokuViewer({ lang }: SudokuViewerProps) {
         {/* Visual Number Pad for Touch Devices */}
         <div className="w-full max-w-[500px] flex flex-col space-y-2 p-3 border border-zinc-200 dark:border-zinc-800/80 bg-zinc-50/50 dark:bg-zinc-900/5 rounded-xl">
           <div className="grid grid-cols-5 gap-2">
-            {[1, 2, 3, 4, 5].map((n) => (
+            {[6, 7, 8, 9].map((n) => (
               <button
                 key={n}
                 onClick={() => handleNumPadInput(n)}
