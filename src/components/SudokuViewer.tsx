@@ -298,7 +298,6 @@ export default function SudokuViewer({ lang }: SudokuViewerProps) {
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
   const [customCodeText, setCustomCodeText] = useState("");
-  const [isEditorCollapsed, setIsEditorCollapsed] = useState(false);
   
   // Guard state to defer inline styles until mounted (prevents Dark Reader hydration mismatch)
   const [isMounted, setIsMounted] = useState(false);
@@ -401,7 +400,29 @@ export default function SudokuViewer({ lang }: SudokuViewerProps) {
   };
 
   const handleTextareaChange = (text: string) => {
-    const val = text.replace(/[^1-9\n]/g, "");
+    let val = text.replace(/[^1-9\n]/g, "");
+    
+    // Auto-newline (Auto-wrap) on 3rd character
+    const linesArr = val.split("\n");
+    // Only auto-wrap if we are growing the text (not deleting)
+    if (val.length > customCodeText.length) {
+      let needsUpdate = false;
+      const prevLines = customCodeText.split("\n");
+      for (let i = 0; i < linesArr.length; i++) {
+        if (linesArr[i].length === 3) {
+          const wasCompleted = !prevLines[i] || prevLines[i].length < 3;
+          if (wasCompleted) {
+            linesArr.splice(i + 1, 0, "");
+            needsUpdate = true;
+            break;
+          }
+        }
+      }
+      if (needsUpdate) {
+        val = linesArr.join("\n");
+      }
+    }
+
     setCustomCodeText(val);
     
     const lines = val.split("\n")
@@ -851,10 +872,10 @@ export default function SudokuViewer({ lang }: SudokuViewerProps) {
         </div>
 
         {/* Main Board Wrapper with a solid bounded width to prevent Flexbox collapse */}
-        <div className="w-full max-w-[480px] flex flex-col select-none">
+        <div className="w-full max-w-[620px] flex flex-col select-none">
           
           {/* Top Column Selectors */}
-          <div className="w-full grid grid-cols-[32px_1fr] mb-1.5">
+          <div className="w-full grid grid-cols-[32px_1fr_112px] mb-1.5">
             <div className="w-8"></div> {/* Corner spacer matching Row Selectors width */}
             <div className="grid grid-cols-9 gap-1 text-center">
               {Array.from({ length: 9 }, (_, c) => (
@@ -867,10 +888,11 @@ export default function SudokuViewer({ lang }: SudokuViewerProps) {
                 </button>
               ))}
             </div>
+            <div className="w-28"></div> {/* Spacer for the new Right Editor panel */}
           </div>
 
           <div className="w-full flex items-stretch gap-2">
-            {/* Left Row Selectors */}
+            {/* Left Row Selectors Gutter */}
             <div className="w-8 flex flex-col justify-between py-1">
               {Array.from({ length: 9 }, (_, r) => (
                 <button
@@ -1020,6 +1042,59 @@ export default function SudokuViewer({ lang }: SudokuViewerProps) {
                 );
               })}
             </div>
+
+            {/* Column 3 (Right): The Custom Editor Panel Gutter */}
+            <div className="w-28 pl-4 border-l border-zinc-200 dark:border-zinc-800/80 flex flex-col justify-between items-center py-1 gap-2 shrink-0">
+              <label className="flex flex-col items-center gap-1 cursor-pointer text-[9px] font-sans font-semibold text-zinc-600 dark:text-zinc-400 select-none text-center leading-tight">
+                <input
+                  type="checkbox"
+                  checked={isEditMode}
+                  onChange={(e) => handleToggleEditMode(e.target.checked)}
+                  className="rounded border-zinc-300 dark:border-zinc-700 text-emerald-500 focus:ring-emerald-500/50 h-4 w-4 bg-zinc-50 dark:bg-zinc-900"
+                />
+                <span>{t.editModeLabel}</span>
+              </label>
+
+              <div className="relative font-mono text-sm leading-6 h-56 w-16 border border-zinc-800 dark:border-zinc-700/80 rounded bg-zinc-950 overflow-hidden focus-within:ring-1 focus-within:ring-emerald-500/50">
+                <div
+                  ref={bgRef}
+                  className="absolute inset-0 px-3 py-2 overflow-hidden pointer-events-none select-none font-mono text-sm leading-6 whitespace-pre text-left"
+                >
+                  {customCodeText === "" ? (
+                    <div style={{ color: "#52525b" }}>---</div>
+                  ) : (
+                    customCodeText.split("\n").map((line, idx) => {
+                      const firstChar = line[0];
+                      const isDigit = firstChar && /^[1-9]$/.test(firstChar);
+                      const color = isMounted && isDigit ? getNumColor(parseInt(firstChar, 10), isDarkMode) : "#52525b";
+                      return (
+                        <div key={idx} style={{ color }}>
+                          {line || " "}
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+
+                <textarea
+                  cols={4}
+                  rows={10}
+                  value={customCodeText}
+                  onChange={(e) => handleTextareaChange(e.target.value)}
+                  onKeyDown={handleTextareaKeyDown}
+                  onScroll={handleScroll}
+                  className="absolute inset-0 w-full h-full font-mono text-sm leading-6 resize-none px-3 py-2 bg-transparent text-transparent caret-emerald-400 border-0 focus:outline-none focus:ring-0 overflow-y-auto overflow-x-hidden text-left"
+                  style={{
+                    scrollbarWidth: "none",
+                    msOverflowStyle: "none",
+                  }}
+                />
+              </div>
+
+              <p className="w-full text-[9px] font-serif leading-tight text-zinc-500 dark:text-zinc-400 text-center">
+                {t.editorInstructions}
+              </p>
+            </div>
           </div>
         </div>
 
@@ -1162,76 +1237,7 @@ export default function SudokuViewer({ lang }: SudokuViewerProps) {
           </div>
         </div>
 
-        {/* Custom Puzzle Importer / Editor Panel */}
-        <div className="p-5 border border-zinc-200 dark:border-zinc-800/80 bg-white dark:bg-zinc-900/20 rounded-xl shadow-sm space-y-4">
-          <button
-            type="button"
-            onClick={() => setIsEditorCollapsed(!isEditorCollapsed)}
-            className="w-full flex items-center justify-between text-sm font-extrabold text-zinc-900 dark:text-zinc-50 font-sans tracking-tight border-b border-zinc-100 dark:border-zinc-800/60 pb-2 text-left focus:outline-none"
-          >
-            <div className="flex items-center gap-1.5">
-              <span>✍️</span>
-              <span>{t.customEditorHeader}</span>
-            </div>
-            <span className="text-xs text-zinc-400 font-mono">
-              {isEditorCollapsed ? "▲" : "▼"}
-            </span>
-          </button>
 
-          {!isEditorCollapsed && (
-            <div className="space-y-4 flex flex-col items-center">
-              <label className="w-full flex items-center gap-2.5 cursor-pointer text-xs font-semibold text-zinc-700 dark:text-zinc-300 select-none">
-                <input
-                  type="checkbox"
-                  checked={isEditMode}
-                  onChange={(e) => handleToggleEditMode(e.target.checked)}
-                  className="rounded border-zinc-300 dark:border-zinc-700 text-emerald-500 focus:ring-emerald-500/50 h-4 w-4 bg-zinc-50 dark:bg-zinc-900"
-                />
-                <span>{t.editModeLabel}</span>
-              </label>
-
-              <div className="relative font-mono text-sm leading-6 h-48 w-16 border border-zinc-800 rounded bg-zinc-950 overflow-hidden focus-within:ring-1 focus-within:ring-emerald-500/50">
-                <div
-                  ref={bgRef}
-                  className="absolute inset-0 px-3 py-2 overflow-hidden pointer-events-none select-none font-mono text-sm leading-6 whitespace-pre text-left"
-                >
-                  {customCodeText === "" ? (
-                    <div style={{ color: "#52525b" }}>---</div>
-                  ) : (
-                    customCodeText.split("\n").map((line, idx) => {
-                      const firstChar = line[0];
-                      const isDigit = firstChar && /^[1-9]$/.test(firstChar);
-                      const color = isMounted && isDigit ? getNumColor(parseInt(firstChar, 10), isDarkMode) : "#52525b";
-                      return (
-                        <div key={idx} style={{ color }}>
-                          {line || " "}
-                        </div>
-                      );
-                    })
-                  )}
-                </div>
-
-                <textarea
-                  cols={4}
-                  rows={10}
-                  value={customCodeText}
-                  onChange={(e) => handleTextareaChange(e.target.value)}
-                  onKeyDown={handleTextareaKeyDown}
-                  onScroll={handleScroll}
-                  className="absolute inset-0 w-full h-full font-mono text-sm leading-6 resize-none px-3 py-2 bg-transparent text-transparent caret-emerald-400 border-0 focus:outline-none focus:ring-0 overflow-y-auto overflow-x-hidden text-left"
-                  style={{
-                    scrollbarWidth: "none",
-                    msOverflowStyle: "none",
-                  }}
-                />
-              </div>
-
-              <p className="w-full text-[11px] font-serif leading-relaxed text-zinc-500 dark:text-zinc-400 text-center">
-                {t.editorInstructions}
-              </p>
-            </div>
-          )}
-        </div>
 
         {/* Naked Subset Action Tool */}
         <div className="p-5 border border-zinc-200 dark:border-zinc-800/80 bg-white dark:bg-zinc-900/20 rounded-xl shadow-sm space-y-3">
