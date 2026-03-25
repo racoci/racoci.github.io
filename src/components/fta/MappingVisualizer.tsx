@@ -1,69 +1,34 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
+import { usePolynomial, evaluatePolynomial, Complex } from "./store";
 
 export default function MappingVisualizer() {
-  const [degree, setDegree] = useState<number>(3);
-  const [offsetR, setOffsetR] = useState<number>(0.2);
-  const [offsetI, setOffsetI] = useState<number>(0.15);
+  const coeffs = usePolynomial();
   const [step, setStep] = useState<number>(0);
   const [isPlaying, setIsPlaying] = useState<boolean>(true);
-  const [speed, setSpeed] = useState<number>(80); // ms per step
+  const [speed, setSpeed] = useState<number>(80);
 
-  const R = 1.2; // radius of boundary
-  const segments = 16; // points per side of square -> 64 points total
+  const R = 1.2;
+  const segments = 16;
   
-  // Generate boundary points on square in z-plane
   const zPoints = useMemo(() => {
-    const pts: [number, number][] = [];
-    
-    // Side 1: from (R, -R) to (R, R)
-    for (let i = 0; i < segments; i++) {
-      const t = i / segments;
-      pts.push([R, -R + t * 2 * R]);
-    }
-    // Side 2: from (R, R) to (-R, R)
-    for (let i = 0; i < segments; i++) {
-      const t = i / segments;
-      pts.push([R - t * 2 * R, R]);
-    }
-    // Side 3: from (-R, R) to (-R, -R)
-    for (let i = 0; i < segments; i++) {
-      const t = i / segments;
-      pts.push([-R, R - t * 2 * R]);
-    }
-    // Side 4: from (-R, -R) to (R, -R)
-    for (let i = 0; i < segments; i++) {
-      const t = i / segments;
-      pts.push([-R + t * 2 * R, -R]);
-    }
-    // Close the loop
-    pts.push([R, -R]);
+    const pts: Complex[] = [];
+    for (let i = 0; i < segments; i++) pts.push({ re: R, im: -R + (i / segments) * 2 * R });
+    for (let i = 0; i < segments; i++) pts.push({ re: R - (i / segments) * 2 * R, im: R });
+    for (let i = 0; i < segments; i++) pts.push({ re: -R, im: R - (i / segments) * 2 * R });
+    for (let i = 0; i < segments; i++) pts.push({ re: -R + (i / segments) * 2 * R, im: -R });
+    pts.push({ re: R, im: -R });
     return pts;
   }, [R]);
 
-  // Complex arithmetic: z^d
-  const power = (x: number, y: number, d: number): [number, number] => {
-    const r = Math.sqrt(x * x + y * y);
-    const theta = Math.atan2(y, x);
-    const rd = Math.pow(r, d);
-    const thetaD = theta * d;
-    return [rd * Math.cos(thetaD), rd * Math.sin(thetaD)];
-  };
-
-  // Polynomial mapping: P(z) = z^d - c
   const pPoints = useMemo(() => {
-    return zPoints.map(([x, y]) => {
-      const [px, py] = power(x, y, degree);
-      return [px - offsetR, py - offsetI] as [number, number];
-    });
-  }, [zPoints, degree, offsetR, offsetI]);
+    return zPoints.map(z => evaluatePolynomial(coeffs, z));
+  }, [zPoints, coeffs]);
 
-  // Current active points
-  const activeZ = zPoints[step] || [R, -R];
-  const activeP = pPoints[step] || [0, 0];
+  const activeZ = zPoints[step] || { re: R, im: -R };
+  const activeP = pPoints[step] || { re: 0, im: 0 };
 
-  // Quadrant checker (0 to 3)
   const getQuadrant = (x: number, y: number): number => {
     if (x >= 0 && y >= 0) return 0;
     if (x < 0 && y >= 0) return 1;
@@ -71,8 +36,8 @@ export default function MappingVisualizer() {
     return 3;
   };
 
-  const activeZQuad = getQuadrant(activeZ[0], activeZ[1]);
-  const activePQuad = getQuadrant(activeP[0], activeP[1]);
+  const activeZQuad = getQuadrant(activeZ.re, activeZ.im);
+  const activePQuad = getQuadrant(activeP.re, activeP.im);
 
   useEffect(() => {
     if (!isPlaying) return;
@@ -82,22 +47,114 @@ export default function MappingVisualizer() {
     return () => clearInterval(interval);
   }, [isPlaying, speed]);
 
-  // SVG drawing utilities
   const width = 280;
   const height = 280;
-  const cx = width / 2;
-  const cy = height / 2;
-  const scale = 80; // pixels per unit
 
-  const toSVG = (x: number, y: number) => {
-    return [cx + x * scale, cy - y * scale];
+  // Auto-fit bounding box for P(z)
+  const defaultPViewBox = useMemo(() => {
+    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+    pPoints.forEach(p => {
+      if (p.re < minX) minX = p.re;
+      if (p.re > maxX) maxX = p.re;
+      if (p.im < minY) minY = p.im;
+      if (p.im > maxY) maxY = p.im;
+    });
+    // Include origin
+    if (minX > 0) minX = 0;
+    if (maxX < 0) maxX = 0;
+    if (minY > 0) minY = 0;
+    if (maxY < 0) maxY = 0;
+    
+    let w = Math.max(maxX - minX, maxY - minY);
+    if (w === 0) w = 2; // fallback
+    w *= 1.4; // padding
+    
+    const cx = (minX + maxX) / 2;
+    const cy = (minY + maxY) / 2;
+    
+    return {
+      x: cx - w / 2,
+      y: cy - w / 2,
+      w: w,
+      h: w
+    };
+  }, [pPoints]);
+
+  const [pViewBox, setPViewBox] = useState(defaultPViewBox);
+  const [isPanning, setIsPanning] = useState(false);
+  const [panStart, setPanStart] = useState({ x: 0, y: 0 });
+
+  // Update viewbox if it hasn't been explicitly panned recently, or just auto-update it on polynomial change
+  useEffect(() => {
+    setPViewBox(defaultPViewBox);
+  }, [defaultPViewBox]);
+
+  const handlePointerDown = (e: React.PointerEvent<SVGSVGElement>) => {
+    setIsPanning(true);
+    e.currentTarget.setPointerCapture(e.pointerId);
+    setPanStart({ x: e.clientX, y: e.clientY });
   };
 
-  const polylineZPath = zPoints.map(([x, y]) => toSVG(x, y).join(",")).join(" ");
-  const polylinePPath = pPoints.map(([x, y]) => toSVG(x, y).join(",")).join(" ");
+  const handlePointerMove = (e: React.PointerEvent<SVGSVGElement>) => {
+    if (!isPanning) return;
+    const dx = e.clientX - panStart.x;
+    const dy = e.clientY - panStart.y;
+    
+    // Scale pixel movement to SVG coordinate movement
+    const viewBoxDx = (dx / width) * pViewBox.w;
+    const viewBoxDy = (dy / height) * pViewBox.h;
+    
+    setPViewBox(prev => ({
+      ...prev,
+      x: prev.x - viewBoxDx,
+      y: prev.y + viewBoxDy // Y axis is flipped in complex plane visually, but SVG coordinates go down
+    }));
+    setPanStart({ x: e.clientX, y: e.clientY });
+  };
 
-  const zPathCoords = zPoints.map(([x, y]) => toSVG(x, y));
-  const pPathCoords = pPoints.map(([x, y]) => toSVG(x, y));
+  const handlePointerUp = () => {
+    setIsPanning(false);
+  };
+
+  const handleWheel = (e: React.WheelEvent<SVGSVGElement>) => {
+    e.preventDefault();
+    const zoomFactor = e.deltaY > 0 ? 1.1 : 1 / 1.1;
+    
+    // Zoom towards center of viewBox for simplicity
+    setPViewBox(prev => {
+      const newW = prev.w * zoomFactor;
+      const newH = prev.h * zoomFactor;
+      return {
+        x: prev.x + (prev.w - newW) / 2,
+        y: prev.y + (prev.h - newH) / 2,
+        w: newW,
+        h: newH
+      };
+    });
+  };
+
+  // Convert logical coordinates to Z-plane SVG coordinates (fixed scale)
+  const zScale = 80;
+  const zCx = width / 2;
+  const zCy = height / 2;
+  const toZSVG = (c: Complex) => [zCx + c.re * zScale, zCy - c.im * zScale];
+
+  // Convert logical coordinates to P-plane SVG coordinates (dynamic scale based on viewBox)
+  const pScale = width / pViewBox.w;
+  const toPSVG = (c: Complex) => {
+    const screenX = (c.re - pViewBox.x) * pScale;
+    // Y is inverted in complex plane vs SVG
+    const screenY = height - (c.im - pViewBox.y) * pScale;
+    return [screenX, screenY];
+  };
+
+  const polylineZPath = zPoints.map(p => toZSVG(p).join(",")).join(" ");
+  const polylinePPath = pPoints.map(p => toPSVG(p).join(",")).join(" ");
+
+  const zPathCoords = zPoints.map(toZSVG);
+  const pPathCoords = pPoints.map(toPSVG);
+
+  const formatCoord = (val: number) => val.toFixed(2);
 
   return (
     <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-6 my-8 shadow-2xl shadow-emerald-950/20 max-w-4xl mx-auto">
@@ -110,7 +167,8 @@ export default function MappingVisualizer() {
             Discrete Quad-Boundary Mapping
           </h3>
           <p className="text-xs text-zinc-400 mt-1 max-w-xl">
-            Visualize how points $z$ along the square boundary $\partial Q_0$ map through $P(z) = z^d - c$. Notice how the mapped curve winds around the origin exactly $d$ times.
+            Visualize how points along the square boundary map through the polynomial.
+            Notice how the mapped curve winds around the origin based on the roots inside.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -128,6 +186,7 @@ export default function MappingVisualizer() {
             onClick={() => {
               setStep(0);
               setIsPlaying(false);
+              setPViewBox(defaultPViewBox);
             }}
             className="px-3 py-1.5 bg-zinc-900 border border-zinc-800 rounded-lg text-zinc-400 hover:text-zinc-200 transition-all font-mono text-xs"
           >
@@ -140,35 +199,31 @@ export default function MappingVisualizer() {
         {/* Z PLANE */}
         <div className="flex flex-col items-center">
           <div className="text-xs font-mono font-bold text-zinc-400 mb-2">
-            $z$-plane (Domain Boundary)
+            <tspan fontStyle="italic">z</tspan>-plane (Domain Boundary)
           </div>
           <div className="relative border border-zinc-850 rounded-xl overflow-hidden bg-zinc-950/80 p-2 shadow-inner">
             <svg width={width} height={height} className="overflow-visible">
-              {/* Quadrant backgrounds */}
-              <rect x={cx} y={0} width={cx} height={cy} fill="rgba(16, 185, 129, 0.03)" /> {/* Q0 */}
-              <rect x={0} y={0} width={cx} height={cy} fill="rgba(245, 158, 11, 0.03)" /> {/* Q1 */}
-              <rect x={0} y={cy} width={cx} height={cy} fill="rgba(244, 63, 94, 0.03)" />  {/* Q2 */}
-              <rect x={cx} y={cy} width={cx} height={cy} fill="rgba(59, 130, 246, 0.03)" /> {/* Q3 */}
+              <rect x={zCx} y={0} width={zCx} height={zCy} fill="rgba(16, 185, 129, 0.03)" />
+              <rect x={0} y={0} width={zCx} height={zCy} fill="rgba(245, 158, 11, 0.03)" />
+              <rect x={0} y={zCy} width={zCx} height={zCy} fill="rgba(244, 63, 94, 0.03)" />
+              <rect x={zCx} y={zCy} width={zCx} height={zCy} fill="rgba(59, 130, 246, 0.03)" />
 
-              {/* Grid Lines */}
-              <line x1={0} y1={cy} x2={width} y2={cy} stroke="#27272a" strokeWidth={1} />
-              <line x1={cx} y1={0} x2={cx} y2={height} stroke="#27272a" strokeWidth={1} />
-              <circle cx={cx} cy={cy} r={scale} fill="none" stroke="#27272a" strokeDasharray="3 3" />
-              <circle cx={cx} cy={cy} r={scale * R} fill="none" stroke="#27272a" strokeWidth={0.5} strokeDasharray="5 5" />
+              <line x1={0} y1={zCy} x2={width} y2={zCy} stroke="#27272a" strokeWidth={1} />
+              <line x1={zCx} y1={0} x2={zCx} y2={height} stroke="#27272a" strokeWidth={1} />
+              <circle cx={zCx} cy={zCy} r={zScale} fill="none" stroke="#27272a" strokeDasharray="3 3" />
+              <circle cx={zCx} cy={zCy} r={zScale * R} fill="none" stroke="#27272a" strokeWidth={0.5} strokeDasharray="5 5" />
 
-              {/* Boundary representation */}
               <rect
-                x={cx - R * scale}
-                y={cy - R * scale}
-                width={2 * R * scale}
-                height={2 * R * scale}
+                x={zCx - R * zScale}
+                y={zCy - R * zScale}
+                width={2 * R * zScale}
+                height={2 * R * zScale}
                 fill="none"
                 stroke="#3f3f46"
                 strokeWidth={1}
                 strokeDasharray="4 4"
               />
 
-              {/* Segment line connectors */}
               <polyline
                 points={polylineZPath}
                 fill="none"
@@ -178,7 +233,6 @@ export default function MappingVisualizer() {
                 strokeLinejoin="round"
               />
 
-              {/* Plot individual points */}
               {zPathCoords.map(([px, py], idx) => (
                 <circle
                   key={idx}
@@ -190,26 +244,13 @@ export default function MappingVisualizer() {
                 />
               ))}
 
-              {/* Origin indicator */}
-              <circle cx={cx} cy={cy} r={3} fill="#a1a1aa" />
+              <circle cx={zCx} cy={zCy} r={3} fill="#a1a1aa" />
 
-              {/* Active Trace Line to Origin */}
               {(() => {
-                const [sx, sy] = toSVG(activeZ[0], activeZ[1]);
-                return (
-                  <line
-                    x1={cx}
-                    y1={cy}
-                    x2={sx}
-                    y2={sy}
-                    stroke="rgba(16, 185, 129, 0.4)"
-                    strokeWidth={1}
-                    strokeDasharray="2 2"
-                  />
-                );
+                const [sx, sy] = toZSVG(activeZ);
+                return <line x1={zCx} y1={zCy} x2={sx} y2={sy} stroke="rgba(16, 185, 129, 0.4)" strokeWidth={1} strokeDasharray="2 2" />;
               })()}
 
-              {/* Quadrant Labels */}
               <text x={width - 25} y={25} fill="#10b981" fillOpacity={0.4} fontSize={10} fontFamily="monospace" textAnchor="middle">Q0</text>
               <text x={25} y={25} fill="#f59e0b" fillOpacity={0.4} fontSize={10} fontFamily="monospace" textAnchor="middle">Q1</text>
               <text x={25} y={height - 15} fill="#f43f5e" fillOpacity={0.4} fontSize={10} fontFamily="monospace" textAnchor="middle">Q2</text>
@@ -217,29 +258,49 @@ export default function MappingVisualizer() {
             </svg>
           </div>
           <div className="mt-3 text-xs font-mono text-zinc-400">
-            $z = {activeZ[0].toFixed(2)} + {activeZ[1] >= 0 ? "+" : ""}{activeZ[1].toFixed(2)}i$ (Quadrant Q{activeZQuad})
+            <span className="italic">z</span> = {formatCoord(activeZ.re)} {activeZ.im >= 0 ? "+" : ""}{formatCoord(activeZ.im)}i (Quadrant Q{activeZQuad})
           </div>
         </div>
 
         {/* P(Z) PLANE */}
         <div className="flex flex-col items-center">
-          <div className="text-xs font-mono font-bold text-zinc-400 mb-2">
-            $P(z)$-plane (Mapped Image)
+          <div className="text-xs font-mono font-bold text-zinc-400 mb-2 flex items-center justify-between w-full">
+            <span><span className="italic">P(z)</span>-plane (Mapped Image)</span>
+            <span className="text-[10px] text-zinc-500 font-normal">Pan & Zoom</span>
           </div>
-          <div className="relative border border-zinc-850 rounded-xl overflow-hidden bg-zinc-950/80 p-2 shadow-inner">
-            <svg width={width} height={height} className="overflow-visible">
-              {/* Quadrant backgrounds */}
-              <rect x={cx} y={0} width={cx} height={cy} fill="rgba(16, 185, 129, 0.03)" /> {/* Q0 */}
-              <rect x={0} y={0} width={cx} height={cy} fill="rgba(245, 158, 11, 0.03)" /> {/* Q1 */}
-              <rect x={0} y={cy} width={cx} height={cy} fill="rgba(244, 63, 94, 0.03)" />  {/* Q2 */}
-              <rect x={cx} y={cy} width={cx} height={cy} fill="rgba(59, 130, 246, 0.03)" /> {/* Q3 */}
+          <div className="relative border border-zinc-850 rounded-xl overflow-hidden bg-zinc-950/80 p-2 shadow-inner cursor-grab active:cursor-grabbing touch-none">
+            <svg 
+              width={width} 
+              height={height} 
+              className="overflow-visible"
+              onPointerDown={handlePointerDown}
+              onPointerMove={handlePointerMove}
+              onPointerUp={handlePointerUp}
+              onPointerLeave={handlePointerUp}
+              onWheel={handleWheel}
+            >
+              {/* Dynamic Grid / Background based on viewbox can be tricky, let's keep it relative to SVG coordinates */}
+              {(() => {
+                const origin = toPSVG({re: 0, im: 0});
+                return (
+                  <>
+                    <rect x={origin[0]} y={0} width={width - origin[0]} height={origin[1]} fill="rgba(16, 185, 129, 0.03)" clipPath={`url(#bounds)`} />
+                    <rect x={0} y={0} width={origin[0]} height={origin[1]} fill="rgba(245, 158, 11, 0.03)" clipPath={`url(#bounds)`} />
+                    <rect x={0} y={origin[1]} width={origin[0]} height={height - origin[1]} fill="rgba(244, 63, 94, 0.03)" clipPath={`url(#bounds)`} />
+                    <rect x={origin[0]} y={origin[1]} width={width - origin[0]} height={height - origin[1]} fill="rgba(59, 130, 246, 0.03)" clipPath={`url(#bounds)`} />
+                    
+                    <line x1={0} y1={origin[1]} x2={width} y2={origin[1]} stroke="#27272a" strokeWidth={1} />
+                    <line x1={origin[0]} y1={0} x2={origin[0]} y2={height} stroke="#27272a" strokeWidth={1} />
+                  </>
+                );
+              })()}
+              
+              <defs>
+                <clipPath id="bounds">
+                  <rect x="0" y="0" width={width} height={height} />
+                </clipPath>
+              </defs>
 
-              {/* Grid Lines */}
-              <line x1={0} y1={cy} x2={width} y2={cy} stroke="#27272a" strokeWidth={1} />
-              <line x1={cx} y1={0} x2={cx} y2={height} stroke="#27272a" strokeWidth={1} />
-              <circle cx={cx} cy={cy} r={scale} fill="none" stroke="#27272a" strokeDasharray="3 3" />
-
-              {/* Mapped Curve path */}
               <polyline
                 points={polylinePPath}
                 fill="none"
@@ -250,58 +311,42 @@ export default function MappingVisualizer() {
                 strokeOpacity={0.7}
               />
 
-              {/* Plot individual points */}
-              {pPathCoords.map(([px, py], idx) => {
-                const isSelected = idx === step;
-                return (
-                  <circle
-                    key={idx}
-                    cx={px}
-                    cy={py}
-                    r={isSelected ? 5.5 : 2.5}
-                    fill={isSelected ? "#34d399" : "rgba(16, 185, 129, 0.55)"}
-                    className="transition-all duration-100"
-                  />
-                );
-              })}
+              {pPathCoords.map(([px, py], idx) => (
+                <circle
+                  key={idx}
+                  cx={px}
+                  cy={py}
+                  r={idx === step ? 5.5 : 2.5}
+                  fill={idx === step ? "#34d399" : "rgba(16, 185, 129, 0.55)"}
+                  className="transition-all duration-100"
+                />
+              ))}
 
-              {/* Origin indicator (MUST NOT be intersected) */}
-              <circle cx={cx} cy={cy} r={5} fill="#f43f5e" />
-              <circle cx={cx} cy={cy} r={8} fill="none" stroke="#f43f5e" strokeWidth={1} strokeDasharray="2 2" className="animate-pulse" />
-
-              {/* Active Trace Line to Origin */}
               {(() => {
-                const [sx, sy] = toSVG(activeP[0], activeP[1]);
+                const origin = toPSVG({re: 0, im: 0});
                 return (
-                  <line
-                    x1={cx}
-                    y1={cy}
-                    x2={sx}
-                    y2={sy}
-                    stroke="rgba(244, 63, 94, 0.4)"
-                    strokeWidth={1.2}
-                    strokeDasharray="2 2"
-                  />
+                  <>
+                    <circle cx={origin[0]} cy={origin[1]} r={5} fill="#f43f5e" />
+                    <circle cx={origin[0]} cy={origin[1]} r={8} fill="none" stroke="#f43f5e" strokeWidth={1} strokeDasharray="2 2" className="animate-pulse" />
+                  </>
                 );
               })()}
 
-              {/* Quadrant Labels */}
-              <text x={width - 25} y={25} fill="#10b981" fillOpacity={0.4} fontSize={10} fontFamily="monospace" textAnchor="middle">Q0</text>
-              <text x={25} y={25} fill="#f59e0b" fillOpacity={0.4} fontSize={10} fontFamily="monospace" textAnchor="middle">Q1</text>
-              <text x={25} y={height - 15} fill="#f43f5e" fillOpacity={0.4} fontSize={10} fontFamily="monospace" textAnchor="middle">Q2</text>
-              <text x={width - 25} y={height - 15} fill="#3b82f6" fillOpacity={0.4} fontSize={10} fontFamily="monospace" textAnchor="middle">Q3</text>
+              {(() => {
+                const [sx, sy] = toPSVG(activeP);
+                const origin = toPSVG({re: 0, im: 0});
+                return <line x1={origin[0]} y1={origin[1]} x2={sx} y2={sy} stroke="rgba(244, 63, 94, 0.4)" strokeWidth={1.2} strokeDasharray="2 2" />;
+              })()}
             </svg>
           </div>
           <div className="mt-3 text-xs font-mono text-emerald-400">
-            $P(z) = {activeP[0].toFixed(2)} + {activeP[1] >= 0 ? "+" : ""}{activeP[1].toFixed(2)}i$ (Quadrant Q{activePQuad})
+            <span className="italic">P(z)</span> = {formatCoord(activeP.re)} {activeP.im >= 0 ? "+" : ""}{formatCoord(activeP.im)}i (Quadrant Q{activePQuad})
           </div>
         </div>
       </div>
 
-      {/* CONTROLS */}
-      <div className="border-t border-zinc-800 mt-6 pt-5 grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="border-t border-zinc-800 mt-6 pt-5">
         <div className="flex flex-col gap-4">
-          {/* Step Tracer */}
           <div>
             <div className="flex justify-between items-center mb-1">
               <span className="text-xs font-mono text-zinc-400 font-bold">Mesh Step Tracer (j)</span>
@@ -320,7 +365,6 @@ export default function MappingVisualizer() {
             />
           </div>
 
-          {/* Animation Speed */}
           <div>
             <div className="flex justify-between items-center mb-1">
               <span className="text-xs font-mono text-zinc-400 font-bold">Trace Sweep Speed</span>
@@ -335,65 +379,6 @@ export default function MappingVisualizer() {
               onChange={(e) => setSpeed(220 - parseInt(e.target.value))}
               className="w-full accent-emerald-500 bg-zinc-850 h-1.5 rounded-lg appearance-none cursor-pointer"
             />
-          </div>
-        </div>
-
-        <div className="flex flex-col gap-4">
-          {/* Degree Selector */}
-          <div>
-            <div className="flex justify-between items-center mb-1.5">
-              <span className="text-xs font-mono text-zinc-400 font-bold">Polynomial Degree (d)</span>
-              <span className="text-xs font-mono text-emerald-400">d = {degree} (Winding Number = {degree})</span>
-            </div>
-            <div className="flex gap-2">
-              {[1, 2, 3, 4].map((d) => (
-                <button
-                  key={d}
-                  onClick={() => setDegree(d)}
-                  className={`flex-1 py-1.5 rounded-lg font-mono text-xs font-semibold transition-all ${
-                    degree === d
-                      ? "bg-emerald-500 text-zinc-950 font-bold border border-emerald-400"
-                      : "bg-zinc-900 text-zinc-400 border border-zinc-800 hover:bg-zinc-850"
-                  }`}
-                >
-                  z^{d}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Offset c Sliders */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <div className="flex justify-between items-center mb-1">
-                <span className="text-[11px] font-mono text-zinc-400 font-bold">Offset Real (c_r)</span>
-                <span className="text-[11px] font-mono text-emerald-400">{offsetR.toFixed(2)}</span>
-              </div>
-              <input
-                type="range"
-                min="-0.8"
-                max="0.8"
-                step="0.05"
-                value={offsetR}
-                onChange={(e) => setOffsetR(parseFloat(e.target.value))}
-                className="w-full accent-emerald-500 bg-zinc-850 h-1.5 rounded-lg appearance-none cursor-pointer"
-              />
-            </div>
-            <div>
-              <div className="flex justify-between items-center mb-1">
-                <span className="text-[11px] font-mono text-zinc-400 font-bold">Offset Imag (c_i)</span>
-                <span className="text-[11px] font-mono text-emerald-400">{offsetI.toFixed(2)}</span>
-              </div>
-              <input
-                type="range"
-                min="-0.8"
-                max="0.8"
-                step="0.05"
-                value={offsetI}
-                onChange={(e) => setOffsetI(parseFloat(e.target.value))}
-                className="w-full accent-emerald-500 bg-zinc-850 h-1.5 rounded-lg appearance-none cursor-pointer"
-              />
-            </div>
           </div>
         </div>
       </div>

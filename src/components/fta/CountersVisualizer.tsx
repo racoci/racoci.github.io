@@ -1,13 +1,32 @@
 "use client";
 
 import React, { useState, useMemo, useEffect } from "react";
+import { usePolynomial, evaluatePolynomial, Complex } from "./store";
 
 export default function CountersVisualizer() {
-  const [degree, setDegree] = useState<number>(3);
-  const [offsetR, setOffsetR] = useState<number>(0.4);
-  const [offsetI, setOffsetI] = useState<number>(0.3);
+  const coeffs = usePolynomial();
   const [step, setStep] = useState<number>(0);
   const [isPlaying, setIsPlaying] = useState<boolean>(true);
+
+  // Find degree (highest non-zero coefficient index)
+  const degree = useMemo(() => {
+    let d = 0;
+    for (let i = coeffs.length - 1; i >= 0; i--) {
+      if (coeffs[i].re !== 0 || coeffs[i].im !== 0) {
+        d = i;
+        break;
+      }
+    }
+    return d;
+  }, [coeffs]);
+
+  const leadingCoeff = coeffs[degree] || { re: 1, im: 0 };
+
+  const evaluateLeading = (z: Complex) => {
+    const lCoeffs = Array(degree + 1).fill({ re: 0, im: 0 });
+    lCoeffs[degree] = leadingCoeff;
+    return evaluatePolynomial(lCoeffs, z);
+  };
 
   const R = 1.2;
   const segments = 32; // finer mesh to prevent skipping quadrants -> 128 points total
@@ -15,22 +34,14 @@ export default function CountersVisualizer() {
 
   // Generate boundary points on square in z-plane
   const zPoints = useMemo(() => {
-    const pts: [number, number][] = [];
-    for (let i = 0; i < segments; i++) pts.push([R, -R + (i / segments) * 2 * R]);
-    for (let i = 0; i < segments; i++) pts.push([R - (i / segments) * 2 * R, R]);
-    for (let i = 0; i < segments; i++) pts.push([-R, R - (i / segments) * 2 * R]);
-    for (let i = 0; i < segments; i++) pts.push([-R + (i / segments) * 2 * R, -R]);
-    pts.push([R, -R]);
+    const pts: Complex[] = [];
+    for (let i = 0; i < segments; i++) pts.push({ re: R, im: -R + (i / segments) * 2 * R });
+    for (let i = 0; i < segments; i++) pts.push({ re: R - (i / segments) * 2 * R, im: R });
+    for (let i = 0; i < segments; i++) pts.push({ re: -R, im: R - (i / segments) * 2 * R });
+    for (let i = 0; i < segments; i++) pts.push({ re: -R + (i / segments) * 2 * R, im: -R });
+    pts.push({ re: R, im: -R });
     return pts;
   }, [R, segments]);
-
-  const power = (x: number, y: number, d: number): [number, number] => {
-    const r = Math.sqrt(x * x + y * y);
-    const theta = Math.atan2(y, x);
-    const rd = Math.pow(r, d);
-    const thetaD = theta * d;
-    return [rd * Math.cos(thetaD), rd * Math.sin(thetaD)];
-  };
 
   const getQuadrant = (x: number, y: number): number => {
     if (x >= 0 && y >= 0) return 0;
@@ -39,18 +50,18 @@ export default function CountersVisualizer() {
     return 3;
   };
 
-  const getUSequence = (points: [number, number][]): number[] => {
+  const getUSequence = (points: Complex[]): number[] => {
     const U = [0];
     let currU = 0;
-    let prevQ = getQuadrant(points[0][0], points[0][1]);
+    let prevQ = getQuadrant(points[0].re, points[0].im);
 
     for (let j = 1; j < points.length; j++) {
-      const q = getQuadrant(points[j][0], points[j][1]);
+      const q = getQuadrant(points[j].re, points[j].im);
       let diff = q - prevQ;
       if (diff === -3) diff = 1;
       else if (diff === 3) diff = -1;
       else if (diff === -2 || diff === 2) {
-        // Fallback for skipped quadrants, shouldn't happen with fine mesh
+        // Fallback for skipped quadrants
         diff = diff > 0 ? 2 : -2;
       }
       currU += diff;
@@ -60,16 +71,16 @@ export default function CountersVisualizer() {
     return U;
   };
 
-  // Compute L(z) = z^d and P(z) = z^d - c
+  // Compute L(z) and P(z)
   const { uL, uP } = useMemo(() => {
-    const lPts = zPoints.map(([x, y]) => power(x, y, degree));
-    const pPts = lPts.map(([px, py]) => [px - offsetR, py - offsetI] as [number, number]);
+    const lPts = zPoints.map(z => evaluateLeading(z));
+    const pPts = zPoints.map(z => evaluatePolynomial(coeffs, z));
 
     return {
       uL: getUSequence(lPts),
       uP: getUSequence(pPts),
     };
-  }, [zPoints, degree, offsetR, offsetI]);
+  }, [zPoints, coeffs, degree, leadingCoeff]);
 
   useEffect(() => {
     if (!isPlaying) return;
@@ -99,9 +110,7 @@ export default function CountersVisualizer() {
   const generateStepPath = (uSeq: number[]) => {
     let path = `M ${toSVGX(0)},${toSVGY(uSeq[0])} `;
     for (let j = 1; j < uSeq.length; j++) {
-      // horizontal line to the new X
       path += `L ${toSVGX(j)},${toSVGY(uSeq[j - 1])} `;
-      // vertical line to the new Y
       path += `L ${toSVGX(j)},${toSVGY(uSeq[j])} `;
     }
     return path;
@@ -126,7 +135,7 @@ export default function CountersVisualizer() {
             Unrolled Winding Counters
           </h3>
           <p className="text-xs text-zinc-400 mt-1 max-w-xl">
-            Watch the quadrant counters $U_L(j)$ (Leading Term) and $U_P(j)$ (Full Polynomial) unroll as we traverse the boundary mesh. Notice how their divergence $|U_P - U_L|$ never exceeds 1.
+            Watch the quadrant counters <span className="italic font-serif">U_L(j)</span> (Leading Term) and <span className="italic font-serif">U_P(j)</span> (Full Polynomial) unroll as we traverse the boundary mesh. Notice how their divergence never exceeds 1 if the error term is strictly bounded.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -215,7 +224,7 @@ export default function CountersVisualizer() {
       </div>
 
       {/* CONTROLS */}
-      <div className="border-t border-zinc-800 pt-5 grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="border-t border-zinc-800 mt-6 pt-5">
         <div className="flex flex-col gap-4">
           <div>
             <div className="flex justify-between items-center mb-1">
@@ -230,58 +239,6 @@ export default function CountersVisualizer() {
                 setStep(parseInt(e.target.value));
                 setIsPlaying(false);
               }}
-              className="w-full accent-blue-500 bg-zinc-850 h-1.5 rounded-lg appearance-none cursor-pointer"
-            />
-          </div>
-          <div>
-            <div className="flex justify-between items-center mb-1.5">
-              <span className="text-xs font-mono text-zinc-400 font-bold">Polynomial Degree (d)</span>
-            </div>
-            <div className="flex gap-2">
-              {[1, 2, 3, 4].map((d) => (
-                <button
-                  key={d}
-                  onClick={() => setDegree(d)}
-                  className={`flex-1 py-1.5 rounded-lg font-mono text-xs font-semibold transition-all ${
-                    degree === d
-                      ? "bg-blue-500 text-zinc-950 font-bold border border-blue-400"
-                      : "bg-zinc-900 text-zinc-400 border border-zinc-800 hover:bg-zinc-850"
-                  }`}
-                >
-                  d = {d}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-        <div className="flex flex-col gap-4">
-          <div>
-            <div className="flex justify-between items-center mb-1">
-              <span className="text-[11px] font-mono text-zinc-400 font-bold">Error Magnitude / Shift (c_r)</span>
-              <span className="text-[11px] font-mono text-blue-400">{offsetR.toFixed(2)}</span>
-            </div>
-            <input
-              type="range"
-              min="-0.8"
-              max="0.8"
-              step="0.05"
-              value={offsetR}
-              onChange={(e) => setOffsetR(parseFloat(e.target.value))}
-              className="w-full accent-blue-500 bg-zinc-850 h-1.5 rounded-lg appearance-none cursor-pointer"
-            />
-          </div>
-          <div>
-            <div className="flex justify-between items-center mb-1">
-              <span className="text-[11px] font-mono text-zinc-400 font-bold">Error Magnitude / Shift (c_i)</span>
-              <span className="text-[11px] font-mono text-blue-400">{offsetI.toFixed(2)}</span>
-            </div>
-            <input
-              type="range"
-              min="-0.8"
-              max="0.8"
-              step="0.05"
-              value={offsetI}
-              onChange={(e) => setOffsetI(parseFloat(e.target.value))}
               className="w-full accent-blue-500 bg-zinc-850 h-1.5 rounded-lg appearance-none cursor-pointer"
             />
           </div>
