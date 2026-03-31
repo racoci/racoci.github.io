@@ -1,84 +1,42 @@
 'use client';
 import React, { useState, useRef } from 'react';
-import { usePolynomial, updateCoefficient, Complex } from './store';
+import { useStore, updateCoefficient, updateRoot, setIsRootsMode, setFractionDepth, Complex, formatComplexFraction, parseComplex } from './store';
 
-const COLORS = ['#ef4444', '#f59e0b', '#3b82f6', '#10b981', '#6366f1'];
+const COLORS = ['#ef4444', '#f59e0b', '#3b82f6', '#10b981', '#6366f1', '#a855f7', '#ec4899'];
 
-function formatComplex(c: Complex, isFirst: boolean): string {
-  const re = c.re;
-  const im = c.im;
-  if (re === 0 && im === 0) return isFirst ? '0' : '';
-  
-  let res = '';
-  if (re !== 0) {
-    res += re;
-  }
-  if (im !== 0) {
-    if (im > 0 && re !== 0) res += ' + ';
-    else if (im < 0 && re !== 0) res += ' - ';
-    else if (im < 0) res += '-';
-    
-    const absIm = Math.abs(im);
-    if (absIm !== 1) res += absIm;
-    res += 'i';
-  }
-  return res;
-}
+const ComplexInput = ({ value, onChange, color, depth, prefix = '', suffix = '' }: { value: Complex, onChange: (c: Complex) => void, color: string, depth: number, prefix?: string, suffix?: string }) => {
+  const [editing, setEditing] = useState(false);
+  const [str, setStr] = useState('');
 
-function formatPolynomial(coeffs: Complex[]) {
-  const terms: React.ReactNode[] = [];
-  
-  for (let i = coeffs.length - 1; i >= 0; i--) {
-    const c = coeffs[i];
-    if (c.re === 0 && c.im === 0) continue;
-    
-    let formatted = formatComplex(c, false);
-    
-    let needsParens = false;
-    if (c.re !== 0 && c.im !== 0) {
-      needsParens = true;
-    }
-    
-    let sign = '';
-    if (terms.length > 0) {
-      if (formatted.startsWith('-')) {
-        sign = ' - ';
-        formatted = formatted.substring(1);
-      } else {
-        sign = ' + ';
-      }
-    }
-    
-    if (formatted === '1' && i > 0) formatted = '';
-    else if (formatted === '-1' && i > 0 && terms.length === 0) {
-      sign = '-';
-      formatted = '';
-    } else if (formatted === '-1' && i > 0 && terms.length > 0) {
-      sign = ' - ';
-      formatted = '';
-    }
-    
-    let term = (
-      <React.Fragment key={i}>
-        {sign}
-        {needsParens ? `(${formatted})` : formatted}
-        {i > 0 && 'z'}
-        {i > 1 && <sup>{i}</sup>}
-      </React.Fragment>
+  const displayStr = formatComplexFraction(value, depth);
+  const needsParens = value.re !== 0 && value.im !== 0;
+
+  if (editing) {
+    return (
+      <input 
+        autoFocus 
+        className="bg-gray-100 dark:bg-gray-800 border-b border-gray-400 outline-none text-center rounded px-1"
+        style={{ color, width: Math.max(str.length * 12, 40) + 'px', minWidth: '40px' }}
+        value={str}
+        onChange={e => setStr(e.target.value)}
+        onBlur={() => { setEditing(false); onChange(parseComplex(str)); }}
+        onKeyDown={e => { if (e.key === 'Enter') { setEditing(false); onChange(parseComplex(str)); } }}
+      />
     );
-    
-    terms.push(term);
   }
   
-  if (terms.length === 0) {
-    return <span>0</span>;
-  }
-  
-  return <span>{terms}</span>;
-}
+  return (
+    <span 
+      onClick={() => { setEditing(true); setStr(displayStr); }} 
+      style={{ color, cursor: 'text', borderBottom: '1px dashed currentColor', padding: '0 2px' }}
+    >
+      {prefix}{needsParens && !prefix ? `(${displayStr})` : displayStr}{suffix}
+    </span>
+  );
+};
 
 export default function PolynomialEditor() {
-  const coeffs = usePolynomial();
+  const store = useStore();
   const [draggingIdx, setDraggingIdx] = useState<number | null>(null);
   const svgRef = useRef<SVGSVGElement>(null);
   
@@ -96,11 +54,9 @@ export default function PolynomialEditor() {
   const fromScreen = (x: number, y: number): Complex => {
     let re = (x - cx) / scale;
     let im = (cy - y) / scale;
-    
-    // Snap to 0.25
-    re = Math.round(re * 4) / 4;
-    im = Math.round(im * 4) / 4;
-    
+    // Snap to 0.25 (optional, can be disabled or made finer)
+    re = Math.round(re * 8) / 8;
+    im = Math.round(im * 8) / 8;
     return { re, im };
   };
   
@@ -118,17 +74,78 @@ export default function PolynomialEditor() {
     const cursorPt = pt.matrixTransform(svgRef.current.getScreenCTM()?.inverse());
     
     const newValue = fromScreen(cursorPt.x, cursorPt.y);
-    updateCoefficient(draggingIdx, newValue);
+    if (store.isRootsMode) {
+      updateRoot(draggingIdx, newValue);
+    } else {
+      updateCoefficient(draggingIdx, newValue);
+    }
   };
   
   const handlePointerUp = (e: React.PointerEvent) => {
     setDraggingIdx(null);
   };
-  
+
+  const pts = store.isRootsMode ? store.roots : store.coefficients;
+
   return (
-    <div className="flex flex-col items-center gap-4 my-8 p-4 border rounded-xl bg-gray-50 dark:bg-gray-900 border-gray-200 dark:border-gray-800">
-      <h3 className="text-lg font-semibold">Polynomial Editor</h3>
-      <div className="relative border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-black shadow-sm overflow-hidden touch-none select-none">
+    <div className="flex flex-col items-center gap-6 my-8 p-6 border rounded-xl bg-gray-50 dark:bg-gray-900 border-gray-200 dark:border-gray-800 shadow-sm w-full max-w-2xl mx-auto">
+      <div className="flex flex-row justify-between w-full">
+        <h3 className="text-xl font-bold">Polynomial Editor</h3>
+        
+        <div className="flex gap-4">
+          <label className="flex items-center gap-2 cursor-pointer">
+            <span className="text-sm font-medium">Mode:</span>
+            <select 
+              value={store.isRootsMode ? 'roots' : 'coeffs'} 
+              onChange={e => setIsRootsMode(e.target.value === 'roots')}
+              className="p-1 rounded border dark:bg-gray-800"
+            >
+              <option value="coeffs">Coefficients</option>
+              <option value="roots">Roots</option>
+            </select>
+          </label>
+        </div>
+      </div>
+
+      <label className="flex items-center justify-between w-full max-w-xs gap-4">
+        <span className="text-sm font-medium whitespace-nowrap">Fraction Complexity (0-5): {store.fractionDepth}</span>
+        <input 
+          type="range" min="0" max="5" 
+          value={store.fractionDepth} 
+          onChange={e => setFractionDepth(parseInt(e.target.value))}
+          className="flex-1"
+        />
+      </label>
+
+      {/* WYSIWYG Editor */}
+      <div className="text-lg font-mono tracking-wider overflow-x-auto w-full text-center py-4 bg-white dark:bg-black rounded border border-gray-200 dark:border-gray-800">
+        <span className="font-bold">P(z) = </span>
+        {store.isRootsMode ? (
+          <div className="inline-flex flex-wrap justify-center items-center gap-1">
+            {store.roots.length === 0 ? <span>0</span> : null}
+            {store.roots.map((r, i) => (
+              <span key={i} className="whitespace-nowrap">
+                (z - <ComplexInput value={r} onChange={v => updateRoot(i, v)} color={COLORS[i % COLORS.length]} depth={store.fractionDepth} />)
+              </span>
+            ))}
+          </div>
+        ) : (
+          <div className="inline-flex flex-wrap justify-center items-center gap-2">
+            {store.coefficients.map((c, i) => {
+              if (c.re === 0 && c.im === 0 && i !== store.coefficients.length - 1 && !store.isRootsMode) return null;
+              return (
+                <span key={i} className="whitespace-nowrap">
+                  {i < store.coefficients.length - 1 ? ' + ' : ''}
+                  <ComplexInput value={c} onChange={v => updateCoefficient(i, v)} color={COLORS[i % COLORS.length]} depth={store.fractionDepth} />
+                  {i > 0 && <span>z{i > 1 && <sup>{i}</sup>}</span>}
+                </span>
+              );
+            }).reverse()}
+          </div>
+        )}
+      </div>
+
+      <div className="relative border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-black shadow-inner overflow-hidden touch-none select-none">
         <svg
           ref={svgRef}
           width={width}
@@ -137,51 +154,40 @@ export default function PolynomialEditor() {
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUp}
           onPointerLeave={handlePointerUp}
+          className="cursor-crosshair"
         >
           {/* Grid lines */}
-          <line x1={0} y1={cy} x2={width} y2={cy} stroke="currentColor" className="text-gray-300 dark:text-gray-700" strokeWidth="2" />
-          <line x1={cx} y1={0} x2={cx} y2={height} stroke="currentColor" className="text-gray-300 dark:text-gray-700" strokeWidth="2" />
+          <line x1={0} y1={cy} x2={width} y2={cy} stroke="currentColor" className="text-gray-300 dark:text-gray-700" strokeWidth="1" />
+          <line x1={cx} y1={0} x2={cx} y2={height} stroke="currentColor" className="text-gray-300 dark:text-gray-700" strokeWidth="1" />
           
-          {[-2, -1, 1, 2].map((tick) => (
-            <React.Fragment key={tick}>
-              <line x1={cx + tick * scale} y1={cy - 4} x2={cx + tick * scale} y2={cy + 4} stroke="currentColor" className="text-gray-400" />
-              <line x1={cx - 4} y1={cy - tick * scale} x2={cx + 4} y2={cy - tick * scale} stroke="currentColor" className="text-gray-400" />
-            </React.Fragment>
-          ))}
+          <circle cx={cx} cy={cy} r={scale} fill="none" stroke="currentColor" className="text-gray-200 dark:text-gray-800" strokeDasharray="4 4" />
+          <circle cx={cx} cy={cy} r={scale*2} fill="none" stroke="currentColor" className="text-gray-200 dark:text-gray-800" strokeDasharray="4 4" />
 
-          {coeffs.map((c, i) => {
-            const pos = toScreen(c);
-            const isDragging = draggingIdx === i;
+          {/* Points */}
+          {pts.map((pt, i) => {
+            const { x, y } = toScreen(pt);
             return (
-              <g key={i}>
+              <g key={i} transform={`translate(${x}, ${y})`}>
                 <circle
-                  cx={pos.x}
-                  cy={pos.y}
-                  r={isDragging ? 12 : 8}
+                  r={8}
                   fill={COLORS[i % COLORS.length]}
-                  className="cursor-pointer transition-all duration-75"
+                  className="cursor-grab active:cursor-grabbing hover:opacity-80 transition-opacity"
                   onPointerDown={(e) => handlePointerDown(e, i)}
                 />
-                {isDragging && (
-                  <text
-                    x={pos.x}
-                    y={pos.y - 20}
-                    textAnchor="middle"
-                    fill="currentColor"
-                    className="text-xs font-mono pointer-events-none drop-shadow-md bg-white dark:bg-black px-1"
-                  >
-                    c{i}: {c.re}{c.im >= 0 ? '+' : ''}{c.im}i
-                  </text>
-                )}
+                <text
+                  x={12}
+                  y={4}
+                  fill={COLORS[i % COLORS.length]}
+                  fontSize={14}
+                  fontWeight="bold"
+                  className="pointer-events-none select-none drop-shadow-md"
+                >
+                  {store.isRootsMode ? `r${i+1}` : `c${i}`}
+                </text>
               </g>
             );
           })}
         </svg>
-      </div>
-      
-      <div className="text-xl font-serif mt-2 italic flex flex-wrap gap-2 items-center justify-center p-3 bg-white dark:bg-black rounded-lg shadow-sm border border-gray-200 dark:border-gray-800 w-full overflow-x-auto">
-        <span>P(z) = </span>
-        {formatPolynomial(coeffs)}
       </div>
     </div>
   );
