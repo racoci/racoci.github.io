@@ -122,7 +122,13 @@ function notify() {
   listeners.forEach((l) => l());
 }
 
-export function rootsToCoeffs(roots: Complex[], leadingCoeff: Complex): Complex[] {
+export function applyApproximation(val: number, depth: number): number {
+  if (depth === 0) return Math.round(val);
+  const { num, den } = approximateDecimal(val, depth);
+  return num / den;
+}
+
+export function rootsToCoeffs(roots: Complex[], leadingCoeff: Complex, depth: number): Complex[] {
   let coeffs = [leadingCoeff];
   for (const r of roots) {
     const nextCoeffs: Complex[] = Array(coeffs.length + 1).fill({ re: 0, im: 0 });
@@ -132,7 +138,10 @@ export function rootsToCoeffs(roots: Complex[], leadingCoeff: Complex): Complex[
     }
     coeffs = nextCoeffs;
   }
-  return coeffs.reverse(); // [c0, c1, ..., cn]
+  return coeffs.reverse().map(c => ({
+    re: applyApproximation(c.re, depth),
+    im: applyApproximation(c.im, depth)
+  })); // [c0, c1, ..., cn]
 }
 
 export function evaluatePolynomial(coeffs: Complex[], z: Complex): Complex {
@@ -205,7 +214,7 @@ export function setCoefficients(newCoeffs: Complex[]) {
 export function setRoots(newRoots: Complex[]) {
   let leading = state.coefficients[state.coefficients.length - 1];
   if (!leading || (leading.re === 0 && leading.im === 0)) leading = {re: 1, im: 0};
-  const coeffs = rootsToCoeffs(newRoots, leading);
+  const coeffs = rootsToCoeffs(newRoots, leading, state.fractionDepth);
   state = { ...state, roots: newRoots, coefficients: coeffs };
   notify();
 }

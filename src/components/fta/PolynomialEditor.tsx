@@ -55,38 +55,44 @@ export default function PolynomialEditor() {
   }, [selectedPoint]);
 
   return (
-    <div className="flex flex-col items-center gap-6 my-8 p-4 md:p-6 border rounded-xl bg-gray-50 dark:bg-gray-900 border-gray-200 dark:border-gray-800 shadow-sm w-full max-w-5xl mx-auto">
+    <div className="flex flex-col items-center gap-6 my-8 p-4 md:p-6 border rounded-xl bg-gray-50 dark:bg-gray-900 border-gray-200 dark:border-gray-800 shadow-sm w-full max-w-none xl:max-w-[1200px] mx-auto">
       <div className="flex flex-row justify-between w-full">
         <h3 className="text-xl font-bold">Polynomial Editor</h3>
       </div>
 
-      <label className="flex items-center justify-between w-full max-w-xs gap-4">
-        <span className="text-sm font-medium whitespace-nowrap">Fraction Complexity: {store.fractionDepth}</span>
+      <div className="flex items-center justify-between w-full max-w-md gap-4 bg-white dark:bg-black p-3 rounded-lg border border-gray-200 dark:border-gray-800 shadow-sm">
+        <span className="text-sm font-medium whitespace-nowrap">Fraction Complexity:</span>
         <input 
-          type="range" min="0" max="5" 
+          type="range" min="1" max="10" step="1"
           value={store.fractionDepth} 
-          onChange={e => setFractionDepth(parseInt(e.target.value))}
+          onChange={e => setFractionDepth(Math.max(1, parseInt(e.target.value) || 1))}
           className="flex-1"
         />
-      </label>
+        <input 
+          type="number" min="1"
+          value={store.fractionDepth}
+          onChange={e => setFractionDepth(Math.max(1, parseInt(e.target.value) || 1))}
+          className="w-16 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded px-2 py-1 text-sm text-center outline-none"
+        />
+      </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 w-full">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 w-full items-stretch">
         {/* Left Column: Coefficients */}
-        <div className="flex flex-col gap-4 items-center w-full">
-          <div className="text-lg font-mono tracking-wider overflow-x-auto w-full text-center py-4 bg-white dark:bg-black rounded border border-gray-200 dark:border-gray-800 min-h-[5rem] flex items-center justify-center">
+        <div className="flex flex-col gap-4 items-center w-full h-full">
+          <div className="text-lg font-mono tracking-wider overflow-x-auto w-full text-center py-4 bg-white dark:bg-black rounded border border-gray-200 dark:border-gray-800 min-h-[5rem] flex flex-1 items-center justify-center">
             <span className="font-bold">P(z) =&nbsp;</span>
             <div className="inline-flex flex-wrap justify-center items-center gap-2">
-              {store.coefficients.map((c, i) => {
-                if (c.re === 0 && c.im === 0) return null;
-                return (
+              {(() => {
+                const visible = store.coefficients.map((c, i) => ({c, i})).filter(({c}) => Math.abs(c.re) >= 1e-6 || Math.abs(c.im) >= 1e-6).reverse();
+                if (visible.length === 0) return <span>0</span>;
+                return visible.map(({c, i}, displayIndex) => (
                   <span key={i} className="whitespace-nowrap flex items-center">
-                    {i < store.coefficients.length - 1 ? <span className="mx-1">+</span> : ''}
+                    {displayIndex > 0 && <span className="mx-1">+</span>}
                     <ComplexInput value={c} onChange={v => updateCoefficient(i, v)} color={COLORS[i % COLORS.length]} depth={store.fractionDepth} />
                     {i > 0 && <span>z{i > 1 && <sup>{i}</sup>}</span>}
                   </span>
-                );
-              }).reverse()}
-              {store.coefficients.every(c => c.re === 0 && c.im === 0) && <span>0</span>}
+                ));
+              })()}
             </div>
           </div>
           <PlaneEditor 
@@ -100,8 +106,8 @@ export default function PolynomialEditor() {
         </div>
 
         {/* Right Column: Roots */}
-        <div className="flex flex-col gap-4 items-center w-full">
-          <div className="text-lg font-mono tracking-wider overflow-x-auto w-full text-center py-4 bg-white dark:bg-black rounded border border-gray-200 dark:border-gray-800 min-h-[5rem] flex items-center justify-center">
+        <div className="flex flex-col gap-4 items-center w-full h-full">
+          <div className="text-lg font-mono tracking-wider overflow-x-auto w-full text-center py-4 bg-white dark:bg-black rounded border border-gray-200 dark:border-gray-800 min-h-[5rem] flex flex-1 items-center justify-center">
             <span className="font-bold">P(z) =&nbsp;</span>
             <div className="inline-flex flex-wrap justify-center items-center gap-1">
               {store.roots.length === 0 ? <span>1</span> : null}
