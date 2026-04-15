@@ -120,33 +120,48 @@ export function InteractivePlane({
     }
   };
 
-  const handleWheel = (e: React.WheelEvent<SVGSVGElement>) => {
-    if (!svgRef.current) return;
-    const pt = svgRef.current.createSVGPoint();
-    pt.x = e.clientX;
-    pt.y = e.clientY;
-    const ctm = svgRef.current.getScreenCTM();
-    if (!ctm) return;
-    const cursorPt = pt.matrixTransform(ctm.inverse());
-    
-    const scaleFactor = e.deltaY > 0 ? 1.1 : 1 / 1.1;
-    
-    const newW = viewBox.w * scaleFactor;
-    const newH = viewBox.h * scaleFactor;
-    
-    const relX = (cursorPt.x - viewBox.x) / viewBox.w;
-    const relY = (cursorPt.y - viewBox.y) / viewBox.h;
-    
-    const newX = cursorPt.x - newW * relX;
-    const newY = cursorPt.y - newH * relY;
-    
-    setViewBox({
-      x: newX,
-      y: newY,
-      w: newW,
-      h: newH
-    });
-  };
+  // We must use a ref for the wheel listener because React's synthetic onWheel is passive
+  // and does not reliably allow e.preventDefault() to stop page scrolling.
+  useEffect(() => {
+    const el = svgRef.current;
+    if (!el) return;
+
+    const handleNativeWheel = (e: WheelEvent) => {
+      e.preventDefault(); // Freeze page scroll!
+
+      const pt = el.createSVGPoint();
+      pt.x = e.clientX;
+      pt.y = e.clientY;
+      const ctm = el.getScreenCTM();
+      if (!ctm) return;
+      const cursorPt = pt.matrixTransform(ctm.inverse());
+
+      const scaleFactor = e.deltaY > 0 ? 1.1 : 1 / 1.1;
+
+      setViewBox((prevViewBox) => {
+        const newW = prevViewBox.w * scaleFactor;
+        const newH = prevViewBox.h * scaleFactor;
+
+        const relX = (cursorPt.x - prevViewBox.x) / prevViewBox.w;
+        const relY = (cursorPt.y - prevViewBox.y) / prevViewBox.h;
+
+        const newX = cursorPt.x - newW * relX;
+        const newY = cursorPt.y - newH * relY;
+
+        return {
+          x: newX,
+          y: newY,
+          w: newW,
+          h: newH
+        };
+      });
+    };
+
+    el.addEventListener('wheel', handleNativeWheel, { passive: false });
+    return () => {
+      el.removeEventListener('wheel', handleNativeWheel);
+    };
+  }, []);
 
   return (
     <svg
@@ -155,12 +170,11 @@ export function InteractivePlane({
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
-      onPointerLeave={handlePointerUp}
-      onWheel={handleWheel}
-      className={`touch-none ${isDragging ? "cursor-grabbing" : "cursor-crosshair"} ${className || ""}`}
+      onPointerCancel={handlePointerUp}
+      className={`touch-none ${className || ''}`}
       {...svgProps}
     >
       {children({ screenToMath, mathToScreen, viewBox })}
     </svg>
   );
-}
+  }
