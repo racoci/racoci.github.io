@@ -6,32 +6,83 @@ import { InteractivePlane } from './InteractivePlane';
 const COLORS = ['#ef4444', '#f59e0b', '#3b82f6', '#10b981', '#6366f1', '#a855f7', '#ec4899', '#14b8a6', '#f43f5e', '#8b5cf6'];
 
 const ComplexInput = ({ value, onChange, color, depth, prefix = '', suffix = '' }: { value: Complex, onChange: (c: Complex) => void, color: string, depth: number, prefix?: string, suffix?: string }) => {
-  const [editing, setEditing] = useState(false);
-  const [str, setStr] = useState('');
-
   const displayStr = formatComplexFraction(value, depth);
   const needsParens = value.re !== 0 && value.im !== 0;
 
-  if (editing) {
-    return (
-      <input 
-        autoFocus 
-        className="bg-gray-100 dark:bg-gray-800 border-b border-gray-400 outline-none text-center rounded px-1"
-        style={{ color, width: Math.max(str.length * 12, 40) + 'px', minWidth: '40px' }}
-        value={str}
-        onChange={e => setStr(e.target.value)}
-        onBlur={() => { setEditing(false); onChange(parseComplex(str)); }}
-        onKeyDown={e => { if (e.key === 'Enter') { setEditing(false); onChange(parseComplex(str)); } }}
-      />
-    );
-  }
-  
+  const parseStrIntoNodes = (s: string) => {
+    return s.split(/(\d+\/\d+|\d+\.\d+|\d+)/);
+  };
+
+  const [parts, setParts] = useState(() => parseStrIntoNodes(displayStr));
+
+  useEffect(() => {
+    setParts(parseStrIntoNodes(displayStr));
+  }, [displayStr]);
+
+  const handlePartChange = (index: number, newValue: string) => {
+    const newParts = [...parts];
+    newParts[index] = newValue;
+    setParts(newParts);
+  };
+
+  const commit = () => {
+    const fullStr = parts.join('');
+    onChange(parseComplex(fullStr));
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      commit();
+    }
+  };
+
   return (
-    <span 
-      onClick={() => { setEditing(true); setStr(displayStr); }} 
-      style={{ color, cursor: 'text', borderBottom: '1px dashed currentColor', padding: '0 2px' }}
-    >
-      {prefix}{needsParens && !prefix ? `(${displayStr})` : displayStr}{suffix}
+    <span className="inline-flex items-center" style={{ color }}>
+      {prefix}
+      {needsParens && !prefix && <span>(</span>}
+      {parts.map((part, i) => {
+        const isFrac = part.includes('/');
+        if (isFrac) {
+          const splitIdx = part.indexOf('/');
+          const num = part.slice(0, splitIdx);
+          const den = part.slice(splitIdx + 1);
+          return (
+            <span key={i} className="inline-flex flex-col items-center justify-center align-middle mx-[2px] translate-y-[0.1em]">
+              <input 
+                className="bg-transparent text-center outline-none border-b border-current p-0 m-0 leading-none" 
+                style={{ width: Math.max(num.length, 1) + 'ch', color: 'inherit', fontSize: '0.8em' }} 
+                value={num} 
+                onChange={e => handlePartChange(i, `${e.target.value}/${den}`)} 
+                onBlur={commit}
+                onKeyDown={handleKeyDown}
+              />
+              <input 
+                className="bg-transparent text-center outline-none p-0 m-0 leading-none" 
+                style={{ width: Math.max(den.length, 1) + 'ch', color: 'inherit', fontSize: '0.8em' }} 
+                value={den} 
+                onChange={e => handlePartChange(i, `${num}/${e.target.value}`)} 
+                onBlur={commit}
+                onKeyDown={handleKeyDown}
+              />
+            </span>
+          );
+        } else {
+          // Normal text part (can be operators, 'i', or integers/decimals)
+          return (
+            <input 
+              key={i}
+              className="bg-transparent text-center outline-none p-0 m-0 leading-none" 
+              style={{ width: part.length > 0 ? part.length + 'ch' : '0.5ch', color: 'inherit' }} 
+              value={part} 
+              onChange={e => handlePartChange(i, e.target.value)} 
+              onBlur={commit}
+              onKeyDown={handleKeyDown}
+            />
+          );
+        }
+      })}
+      {needsParens && !prefix && <span>)</span>}
+      {suffix}
     </span>
   );
 };
