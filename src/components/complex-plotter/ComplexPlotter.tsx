@@ -36,7 +36,7 @@ export default function ComplexPlotter({ lang = 'en' }: { lang?: 'en' | 'pt' }) 
     log_scale: [-0.5, 0],
     center_x: [0, 0],
     center_y: [0, 0],
-    enable_axes: [1, 0],
+    enable_axes: [0, 0],
     color_scale: [1, 0],
     grid_type: [1, 0], // 0 for polar, 1 for cartesian
     // "c" variable
@@ -132,7 +132,7 @@ export default function ComplexPlotter({ lang = 'en' }: { lang?: 'en' | 'pt' }) 
   }
 
   return (
-    <div className="flex flex-col md:flex-row h-screen pt-16 bg-zinc-950 text-zinc-100 font-sans">
+    <div className="flex flex-col md:flex-row h-[85vh] w-full rounded-2xl overflow-hidden border border-zinc-800 bg-zinc-950 text-zinc-100 font-sans shadow-2xl">
       {/* Sidebar controls */}
       <div className="w-full md:w-80 border-r border-zinc-800/60 p-6 overflow-y-auto bg-zinc-900/50 backdrop-blur-md z-10 flex flex-col gap-6">
         <div>
@@ -200,7 +200,7 @@ export default function ComplexPlotter({ lang = 'en' }: { lang?: 'en' | 'pt' }) 
       </div>
       
       {/* Canvas Area */}
-      <div className="flex-1 relative overflow-hidden" onPointerMove={handlePointerMove}>
+      <div className="flex-1 relative overflow-hidden bg-black" onPointerMove={handlePointerMove}>
         <canvas 
           ref={canvasRef} 
           className="absolute inset-0 w-full h-full block"
