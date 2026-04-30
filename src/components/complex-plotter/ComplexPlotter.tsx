@@ -2,7 +2,7 @@
 
 import React, { useRef, useEffect, useState } from 'react';
 import { initializeScene, drawScene } from './gl-code/scene.js';
-import compile from './gl-code/translators/compiler.js';
+import { parseExpression } from './gl-code/complex-functions.js';
 
 export default function ComplexPlotter({ lang = 'en' }: { lang?: 'en' | 'pt' }) {
   const t = lang === 'pt' ? {
@@ -31,22 +31,28 @@ export default function ComplexPlotter({ lang = 'en' }: { lang?: 'en' | 'pt' }) 
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const axesCanvasRef = useRef<HTMLCanvasElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+
   const [expression, setExpression] = useState("z^2 + c");
   const [variables, setVariables] = useState<any>({
-    log_scale: [-0.5, 0],
+    log_scale: [1.2, 0], // Scale zoom
     center_x: [0, 0],
     center_y: [0, 0],
-    enable_axes: [0, 0],
-    color_scale: [1, 0],
-    grid_type: [1, 0], // 0 for polar, 1 for cartesian
-    // "c" variable
-    c: [0.5, 0.5],
-    mouse_x: [0, 0],
-    mouse_y: [0, 0]
+    enable_axes: [1, 0], // Enable axes/labels
+    enable_checkerboard: [0, 0], // Disables checkerboard by default for raw aesthetic
+    invert_gradient: [0, 0],
+    continuous_gradient: [1, 0], // Smooth gradient
+    custom_function: [0, 0],
+    grid_type: [1, 0], // Cartesian/polar grid type
+    c: [0.35, 0.45], // Complex constant "c" values
   });
 
   const [error, setError] = useState<string | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const [centerStart, setCenterStart] = useState({ x: 0, y: 0 });
 
+  // WebGL context & resize
   useEffect(() => {
     const canvas = canvasRef.current;
     const axesCanvas = axesCanvasRef.current;
@@ -54,7 +60,7 @@ export default function ComplexPlotter({ lang = 'en' }: { lang?: 'en' | 'pt' }) 
     
     const gl = canvas.getContext('webgl');
     if (!gl) return;
-    // We need an extension for standard derivatives in shaders
+
     const ext = gl.getExtension('OES_standard_derivatives');
     if (!ext) {
        console.warn('OES_standard_derivatives not supported');
@@ -62,10 +68,12 @@ export default function ComplexPlotter({ lang = 'en' }: { lang?: 'en' | 'pt' }) 
 
     const handleResize = () => {
        const dpr = window.devicePixelRatio || 1;
-       canvas.width = canvas.clientWidth * dpr;
-       canvas.height = canvas.clientHeight * dpr;
-       axesCanvas.width = axesCanvas.clientWidth * dpr;
-       axesCanvas.height = axesCanvas.clientHeight * dpr;
+       const width = canvas.clientWidth;
+       const height = canvas.clientHeight;
+       canvas.width = width * dpr;
+       canvas.height = height * dpr;
+       axesCanvas.width = width * dpr;
+       axesCanvas.height = height * dpr;
        gl.viewport(0, 0, canvas.width, canvas.height);
     };
     handleResize();
@@ -74,6 +82,7 @@ export default function ComplexPlotter({ lang = 'en' }: { lang?: 'en' | 'pt' }) 
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  // WebGL render loop
   useEffect(() => {
     const canvas = canvasRef.current;
     const axesCanvas = axesCanvasRef.current;
@@ -85,7 +94,12 @@ export default function ComplexPlotter({ lang = 'en' }: { lang?: 'en' | 'pt' }) 
 
     let ast;
     try {
-        ast = compile(expression);
+        // Solve the blank canvas: use parseExpression (which runs nearley parser) instead of raw compile
+        ast = parseExpression(expression);
+        if (!ast) {
+           setError("Parsing Error");
+           return;
+        }
         setError(null);
     } catch(err) {
         setError("Compilation Error");
@@ -93,8 +107,6 @@ export default function ComplexPlotter({ lang = 'en' }: { lang?: 'en' | 'pt' }) 
     }
 
     const varNames = Object.keys(variables);
-    
-    // In original code, customShader might be null
     const customShader = null; 
     
     const varLocations: any = initializeScene(gl, ast, customShader, varNames);
@@ -106,11 +118,12 @@ export default function ComplexPlotter({ lang = 'en' }: { lang?: 'en' | 'pt' }) 
     let animationFrameId: number;
 
     const render = () => {
-      // transform variables to location/value arrays as scene.js expects
+      // transform variables to [location, value] array format expected by scene.js
       const variablesForScene: any = {};
       for (const k of varNames) {
          if (varLocations[k]) {
-            variablesForScene[k] = [varLocations[k], variables[k]];
+            // CRITICAL: WebGL uniform setters expect scalar floats. Extract variables[k][0]
+            variablesForScene[k] = [varLocations[k], variables[k][0]];
          }
       }
       
@@ -127,9 +140,59 @@ export default function ComplexPlotter({ lang = 'en' }: { lang?: 'en' | 'pt' }) 
     };
   }, [expression, variables]);
 
-  const handlePointerMove = (e: React.PointerEvent) => {
-    // optional interaction
-  }
+  // Non-passive wheel event listener to lock page scroll during zoom
+  useEffect(() => {
+    const canvas = containerRef.current;
+    if (!canvas) return;
+
+    const handleNativeWheel = (e: WheelEvent) => {
+      e.preventDefault(); // Lock page scroll
+
+      setVariables((prev: any) => {
+        const delta = e.deltaY > 0 ? -0.1 : 0.1;
+        const nextLogScale = Math.min(Math.max(prev.log_scale[0] + delta, -4), 8);
+        return {
+          ...prev,
+          log_scale: [nextLogScale, 0]
+        };
+      });
+    };
+
+    canvas.addEventListener('wheel', handleNativeWheel, { passive: false });
+    return () => {
+      canvas.removeEventListener('wheel', handleNativeWheel);
+    };
+  }, []);
+
+  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    // Left click drag only
+    if (e.button !== 0) return;
+    setIsDragging(true);
+    setDragStart({ x: e.clientX, y: e.clientY });
+    setCenterStart({ x: variables.center_x[0], y: variables.center_y[0] });
+    (e.currentTarget as HTMLDivElement).setPointerCapture(e.pointerId);
+  };
+
+  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!isDragging) return;
+    const dx = e.clientX - dragStart.x;
+    const dy = e.clientY - dragStart.y;
+
+    const scale = Math.exp(variables.log_scale[0]);
+    
+    setVariables((prev: any) => ({
+      ...prev,
+      center_x: [centerStart.x - dx / scale, 0],
+      center_y: [centerStart.y + dy / scale, 0]
+    }));
+  };
+
+  const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (isDragging) {
+      setIsDragging(false);
+      (e.currentTarget as HTMLDivElement).releasePointerCapture(e.pointerId);
+    }
+  };
 
   return (
     <div className="flex flex-col md:flex-row h-[85vh] w-full rounded-2xl overflow-hidden border border-zinc-800 bg-zinc-950 text-zinc-100 font-sans shadow-2xl">
@@ -200,7 +263,14 @@ export default function ComplexPlotter({ lang = 'en' }: { lang?: 'en' | 'pt' }) 
       </div>
       
       {/* Canvas Area */}
-      <div className="flex-1 relative overflow-hidden bg-black" onPointerMove={handlePointerMove}>
+      <div 
+        ref={containerRef}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerUp}
+        className="flex-1 relative overflow-hidden bg-black cursor-grab active:cursor-grabbing"
+      >
         <canvas 
           ref={canvasRef} 
           className="absolute inset-0 w-full h-full block"
