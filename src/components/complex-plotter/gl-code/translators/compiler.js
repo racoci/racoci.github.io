@@ -5,7 +5,7 @@
 import {constants, fns} from './to-js.js';
 import diff, {substitute} from './derivative.js';
 
-const math = require('mathjs');
+import * as math from 'mathjs';
 
 
 // Return AST where binary operation `op` is applied

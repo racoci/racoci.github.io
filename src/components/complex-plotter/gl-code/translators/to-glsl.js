@@ -1,6 +1,7 @@
-import {get} from 'lodash';
+import lodash from 'lodash';
+const { get } = lodash;
 
-const math = require('mathjs');
+import * as math from 'mathjs';
 
 function terminateFloat(x) {
     const terminator = Number.isInteger(x) ? '.' : '';
