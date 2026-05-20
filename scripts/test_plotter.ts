@@ -6,7 +6,7 @@
  * compiling, Nearley parsing, and coordinate system layouts.
  */
 
-const { parseExpression } = require('../src/components/complex-plotter/gl-code/complex-functions.js');
+import { parseExpression } from '../src/components/complex-plotter/gl-code/complex-functions';
 
 // Mock WebGL and DOM variables
 const mockVariables = {

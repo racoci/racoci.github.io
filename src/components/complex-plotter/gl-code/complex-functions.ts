@@ -1,43 +1,58 @@
 import nearley from 'nearley';
-import grammar from './grammar.js';
+import grammar from './grammar';
 
-import compile from './translators/compiler.js';
+import compile from './translators/compiler';
+import { ASTNode } from './types';
 
 const compiledGrammar = nearley.Grammar.fromCompiled(grammar);
 
 const argument_names = ['z', 'w', 'w1', 'w2', 'w3', 'w4', 'w5', 'w6'];
 
-class ComplexFunction {
-    constructor(name, body, log_body, dependencies, log_dep, num_args) {
+export class ComplexFunction {
+    public name: string;
+    public body: string;
+    public log_body: string | null;
+    public dependencies: string[];
+    public log_dependencies: string[];
+    public num_args: number;
+
+    constructor(
+        name: string, 
+        body: string, 
+        log_body?: string | string[] | null, 
+        dependencies?: string[] | number, 
+        log_dep?: string[], 
+        num_args?: number
+    ) {
         // If no log_body defined, assume it's the same
         if (Array.isArray(log_body) || log_body === undefined) {
-            num_args = dependencies;
-            dependencies = log_body;
+            num_args = dependencies as number;
+            dependencies = log_body as string[];
             log_body = body;
-            log_dep = dependencies;
+            log_dep = dependencies as string[];
         }
 
         if (num_args === undefined) {num_args = 1;}
 
         this.name = name;
         this.body = body;
-        this.log_body = log_body;
-        this.dependencies = dependencies || [];
+        this.log_body = log_body as string | null;
+        this.dependencies = (dependencies as string[]) || [];
         this.log_dependencies = log_dep || this.dependencies;
         this.num_args = num_args;
     }
 
-    apply(...parameters) {
+    apply(...parameters: string[]): string {
         return `${this.name}(${parameters.join(', ')})`;
     }
 
-    get declaration() {
+    get declaration(): string {
         const types = Array(this.num_args);
         types.fill('VEC_TYPE');
         return `VEC_TYPE ${this.name}(${types.join(', ')});`
     }
 
-    get params() {
+    get params(): string {
         let parameters = [];
         for (let i = 0; i < this.num_args; i++) {
             parameters.push(`VEC_TYPE ${argument_names[i]}`);
@@ -45,56 +60,59 @@ class ComplexFunction {
         return parameters.join(', ');
     }
 
-    get code() {
+    get code(): string {
         return `vec2 ${this.name}(${this.params}) {${this.body}}`;
     }
 
-    get log_code() {
+    get log_code(): string | null {
         if (this.log_body === null) {return null;}
         return `vec3 ${this.name}(${this.params}) {${this.log_body}}`;
     }
 }
 
-class DummyFunction {
-    constructor(dependencies, log_dependencies) {
+export class DummyFunction {
+    public dependencies: string[];
+    public log_dependencies: string[];
+
+    constructor(dependencies?: string[], log_dependencies?: string[]) {
         this.dependencies = dependencies || [];
         this.log_dependencies = log_dependencies || [];
     }
-    get declaration() {return '';}
-    get log_declaration() {return '';}
-    get code() {return '';}
-    get log_code() {return '';}
+    get declaration(): string {return '';}
+    get log_declaration(): string {return '';}
+    get code(): string {return '';}
+    get log_code(): string {return '';}
 }
 
 class ComponentMul extends ComplexFunction {
-    get declaration() {return `VEC_TYPE ${this.name}(VEC_TYPE, float);`}
-    get code() {return `vec2 ${this.name}(vec2 z, float w) {${this.body}}`;}
-    get log_code() {return `vec3 ${this.name}(vec3 z, float w) {${this.log_body}}`;}
+    override get declaration(): string {return `VEC_TYPE ${this.name}(VEC_TYPE, float);`}
+    override get code(): string {return `vec2 ${this.name}(vec2 z, float w) {${this.body}}`;}
+    override get log_code(): string {return `vec3 ${this.name}(vec3 z, float w) {${this.log_body}}`;}
 }
 class ZetaHelper extends ComplexFunction {
-    get declaration() {return `vec4 ${this.name}(VEC_TYPE, mat4, mat4);`}
-    get code() {return `vec4 ${this.name}(VEC_TYPE z, mat4 ns, mat4 bases) {${this.body}}`;}
-    get log_code() {return `vec4 ${this.name}(VEC_TYPE z, mat4 ns, mat4 bases) {${this.log_body}}`;}
+    override get declaration(): string {return `vec4 ${this.name}(VEC_TYPE, mat4, mat4);`}
+    override get code(): string {return `vec4 ${this.name}(VEC_TYPE z, mat4 ns, mat4 bases) {${this.body}}`;}
+    override get log_code(): string {return `vec4 ${this.name}(VEC_TYPE z, mat4 ns, mat4 bases) {${this.log_body}}`;}
 }
 class ZetaHelper2 extends ComplexFunction {
-    get declaration() {return `VEC_TYPE ${this.name}(VEC_TYPE, mat4, mat4);`}
-    get code() {return `vec2 ${this.name}(VEC_TYPE z, mat4 bases, mat4 coeffs) {${this.body}}`;}
-    get log_code() {return `vec3 ${this.name}(VEC_TYPE z, mat4 bases, mat4 coeffs) {${this.log_body}}`;}
+    override get declaration(): string {return `VEC_TYPE ${this.name}(VEC_TYPE, mat4, mat4);`}
+    override get code(): string {return `vec2 ${this.name}(VEC_TYPE z, mat4 bases, mat4 coeffs) {${this.body}}`;}
+    override get log_code(): string {return `vec3 ${this.name}(VEC_TYPE z, mat4 bases, mat4 coeffs) {${this.log_body}}`;}
 }
 class LatticeReduce extends ComplexFunction {
-    get declaration() {return `vec4 ${this.name}(vec2);`}
-    get code() {return `vec4 ${this.name}(vec2 z) {${this.body}}`;}
-    get log_code() {return this.code;}
+    override get declaration(): string {return `vec4 ${this.name}(vec2);`}
+    override get code(): string {return `vec4 ${this.name}(vec2 z) {${this.body}}`;}
+    override get log_code(): string {return this.code;}
 }
 class Nome extends ComplexFunction {
-    get declaration() {return `vec4 ${this.name}(VEC_TYPE);`}
-    get code() {return `vec4 ${this.name}(VEC_TYPE z) {${this.body}}`;}
-    get log_code() {return this.code;}
+    override get declaration(): string {return `vec4 ${this.name}(VEC_TYPE);`}
+    override get code(): string {return `vec4 ${this.name}(VEC_TYPE z) {${this.body}}`;}
+    override get log_code(): string {return this.code;}
 }
 class EHelper extends ComplexFunction {
-    get declaration() {return `VEC_TYPE ${this.name}(vec4);`}
-    get code() {return `VEC_TYPE ${this.name}(vec4 h) {${this.body}}`;}
-    get log_code() {return this.code;}
+    override get declaration(): string {return `VEC_TYPE ${this.name}(vec4);`}
+    override get code(): string {return `VEC_TYPE ${this.name}(vec4 h) {${this.body}}`;}
+    override get log_code(): string {return this.code;}
 }
 
 /***** BEGIN FUNCTION DEFINITIONS *****/
@@ -812,7 +830,7 @@ return cadd(ccomponent_mul(cexp(4.*clog(a)), 1617./3617.), ccomponent_mul(csquar
 ['add', 'nred', 'e4_helper', 'e6_helper', 'component_mul', 'square']);
 
 /**** Function List ****/
-var complex_functions = {
+const complex_functions: Record<string, any> = {
     mul_i,
     'reciprocal': creciprocal,
     'square': csquare,
@@ -905,10 +923,10 @@ var complex_functions = {
     'e16': ce16,
 };
 
-function parseExpression(expression) {
+function parseExpression(expression: string): ASTNode | null {
     try {
-        const parser = new nearley.Parser(compiledGrammar);
-        parser.feed(expression)
+        const parser = new (nearley as any).Parser(compiledGrammar);
+        parser.feed(expression);
         const result = parser.results[0];
         if (result !== null) {
             console.log('Raw AST:', result);
@@ -920,12 +938,12 @@ function parseExpression(expression) {
     }
 }
 
-function getRequirements(ast) {
+function getRequirements(ast: ASTNode): Set<string> {
     if (!Array.isArray(ast)) {return new Set();}
-    if (['number', 'variable', 'constant'].includes(ast[0])) {return new Set();}
-    const requirements = new Set([ast[0]]);
+    if (['number', 'variable', 'constant'].includes(ast[0] as string)) {return new Set();}
+    const requirements = new Set<string>([ast[0] as string]);
     for (let subast of ast.slice(1)) {
-        for (let req of getRequirements(subast)) {
+        for (let req of getRequirements(subast as ASTNode)) {
             requirements.add(req);
         }
     }
@@ -934,16 +952,15 @@ function getRequirements(ast) {
 
 // Get function declarations and definitions.
 // Only loads used functions and their dependencies.
-function functionDefinitions(ast, LOG_MODE) {
-    let required = null;
+function functionDefinitions(ast: ASTNode | string, LOG_MODE: boolean): string {
+    let required = new Set<string>();
 
     if (Array.isArray(ast)) {
         // Extract functions used
         required = getRequirements(ast);
     } else {
-        required = new Set();
         for (let name of Object.keys(complex_functions)) {
-            if (ast.includes(name+'(')) {
+            if ((ast as string).includes(name+'(')) {
                 required.add(name);
             }
         }
@@ -953,6 +970,7 @@ function functionDefinitions(ast, LOG_MODE) {
     const stack = Array.from(required);
     while (stack.length > 0) {
         const f = stack.pop();
+        if (!f) continue;
         const fObj = complex_functions[f];
         const dependencies = LOG_MODE ? fObj.log_dependencies : fObj.dependencies;
         for (let dep of dependencies) {
@@ -971,7 +989,7 @@ function functionDefinitions(ast, LOG_MODE) {
     const functions = Array.from(required).map(name => complex_functions[name]);
     const declarations = functions.map(f => f.declaration.replaceAll('VEC_TYPE', VEC_TYPE));
     const definitions = functions.map(
-        f => (LOG_MODE ? f.log_code : f.code).replaceAll('VEC_TYPE', VEC_TYPE).replaceAll('COMPONENTS', comp_suffix)
+        f => ((LOG_MODE ? f.log_code : f.code) as string).replaceAll('VEC_TYPE', VEC_TYPE).replaceAll('COMPONENTS', comp_suffix)
     );
 
     const declarationString = declarations.join('\n');

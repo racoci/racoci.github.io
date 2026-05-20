@@ -1,15 +1,15 @@
 import {
   functionDefinitions,
-} from './complex-functions.js';
+} from './complex-functions';
 import toGLSL from './translators/to-glsl';
+import { ASTNode, WebGLRenderingContextExtended } from './types';
 
-function loadShader(gl, type, source) {
-  // Create and compile shader
+function loadShader(gl: WebGLRenderingContext, type: number, source: string): WebGLShader | null {
   const shader = gl.createShader(type);
+  if (!shader) return null;
   gl.shaderSource(shader, source);
   gl.compileShader(shader);
 
-  // Test for successful compilation
   if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
     console.error('Shader failed to compile: '
       + gl.getShaderInfoLog(shader));
@@ -21,7 +21,12 @@ function loadShader(gl, type, source) {
 }
 
 
-function createShaderProgram(gl, expression, customShader, variableNames) {
+function createShaderProgram(
+  gl: WebGLRenderingContextExtended, 
+  expression: ASTNode | string | null, 
+  customShader: boolean, 
+  variableNames: string[]
+): WebGLProgram | null {
   if (expression === null) {return null;}
 
   gl.LOG_MODE = !customShader; // Whether to use (log-magnitude, phase) representation
@@ -30,34 +35,26 @@ function createShaderProgram(gl, expression, customShader, variableNames) {
     customShader, 
     gl.drawingBufferWidth, gl.drawingBufferHeight,
     variableNames,
-    gl.LOG_MODE
+    !!gl.LOG_MODE
   );
 
   if (fragmentShaderSource === null) {return null;}
 
-//  console.log(fragmentShaderSource);
-
-  // Load vertex and fragment shaders
   const vertexShader = loadShader(gl,
     gl.VERTEX_SHADER, vertexShaderSource);
   const fragmentShader = loadShader(gl,
     gl.FRAGMENT_SHADER, fragmentShaderSource);
 
-  if (vertexShader === null | fragmentShader === null) {
+  if (vertexShader === null || fragmentShader === null) {
     return null;
   }
 
-  // TODO Debug
-//  const ext = gl.getExtension('WEBGL_debug_shaders');
-//  console.log(ext.getTranslatedShaderSource(fragmentShader));
-
-  // Create shader program
   const shaderProgram = gl.createProgram();
+  if (!shaderProgram) return null;
   gl.attachShader(shaderProgram, vertexShader);
   gl.attachShader(shaderProgram, fragmentShader);
   gl.linkProgram(shaderProgram);
 
-  // Test for successful linkage
   if (!gl.getProgramParameter(shaderProgram, gl.LINK_STATUS)) {
     console.error('Shader program failed to initialize: '
       + gl.getProgramInfoLog(shaderProgram));
@@ -79,10 +76,17 @@ const vertexShaderSource = `
 `;
 
 
-function getFragmentShaderSource(expression, customShader, width, height, variableNames, LOG_MODE) {
+function getFragmentShaderSource(
+  expression: ASTNode | string, 
+  customShader: boolean, 
+  width: number, 
+  height: number, 
+  variableNames: string[], 
+  LOG_MODE: boolean
+): string | null {
   const x_offset = (width/2).toFixed(2);
   const y_offset = (height/2).toFixed(2);
-  const dpr = window.devicePixelRatio.toFixed(4);
+  const dpr = (typeof window !== 'undefined' ? window.devicePixelRatio : 1).toFixed(4);
 
   const vectype = LOG_MODE ? 'vec3' : 'vec2';
 
@@ -91,13 +95,14 @@ function getFragmentShaderSource(expression, customShader, width, height, variab
   ).join('\n');
 
   let custom_code = '';
-  let glsl_expression = null;
+  let glsl_expression: string | null = null;
   if (customShader) {
-    custom_code = expression;
+    custom_code = expression as string;
     glsl_expression = 'mapping(z)';
   } else {
-    glsl_expression = toGLSL(expression, LOG_MODE)[0];
-    if (LOG_MODE) {
+    const glslResult = toGLSL(expression as ASTNode, LOG_MODE);
+    glsl_expression = glslResult ? glslResult[0] : null;
+    if (LOG_MODE && glsl_expression) {
         glsl_expression = `upconvert(${glsl_expression})`
     }
   }

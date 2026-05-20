@@ -1,8 +1,8 @@
 "use client";
 
 import React, { useRef, useEffect, useState } from 'react';
-import { initializeScene, drawScene } from './gl-code/scene.js';
-import { parseExpression } from './gl-code/complex-functions.js';
+import { initializeScene, drawScene } from './gl-code/scene';
+import { parseExpression } from './gl-code/complex-functions';
 
 export default function ComplexPlotter({ lang = 'en' }: { lang?: 'en' | 'pt' }) {
   const t = lang === 'pt' ? {
@@ -119,7 +119,7 @@ export default function ComplexPlotter({ lang = 'en' }: { lang?: 'en' | 'pt' }) 
     }
 
     const varNames = Object.keys(variables);
-    const customShader = null; 
+    const customShader = false; 
     
     // Re-compile scene using the dynamically sized drawing buffer dimensions for perfect math centering!
     const varLocations: any = initializeScene(gl, ast, customShader, varNames);

@@ -1,3 +1,4 @@
+// @ts-nocheck
 import lodash from 'lodash';
 const { get, isNil } = lodash;
 import {
@@ -8,7 +9,7 @@ import {
     wp, wpp,
     sm, cm,
     j, e2, e4, e6, e8, e10, e12, e14, e16
-} from './custom-functions.js'
+} from './custom-functions'
 import * as math from 'mathjs';
 
 const constants = {
