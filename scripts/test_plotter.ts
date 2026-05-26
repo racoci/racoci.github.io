@@ -9,7 +9,7 @@
 import { parseExpression } from '../src/components/complex-plotter/gl-code/complex-functions';
 
 // Mock WebGL and DOM variables
-const mockVariables = {
+const mockVariables: Record<string, any> = {
   log_scale: [1.2, 0],
   center_x: [0, 0],
   center_y: [0, 0],
@@ -23,7 +23,7 @@ const mockVariables = {
 };
 
 // Simulated mock of initializeScene
-const mockVarLocations = {
+const mockVarLocations: Record<string, any> = {
   log_scale: "WebGLUniformLocation_log_scale",
   center_x: "WebGLUniformLocation_center_x",
   center_y: "WebGLUniformLocation_center_y",
@@ -57,7 +57,7 @@ function runTest() {
     console.log("\n[Test 2] Testing WebGL / Canvas Uniform variable extraction...");
 
     const varNames = Object.keys(mockVariables);
-    const variablesForScene = {};
+    const variablesForScene: Record<string, any> = {};
 
     for (const k of varNames) {
       // Replicate the exact new non-collapsing uniform assignments:
@@ -93,7 +93,7 @@ function runTest() {
 
   } catch (err) {
     console.error("\n❌ TEST SUITE FAILED:");
-    console.error(err.message);
+    console.error(err instanceof Error ? err.message : String(err));
     passed = false;
   }
 
