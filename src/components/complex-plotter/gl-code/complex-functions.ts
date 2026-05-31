@@ -923,15 +923,21 @@ const complex_functions: Record<string, any> = {
     'e16': ce16,
 };
 
-function parseExpression(expression: string): ASTNode | null {
+function parseRawExpression(expression: string): ASTNode | null {
     try {
         const parser = new (nearley as any).Parser(compiledGrammar);
         parser.feed(expression);
-        const result = parser.results[0];
-        if (result !== null) {
-            console.log('Raw AST:', result);
-        }
-        return compile(result || null);
+        return parser.results[0] || null;
+    } catch (error) {
+        return null;
+    }
+}
+
+function parseExpression(expression: string): ASTNode | null {
+    try {
+        const raw = parseRawExpression(expression);
+        if (raw === null) return null;
+        return compile(raw);
     } catch (error) {
         console.error(error);
         return null;

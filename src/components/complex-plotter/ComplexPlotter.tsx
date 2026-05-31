@@ -3,40 +3,39 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { initializeScene, drawScene } from './gl-code/scene';
 import { parseExpression } from './gl-code/complex-functions';
+import { getFreeVariables } from './gl-code/utils/variables';
+import toLaTeX from './gl-code/translators/to-latex';
+import 'katex/dist/katex.min.css';
+import { InlineMath } from 'react-katex';
+import MathInput from './MathInput';
 
 export default function ComplexPlotter({ lang = 'en' }: { lang?: 'en' | 'pt' }) {
   const t = lang === 'pt' ? {
     title: 'Gráficos Complexos',
     desc: 'Coloração de domínio baseada na web.',
     expression: 'Expressão f(z)',
-    zoom: 'Nível de Zoom',
-    colorMode: 'Modo de Cor',
+    settings: 'Configurações',
     cartesian: 'Grade Cartesiana',
     polar: 'Grade Polar',
-    varC: 'Variável "c" (Re, Im)',
-    adapted: 'Adaptado do Complex Function Plotter de Samuel J. Li (wgxli).',
+    adapted: 'Adaptado de Samuel J. Li (wgxli).',
     repo: 'Repositório Original',
-    graphicsOptions: 'Opções Gráficas',
-    enableAxes: 'Exibir Eixos de Coordenadas',
-    enableCheckerboard: 'Ativar Grade Xadrez',
+    enableAxes: 'Exibir Eixos',
+    enableCheckerboard: 'Grade Xadrez',
     invertGradient: 'Inverter Gradiente',
-    continuousGradient: 'Usar Gradiente Contínuo'
+    continuousGradient: 'Gradiente Contínuo'
   } : {
     title: 'Complex Plotter',
     desc: 'Web-based domain coloring.',
     expression: 'Expression f(z)',
-    zoom: 'Zoom Scale',
-    colorMode: 'Color Mode',
+    settings: 'Settings',
     cartesian: 'Cartesian Grid',
     polar: 'Polar Grid',
-    varC: 'Variable "c" (Re, Im)',
-    adapted: 'Adapted from Complex Function Plotter by Samuel J. Li (wgxli).',
+    adapted: 'Adapted from Samuel J. Li (wgxli).',
     repo: 'Original Repository',
-    graphicsOptions: 'Graphics Options',
-    enableAxes: 'Display Coordinate Axes',
-    enableCheckerboard: 'Enable Checkerboard Grid',
+    enableAxes: 'Display Axes',
+    enableCheckerboard: 'Checkerboard Grid',
     invertGradient: 'Invert Gradient',
-    continuousGradient: 'Use Continuous Gradient'
+    continuousGradient: 'Continuous Gradient'
   };
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -44,59 +43,87 @@ export default function ComplexPlotter({ lang = 'en' }: { lang?: 'en' | 'pt' }) 
   const containerRef = useRef<HTMLDivElement>(null);
 
   const [expression, setExpression] = useState("z^2 + c");
+  const [dynamicVars, setDynamicVars] = useState<string[]>([]);
+  const [latexStr, setLatexStr] = useState("z^2 + c");
+  
   const [variables, setVariables] = useState<any>({
-    log_scale: [1.2, 0], // Scale zoom
+    log_scale: [1.2, 0],
     center_x: [0, 0],
     center_y: [0, 0],
-    enable_axes: [1, 0], // Enable axes/labels
-    enable_checkerboard: [0, 0], // Disables checkerboard by default for raw aesthetic
-    invert_gradient: [1, 0], // Default to 1 (inverted magnitude gradient) for perfect dark-theme aesthetics
-    continuous_gradient: [1, 0], // Smooth gradient
+    enable_axes: [1, 0],
+    enable_checkerboard: [0, 0],
+    invert_gradient: [1, 0],
+    continuous_gradient: [1, 0],
     custom_function: [0, 0],
-    grid_type: [1, 0], // Cartesian/polar grid type
-    c: [0.35, 0.45], // Complex constant "c" values
+    grid_type: [1, 0],
+    c: [0.35, 0.45],
   });
 
   const [error, setError] = useState<string | null>(null);
-  const [isDragging, setIsDragging] = useState(false);
+  const [lastValidAst, setLastValidAst] = useState<any>(null);
+  const [isDraggingCanvas, setIsDraggingCanvas] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [centerStart, setCenterStart] = useState({ x: 0, y: 0 });
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
+  const [showSettings, setShowSettings] = useState(false);
+  
+  // Dragging custom variables
+  const [activeVar, setActiveVar] = useState<string | null>(null);
 
-  // Use a ResizeObserver on the canvas container to dynamically monitor layout updates
+  // Parse expression when it changes
+  useEffect(() => {
+    try {
+      const ast = parseExpression(expression);
+      if (ast) {
+        setError(null);
+        setLastValidAst(ast);
+        setLatexStr(toLaTeX(ast));
+        
+        const freeVars = Array.from(getFreeVariables(ast));
+        setDynamicVars(freeVars);
+        
+        setVariables((prev: any) => {
+          let changed = false;
+          const next = { ...prev };
+          freeVars.forEach(v => {
+            if (!next[v]) {
+              next[v] = [Math.random() * 2 - 1, Math.random() * 2 - 1];
+              changed = true;
+            }
+          });
+          return changed ? next : prev;
+        });
+      } else {
+        setError("Parsing Error");
+      }
+    } catch (err) {
+      console.error("Compilation Error in parseExpression. Context: ", { expression, err });
+      setError("Compilation Error");
+    }
+  }, [expression]);
+
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
-
     const observer = new ResizeObserver((entries) => {
       for (const entry of entries) {
-        const { width, height } = entry.contentRect;
-        setDimensions({ width, height });
+        setDimensions({ width: entry.contentRect.width, height: entry.contentRect.height });
       }
     });
-
     observer.observe(container);
-    return () => {
-      observer.disconnect();
-    };
+    return () => observer.disconnect();
   }, []);
 
-  // Combined WebGL sizing, compilation, and render loop
   useEffect(() => {
     const canvas = canvasRef.current;
     const axesCanvas = axesCanvasRef.current;
-    if (!canvas || !axesCanvas || dimensions.width === 0 || dimensions.height === 0) return;
+    const astToRender = lastValidAst;
+    if (!canvas || !axesCanvas || dimensions.width === 0 || dimensions.height === 0 || !astToRender) return;
     
     const gl = canvas.getContext('webgl');
     if (!gl) return;
     const ctx = axesCanvas.getContext('2d');
 
-    const ext = gl.getExtension('OES_standard_derivatives');
-    if (!ext) {
-       console.warn('OES_standard_derivatives not supported');
-    }
-
-    // Explicitly set width/height on the canvases multiplied by devicePixelRatio
     const dpr = window.devicePixelRatio || 1;
     canvas.width = dimensions.width * dpr;
     canvas.height = dimensions.height * dpr;
@@ -104,92 +131,71 @@ export default function ComplexPlotter({ lang = 'en' }: { lang?: 'en' | 'pt' }) 
     axesCanvas.height = dimensions.height * dpr;
     gl.viewport(0, 0, canvas.width, canvas.height);
 
-    let ast;
-    try {
-        // Solve the blank canvas: use parseExpression (which runs nearley parser) instead of raw compile
-        ast = parseExpression(expression);
-        if (!ast) {
-           setError("Parsing Error");
-           return;
-        }
-        setError(null);
-    } catch(err) {
-        setError("Compilation Error");
-        return;
-    }
-
     const varNames = Object.keys(variables);
-    const customShader = false; 
-    
-    // Re-compile scene using the dynamically sized drawing buffer dimensions for perfect math centering!
-    const varLocations: any = initializeScene(gl, ast, customShader, varNames);
-    if (!varLocations) {
-       setError("Shader Error");
-       return;
-    }
+    const varLocations: any = initializeScene(gl, astToRender, false, varNames);
+    if (!varLocations) return;
 
     let animationFrameId: number;
-
     const render = () => {
-      // transform variables to [location, value] array format expected by scene.js
       const variablesForScene: any = {};
       for (const k of varNames) {
-         // CRITICAL: WebGL uniform setters expect scalar floats. Extract variables[k][0]
-         // If a variable is client-only (like enable_axes), pass null as the location to prevent crashes
-         variablesForScene[k] = [varLocations[k] || null, variables[k][0]];
+         variablesForScene[k] = [varLocations[k] || null, variables[k]];
       }
-      
       if (ctx) {
         drawScene(gl, variablesForScene, ctx);
       }
       animationFrameId = requestAnimationFrame(render);
     };
-    
     render();
+    return () => cancelAnimationFrame(animationFrameId);
+  }, [lastValidAst, variables, dimensions]);
 
-    return () => {
-      cancelAnimationFrame(animationFrameId);
-    };
-  }, [expression, variables, dimensions]);
-
-  // Non-passive wheel event listener to lock page scroll during zoom
   useEffect(() => {
     const canvas = containerRef.current;
     if (!canvas) return;
-
     const handleNativeWheel = (e: WheelEvent) => {
-      e.preventDefault(); // Lock page scroll
-
+      e.preventDefault();
       setVariables((prev: any) => {
         const delta = e.deltaY > 0 ? -0.1 : 0.1;
-        const nextLogScale = Math.min(Math.max(prev.log_scale[0] + delta, -4), 8);
-        return {
-          ...prev,
-          log_scale: [nextLogScale, 0]
-        };
+        return { ...prev, log_scale: [Math.min(Math.max(prev.log_scale[0] + delta, -4), 8), 0] };
       });
     };
-
     canvas.addEventListener('wheel', handleNativeWheel, { passive: false });
-    return () => {
-      canvas.removeEventListener('wheel', handleNativeWheel);
-    };
+    return () => canvas.removeEventListener('wheel', handleNativeWheel);
   }, []);
 
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
-    // Left click drag only
-    if (e.button !== 0) return;
-    setIsDragging(true);
+    if (e.button !== 0 || activeVar !== null) return;
+    setIsDraggingCanvas(true);
     setDragStart({ x: e.clientX, y: e.clientY });
     setCenterStart({ x: variables.center_x[0], y: variables.center_y[0] });
-    (e.currentTarget as HTMLDivElement).setPointerCapture(e.pointerId);
+    e.currentTarget.setPointerCapture(e.pointerId);
   };
 
   const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!isDragging) return;
+    if (activeVar) {
+       // Dragging a variable
+       const rect = containerRef.current!.getBoundingClientRect();
+       const x = e.clientX - rect.left;
+       const y = e.clientY - rect.top;
+       
+       const scale = Math.exp(variables.log_scale[0]);
+       const cx = variables.center_x[0];
+       const cy = variables.center_y[0];
+       
+       const re = cx + (x - dimensions.width / 2) / scale;
+       const im = cy - (dimensions.height / 2 - y) / scale;
+       
+       setVariables((prev: any) => ({
+           ...prev,
+           [activeVar]: [re, im]
+       }));
+       return;
+    }
+
+    if (!isDraggingCanvas) return;
     const dx = e.clientX - dragStart.x;
     const dy = e.clientY - dragStart.y;
-
     const scale = Math.exp(variables.log_scale[0]);
     
     setVariables((prev: any) => ({
@@ -200,159 +206,110 @@ export default function ComplexPlotter({ lang = 'en' }: { lang?: 'en' | 'pt' }) 
   };
 
   const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (isDragging) {
-      setIsDragging(false);
-      (e.currentTarget as HTMLDivElement).releasePointerCapture(e.pointerId);
+    if (isDraggingCanvas) {
+      setIsDraggingCanvas(false);
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    }
+    if (activeVar) {
+      setActiveVar(null);
     }
   };
 
-  return (
-    <div className="flex flex-col md:flex-row h-[85vh] w-full rounded-2xl overflow-hidden border border-zinc-800 bg-zinc-950 text-zinc-100 font-sans shadow-2xl">
-      {/* Sidebar controls */}
-      <div className="w-full md:w-80 border-r border-zinc-800/60 p-6 overflow-y-auto bg-zinc-900/50 backdrop-blur-md z-10 flex flex-col gap-6">
-        <div>
-          <h2 className="text-2xl font-bold mb-1 text-zinc-100">{t.title}</h2>
-          <p className="text-sm text-zinc-400">{t.desc}</p>
-        </div>
-        
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-semibold mb-1 text-zinc-300">{t.expression}</label>
-            <input 
-              type="text" 
-              className="w-full bg-zinc-950/50 border border-zinc-700/50 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none transition-all rounded p-2.5 text-sm font-mono text-emerald-400"
-              value={expression}
-              onChange={e => setExpression(e.target.value)}
-            />
-            {error && <p className="text-red-400 text-xs mt-1.5">{error}</p>}
-          </div>
+  // Convert complex value to screen coordinates
+  const toScreen = (re: number, im: number) => {
+    const scale = Math.exp(variables.log_scale[0]);
+    return {
+      x: (re - variables.center_x[0]) * scale + dimensions.width / 2,
+      y: -(im - variables.center_y[0]) * scale + dimensions.height / 2,
+    };
+  };
 
-          <div>
-            <label className="block text-sm font-semibold mb-1 text-zinc-300">{t.zoom}</label>
-            <input 
-              type="range" min="-3" max="3" step="0.05"
-              value={variables.log_scale[0]}
-              onChange={e => setVariables({...variables, log_scale: [parseFloat(e.target.value), 0]})}
-              className="w-full accent-emerald-500"
-            />
-          </div>
-          
-          <div>
-            <label className="block text-sm font-semibold mb-1 text-zinc-300">{t.colorMode}</label>
-            <select 
-              className="w-full bg-zinc-950/50 border border-zinc-700/50 focus:border-emerald-500 outline-none transition-all rounded p-2.5 text-sm"
-              value={variables.grid_type[0]}
-              onChange={e => setVariables({...variables, grid_type: [parseFloat(e.target.value), 0]})}
-            >
-              <option value={1}>{t.cartesian}</option>
-              <option value={0}>{t.polar}</option>
-            </select>
-          </div>
-
-          <div className="pt-2">
-            <label className="block text-sm font-semibold mb-1 text-zinc-300">{t.varC}</label>
-            <div className="flex gap-2">
-              <input 
-                type="number" step="0.1"
-                value={variables.c[0]}
-                onChange={e => setVariables({...variables, c: [parseFloat(e.target.value), variables.c[1]]})}
-                className="w-full bg-zinc-950/50 border border-zinc-700/50 rounded p-2 text-sm font-mono text-zinc-200"
-              />
-              <input 
-                type="number" step="0.1"
-                value={variables.c[1]}
-                onChange={e => setVariables({...variables, c: [variables.c[0], parseFloat(e.target.value)]})}
-                className="w-full bg-zinc-950/50 border border-zinc-700/50 rounded p-2 text-sm font-mono text-zinc-200"
-              />
-            </div>
-          </div>
-
-          <div className="pt-4 border-t border-zinc-800/60 space-y-3">
-            <label className="block text-xs font-mono font-bold text-zinc-400 uppercase tracking-wider mb-2">
-              {t.graphicsOptions}
-            </label>
-
-            {/* Enable Axes */}
-            <label className="flex items-center gap-2.5 cursor-pointer text-sm text-zinc-300 select-none hover:text-zinc-100 transition-colors">
-              <input 
-                type="checkbox"
-                checked={variables.enable_axes[0] > 0.5}
-                onChange={e => setVariables({
-                  ...variables,
-                  enable_axes: [e.target.checked ? 1 : 0, 0]
-                })}
-                className="rounded border-zinc-700 bg-zinc-950 text-emerald-500 focus:ring-emerald-500 h-4 w-4 accent-emerald-500"
-              />
-              {t.enableAxes}
-            </label>
-
-            {/* Enable Checkerboard */}
-            <label className="flex items-center gap-2.5 cursor-pointer text-sm text-zinc-300 select-none hover:text-zinc-100 transition-colors">
-              <input 
-                type="checkbox"
-                checked={variables.enable_checkerboard[0] > 0.5}
-                onChange={e => setVariables({
-                  ...variables,
-                  enable_checkerboard: [e.target.checked ? 1 : 0, 0]
-                })}
-                className="rounded border-zinc-700 bg-zinc-950 text-emerald-500 focus:ring-emerald-500 h-4 w-4 accent-emerald-500"
-              />
-              {t.enableCheckerboard}
-            </label>
-
-            {/* Invert Gradient */}
-            <label className="flex items-center gap-2.5 cursor-pointer text-sm text-zinc-300 select-none hover:text-zinc-100 transition-colors">
-              <input 
-                type="checkbox"
-                checked={variables.invert_gradient[0] > 0.5}
-                onChange={e => setVariables({
-                  ...variables,
-                  invert_gradient: [e.target.checked ? 1 : 0, 0]
-                })}
-                className="rounded border-zinc-700 bg-zinc-950 text-emerald-500 focus:ring-emerald-500 h-4 w-4 accent-emerald-500"
-              />
-              {t.invertGradient}
-            </label>
-
-            {/* Continuous Gradient */}
-            <label className="flex items-center gap-2.5 cursor-pointer text-sm text-zinc-300 select-none hover:text-zinc-100 transition-colors">
-              <input 
-                type="checkbox"
-                checked={variables.continuous_gradient[0] > 0.5}
-                onChange={e => setVariables({
-                  ...variables,
-                  continuous_gradient: [e.target.checked ? 1 : 0, 0]
-                })}
-                className="rounded border-zinc-700 bg-zinc-950 text-emerald-500 focus:ring-emerald-500 h-4 w-4 accent-emerald-500"
-              />
-              {t.continuousGradient}
-            </label>
-          </div>
-        </div>
-
-        <div className="mt-auto pt-6 text-xs text-zinc-500 border-t border-zinc-800/60 leading-relaxed">
-          {t.adapted} <br/>
-          <a href="https://github.com/wgxli/complex-function-plotter" target="_blank" rel="noopener noreferrer" className="text-emerald-400/80 hover:text-emerald-400 underline decoration-emerald-500/30 transition-colors">{t.repo}</a>
-        </div>
+  const Switch = ({ checked, onChange, label }: { checked: boolean, onChange: (v: boolean) => void, label: string }) => (
+    <label className="flex items-center justify-between cursor-pointer group">
+      <span className="text-sm text-zinc-300 group-hover:text-zinc-100 transition-colors">{label}</span>
+      <div className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${checked ? 'bg-emerald-500' : 'bg-zinc-700'}`}>
+        <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${checked ? 'translate-x-4.5' : 'translate-x-1'}`} 
+              style={{ transform: checked ? 'translateX(18px)' : 'translateX(4px)' }} />
       </div>
-      
-      {/* Canvas Area */}
+      <input type="checkbox" className="sr-only" checked={checked} onChange={e => onChange(e.target.checked)} />
+    </label>
+  );
+
+  return (
+    <div className="relative h-[85vh] w-full rounded-2xl overflow-hidden border border-zinc-800 bg-black font-sans shadow-2xl">
       <div 
         ref={containerRef}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
         onPointerCancel={handlePointerUp}
-        className="flex-1 relative overflow-hidden bg-black cursor-grab active:cursor-grabbing"
+        className="absolute inset-0 cursor-grab active:cursor-grabbing"
       >
-        <canvas 
-          ref={canvasRef} 
-          className="absolute inset-0 w-full h-full block"
-        />
-        <canvas 
-          ref={axesCanvasRef} 
-          className="absolute inset-0 w-full h-full pointer-events-none block"
-        />
+        <canvas ref={canvasRef} className="absolute inset-0 w-full h-full block" />
+        <canvas ref={axesCanvasRef} className="absolute inset-0 w-full h-full pointer-events-none block" />
+        
+        {/* Draggable Variables */}
+        {dynamicVars.map(v => {
+           const val = variables[v];
+           if (!val) return null;
+           const pos = toScreen(val[0], val[1]);
+           return (
+             <div 
+               key={v}
+               onPointerDown={(e) => { e.stopPropagation(); setActiveVar(v); }}
+               className="absolute w-8 h-8 -ml-4 -mt-4 bg-emerald-500/20 rounded-full flex items-center justify-center cursor-pointer hover:bg-emerald-500/40 transition-colors"
+               style={{ left: pos.x, top: pos.y, touchAction: 'none' }}
+             >
+               <div className="w-3 h-3 bg-emerald-400 rounded-full shadow-[0_0_10px_rgba(52,211,153,0.8)]" />
+               <span className="absolute -bottom-6 text-xs font-mono text-emerald-300 font-bold bg-zinc-900/80 px-1.5 py-0.5 rounded backdrop-blur-sm shadow">{v}</span>
+             </div>
+           );
+        })}
+      </div>
+
+      {/* Floating Header UI */}
+      <div className="absolute top-4 left-4 right-4 flex justify-between items-start pointer-events-none">
+         <div className="bg-zinc-950/40 backdrop-blur-md border border-zinc-800/60 p-4 rounded-xl shadow-2xl pointer-events-auto max-w-md w-full">
+            <h2 className="text-xl font-bold mb-1 text-zinc-100">{t.title}</h2>
+            <div className="mt-3">
+               <MathInput value={expression} onChange={setExpression} hasError={!!error} />
+            </div>
+            <div className="mt-3 px-2 py-1 text-center min-h-[2.5rem] flex items-center justify-center bg-zinc-900/40 rounded-lg overflow-x-auto text-emerald-100">
+               <InlineMath math={`f(z) = ${latexStr}`} />
+            </div>
+         </div>
+         
+         <div className="flex flex-col gap-2 pointer-events-auto items-end">
+             <button 
+               onClick={() => setShowSettings(!showSettings)}
+               className="bg-zinc-950/40 backdrop-blur-md border border-zinc-800/60 p-3 rounded-full hover:bg-zinc-900/60 transition-colors shadow-lg flex items-center justify-center"
+               title={t.settings}
+             >
+                <svg className="w-5 h-5 text-zinc-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+             </button>
+             
+             {showSettings && (
+               <div className="bg-zinc-950/40 backdrop-blur-md border border-zinc-800/60 p-4 rounded-xl shadow-2xl w-64 flex flex-col gap-4 mt-2">
+                 <Switch label={t.enableAxes} checked={variables.enable_axes[0] > 0.5} onChange={c => setVariables({...variables, enable_axes: [c?1:0, 0]})} />
+                 <Switch label={t.enableCheckerboard} checked={variables.enable_checkerboard[0] > 0.5} onChange={c => setVariables({...variables, enable_checkerboard: [c?1:0, 0]})} />
+                 <Switch label={t.invertGradient} checked={variables.invert_gradient[0] > 0.5} onChange={c => setVariables({...variables, invert_gradient: [c?1:0, 0]})} />
+                 <Switch label={t.continuousGradient} checked={variables.continuous_gradient[0] > 0.5} onChange={c => setVariables({...variables, continuous_gradient: [c?1:0, 0]})} />
+                 <div className="pt-2 border-t border-zinc-800/60">
+                   <select 
+                     className="w-full bg-zinc-900/50 border border-zinc-700/50 outline-none rounded p-2 text-sm text-zinc-300"
+                     value={variables.grid_type[0]}
+                     onChange={e => setVariables({...variables, grid_type: [parseFloat(e.target.value), 0]})}
+                   >
+                     <option value={1}>{t.cartesian}</option>
+                     <option value={0}>{t.polar}</option>
+                   </select>
+                 </div>
+               </div>
+             )}
+         </div>
       </div>
     </div>
   );
