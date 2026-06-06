@@ -52,19 +52,8 @@ function sumProd(operator: string, args: ASTNode[]): ASTNode | null {
     if (arg2[0] !== 'number') {return null;}
     if (arg3[0] !== 'number') {return null;}
 
-    const idxVar = arg1[1] as string;
-    const low = arg2[1] as number;
-    const high = arg3[1] as number;
-    const termAST = args[0];
-
-    const terms: ASTNode[] = [];
-    for (let i = low; i <= high; i++) {
-        terms.push(compile(substitute(termAST, idxVar, ['number', i, 0])));
-    }
-
-    if (operator === 'sum') {return compose(terms, 'add', 'add4', 'add8');} // Log-cartesian
-    if (operator === 'prod') {return compose(terms, 'mul', 'mul4');}
-    return null;
+    // Preserve the loop construct for GLSL and JS translation
+    return [operator, compile(args[0]), arg1[1], arg2[1], arg3[1]];
 }
 
 function getConst(val: any): math.Complex {
