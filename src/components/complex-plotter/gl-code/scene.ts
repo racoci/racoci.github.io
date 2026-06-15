@@ -190,13 +190,37 @@ function drawAxes(
 
     ctx.lineWidth = 1;
     ctx.beginPath();
-    for (let i = Math.ceil(x_min/labelScale); i < x_max/labelScale; i++) {
-        if (i === 0) {continue;}
-        verticalLine(i * labelScale);
+    
+    // Cartesian Grid
+    if (variables.grid_type && variables.grid_type[1] > 0.5) {
+      for (let i = Math.ceil(x_min/labelScale); i < x_max/labelScale; i++) {
+          if (i === 0) {continue;}
+          verticalLine(i * labelScale);
+      }
+      for (let i = Math.ceil(y_min/labelScale); i < y_max/labelScale; i++) {
+          if (i === 0) {continue;}
+          horizontalLine(i * labelScale);
+      }
     }
-    for (let i = Math.ceil(y_min/labelScale); i < y_max/labelScale; i++) {
-        if (i === 0) {continue;}
-        horizontalLine(i * labelScale);
+
+    // Polar Grid
+    if (variables.polar_grid && variables.polar_grid[1] > 0.5) {
+      // Concentric circles
+      const maxRadius = Math.hypot(Math.max(Math.abs(x_min), Math.abs(x_max)), Math.max(Math.abs(y_min), Math.abs(y_max)));
+      for (let r = labelScale; r < maxRadius; r += labelScale) {
+        ctx.moveTo(x0 + scale * r, y0);
+        ctx.arc(x0, y0, scale * r, 0, 2 * Math.PI);
+      }
+      
+      // Radial lines (every pi/6 = 30 degrees)
+      const numLines = 12;
+      for (let i = 0; i < numLines; i++) {
+        const theta = (i * Math.PI) / (numLines / 2);
+        const endX = x0 + scale * maxRadius * Math.cos(theta);
+        const endY = y0 - scale * maxRadius * Math.sin(theta);
+        ctx.moveTo(x0, y0);
+        ctx.lineTo(endX, endY);
+      }
     }
     ctx.stroke();
 

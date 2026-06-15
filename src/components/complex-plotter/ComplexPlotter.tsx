@@ -55,6 +55,7 @@ export default function ComplexPlotter({ lang = 'en' }: { lang?: 'en' | 'pt' }) 
     continuous_gradient: [1, 0],
     custom_function: [0, 0],
     grid_type: [1, 0],
+    polar_grid: [0, 0],
     c: [0.35, 0.45],
   });
 
@@ -228,8 +229,7 @@ export default function ComplexPlotter({ lang = 'en' }: { lang?: 'en' | 'pt' }) 
     <label className="flex items-center justify-between cursor-pointer group">
       <span className="text-sm text-zinc-300 group-hover:text-zinc-100 transition-colors">{label}</span>
       <div className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${checked ? 'bg-emerald-500' : 'bg-zinc-700'}`}>
-        <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${checked ? 'translate-x-4.5' : 'translate-x-1'}`} 
-              style={{ transform: checked ? 'translateX(18px)' : 'translateX(4px)' }} />
+        <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform shadow ${checked ? 'translate-x-4' : 'translate-x-0.5'}`} />
       </div>
       <input type="checkbox" className="sr-only" checked={checked} onChange={e => onChange(e.target.checked)} />
     </label>
@@ -304,19 +304,11 @@ export default function ComplexPlotter({ lang = 'en' }: { lang?: 'en' | 'pt' }) 
              {showSettings && (
                <div className="bg-zinc-950/40 backdrop-blur-md border border-zinc-800/60 p-4 rounded-xl shadow-2xl w-64 flex flex-col gap-4 mt-2">
                  <Switch label={t.enableAxes} checked={variables.enable_axes[0] > 0.5} onChange={c => setVariables({...variables, enable_axes: [c?1:0, 0]})} />
+                 <Switch label={t.cartesian} checked={variables.grid_type[0] > 0.5} onChange={c => setVariables({...variables, grid_type: [c?1:0, 0]})} />
+                 <Switch label={t.polar} checked={variables.polar_grid[0] > 0.5} onChange={c => setVariables({...variables, polar_grid: [c?1:0, 0]})} />
                  <Switch label={t.enableCheckerboard} checked={variables.enable_checkerboard[0] > 0.5} onChange={c => setVariables({...variables, enable_checkerboard: [c?1:0, 0]})} />
                  <Switch label={t.invertGradient} checked={variables.invert_gradient[0] > 0.5} onChange={c => setVariables({...variables, invert_gradient: [c?1:0, 0]})} />
                  <Switch label={t.continuousGradient} checked={variables.continuous_gradient[0] > 0.5} onChange={c => setVariables({...variables, continuous_gradient: [c?1:0, 0]})} />
-                 <div className="pt-2 border-t border-zinc-800/60">
-                   <select 
-                     className="w-full bg-zinc-900/50 border border-zinc-700/50 outline-none rounded p-2 text-sm text-zinc-300"
-                     value={variables.grid_type[0]}
-                     onChange={e => setVariables({...variables, grid_type: [parseFloat(e.target.value), 0]})}
-                   >
-                     <option value={1}>{t.cartesian}</option>
-                     <option value={0}>{t.polar}</option>
-                   </select>
-                 </div>
                </div>
              )}
          </div>
