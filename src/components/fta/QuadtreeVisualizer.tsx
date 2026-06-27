@@ -39,6 +39,9 @@ export default function QuadtreeVisualizer() {
 
   const domainCanvasRef = useRef<HTMLCanvasElement>(null);
   const imageCanvasRef = useRef<HTMLCanvasElement>(null);
+  const webglCanvasRef = useRef<HTMLCanvasElement>(null);
+  const glRef = useRef<WebGLRenderingContext | null>(null);
+  const programRef = useRef<WebGLProgram | null>(null);
 
   // States
   const [activeSquare, setActiveSquare] = useState<Square>({ x: -2, y: -2, size: 4, depth: 0 });
@@ -70,6 +73,136 @@ export default function QuadtreeVisualizer() {
       setIsPt(window.location.pathname.includes("/pt"));
     }
   }, []);
+
+  // High-Resolution WebGL Domain Coloring rendering loop
+  useEffect(() => {
+    const canvas = webglCanvasRef.current;
+    if (!canvas) return;
+
+    let gl = glRef.current;
+    if (!gl) {
+      gl = canvas.getContext("webgl");
+      if (!gl) return;
+      glRef.current = gl;
+    }
+
+    if (!programRef.current) {
+      const vsSource = `
+        attribute vec2 a_position;
+        varying vec2 v_texCoord;
+        void main() {
+          v_texCoord = a_position * 0.5 + 0.5;
+          gl_Position = vec4(a_position, 0.0, 1.0);
+        }
+      `;
+      const fsSource = `
+        precision mediump float;
+        varying vec2 v_texCoord;
+        uniform vec2 u_camera_pos;
+        uniform float u_camera_size;
+        uniform vec2 u_coeffs[6];
+        uniform int u_degree;
+
+        const float PI = 3.141592653589793;
+        const float TAU = 2.0 * PI;
+
+        vec2 cadd(vec2 a, vec2 b) { return a + b; }
+        vec2 cmul(vec2 a, vec2 b) { return vec2(a.x * b.x - a.y * b.y, a.x * b.y + a.y * b.x); }
+
+        vec3 hsv2rgb(vec3 c) {
+          vec4 K = vec4(1.0, 2.0 / 3.0, 1.0 / 3.0, 3.0);
+          vec3 p = abs(fract(c.xxx + K.xyz) * 6.0 - K.www);
+          return c.z * mix(K.xxx, clamp(p - K.xxx, 0.0, 1.0), c.y);
+        }
+
+        void main() {
+          // Invert Y coordinate mapping mathematically to align with the SVG coordinates!
+          vec2 z = u_camera_pos + vec2(v_texCoord.x, v_texCoord.y) * u_camera_size;
+          vec2 acc = vec2(0.0);
+          vec2 z_pow = vec2(1.0, 0.0);
+          for (int i = 0; i < 6; i++) {
+            if (i > u_degree) break;
+            acc = cadd(acc, cmul(u_coeffs[i], z_pow));
+            z_pow = cmul(z_pow, z);
+          }
+          float angle = atan(acc.y, acc.x + 1e-20);
+          float hue = (angle + PI) / TAU;
+          float mag = length(acc);
+          float logMag = mag > 0.0 ? log(mag) / log(2.0) : 0.0;
+          float lightness = 0.35 + fract(logMag) * 0.15;
+          vec3 rgb = hsv2rgb(vec3(hue, 0.6, lightness));
+          gl_FragColor = vec4(rgb, 0.35); // Subtle alpha (0.35)
+        }
+      `;
+
+      const vs = gl.createShader(gl.VERTEX_SHADER);
+      const fs = gl.createShader(gl.FRAGMENT_SHADER);
+      if (!vs || !fs) return;
+
+      gl.shaderSource(vs, vsSource);
+      gl.compileShader(vs);
+      if (!gl.getShaderParameter(vs, gl.COMPILE_STATUS)) {
+        console.error("VS compilation failed:", gl.getShaderInfoLog(vs));
+        return;
+      }
+
+      gl.shaderSource(fs, fsSource);
+      gl.compileShader(fs);
+      if (!gl.getShaderParameter(fs, gl.COMPILE_STATUS)) {
+        console.error("FS compilation failed:", gl.getShaderInfoLog(fs));
+        return;
+      }
+
+      const prog = gl.createProgram();
+      if (!prog) return;
+      gl.attachShader(prog, vs);
+      gl.attachShader(prog, fs);
+      gl.linkProgram(prog);
+      if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) {
+        console.error("Linking failed:", gl.getProgramInfoLog(prog));
+        return;
+      }
+
+      programRef.current = prog;
+    }
+
+    const program = programRef.current;
+    gl.useProgram(program);
+
+    const positionBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
+      -1, -1,  1, -1, -1,  1,
+      -1,  1,  1, -1,  1,  1,
+    ]), gl.STATIC_DRAW);
+
+    const positionLocation = gl.getAttribLocation(program, "a_position");
+    gl.enableVertexAttribArray(positionLocation);
+    gl.vertexAttribPointer(positionLocation, 2, gl.FLOAT, false, 0, 0);
+
+    const camPosLoc = gl.getUniformLocation(program, "u_camera_pos");
+    const camSizeLoc = gl.getUniformLocation(program, "u_camera_size");
+    const coeffsLoc = gl.getUniformLocation(program, "u_coeffs");
+    const degreeLoc = gl.getUniformLocation(program, "u_degree");
+
+    gl.uniform2f(camPosLoc, domainCamera.x, domainCamera.y);
+    gl.uniform1f(camSizeLoc, domainCamera.size);
+
+    const flatCoeffs = new Float32Array(12);
+    for (let i = 0; i < 6; i++) {
+      if (i < coeffs.length) {
+        flatCoeffs[i * 2] = coeffs[i].re;
+        flatCoeffs[i * 2 + 1] = coeffs[i].im;
+      } else {
+        flatCoeffs[i * 2] = 0;
+        flatCoeffs[i * 2 + 1] = 0;
+      }
+    }
+    gl.uniform2fv(coeffsLoc, flatCoeffs);
+    gl.uniform1i(degreeLoc, coeffs.length - 1);
+
+    gl.drawArrays(gl.TRIANGLES, 0, 6);
+  }, [domainCamera, coeffs]);
 
   const t = {
     title: isPt ? "Visualizador do Teorema Fundamental (Quad-tree)" : "Fundamental Theorem Visualizer (Quadtree)",
@@ -274,33 +407,6 @@ export default function QuadtreeVisualizer() {
 
     // --- DRAW DOMAIN CANVAS (LEFT) ---
     dCtx.clearRect(0, 0, dWidth, dHeight);
-
-    // 1. Draw subtle background Domain Coloring
-    const dColoringCanvas = document.createElement("canvas");
-    dColoringCanvas.width = 120;
-    dColoringCanvas.height = 120;
-    const dcCtx = dColoringCanvas.getContext("2d");
-    if (dcCtx) {
-      const imgData = dcCtx.createImageData(120, 120);
-      const data = imgData.data;
-      for (let py = 0; py < 120; py++) {
-        const im = (domainCamera.y + domainCamera.size) - (py / 120) * domainCamera.size;
-        for (let px = 0; px < 120; px++) {
-          const re = domainCamera.x + (px / 120) * domainCamera.size;
-          const p = evaluatePolynomial(coeffs, { re, im });
-          const angle = Math.atan2(p.im, p.re);
-          const hue = ((angle + Math.PI) / (2 * Math.PI)) * 360;
-          const mag = Math.hypot(p.re, p.im);
-          const logMag = mag > 0 ? Math.log2(mag) : 0;
-          const lightness = 35 + (logMag % 1) * 15;
-          const [r, g, b] = hslToRgb(hue, 60, lightness);
-          const idx = (py * 120 + px) * 4;
-          data[idx] = r; data[idx+1] = g; data[idx+2] = b; data[idx+3] = 90; // Subtle alpha 0.35
-        }
-      }
-      dcCtx.putImageData(imgData, 0, 0);
-      dCtx.drawImage(dColoringCanvas, 0, 0, dWidth, dHeight);
-    }
 
     // 2. Draw Domain Axes
     const originZ = mathToDomainPixel(0, 0);
@@ -523,10 +629,16 @@ export default function QuadtreeVisualizer() {
 
           <div className="relative aspect-square w-full rounded-xl overflow-hidden border border-zinc-800 bg-zinc-900/40">
             <canvas
+              ref={webglCanvasRef}
+              width={500}
+              height={500}
+              className="absolute inset-0 w-full h-full block"
+            />
+            <canvas
               ref={domainCanvasRef}
               width={500}
               height={500}
-              className="w-full h-full block"
+              className="absolute inset-0 w-full h-full pointer-events-none block"
             />
           </div>
         </div>
