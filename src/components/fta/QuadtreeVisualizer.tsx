@@ -86,6 +86,16 @@ export default function QuadtreeVisualizer() {
       glRef.current = gl;
     }
 
+    const dpr = typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1;
+    const rect = canvas.getBoundingClientRect();
+    const w = rect.width * dpr || 500;
+    const h = rect.height * dpr || 500;
+    if (canvas.width !== w || canvas.height !== h) {
+      canvas.width = w;
+      canvas.height = h;
+    }
+    gl.viewport(0, 0, canvas.width, canvas.height);
+
     if (!programRef.current) {
       const vsSource = `
         attribute vec2 a_position;
@@ -383,38 +393,58 @@ export default function QuadtreeVisualizer() {
     const iCtx = iCanvas.getContext("2d");
     if (!dCtx || !iCtx) return;
 
-    const dWidth = dCanvas.width;
-    const dHeight = dCanvas.height;
-    const iWidth = iCanvas.width;
-    const iHeight = iCanvas.height;
+    const dpr = typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1;
+    const dRect = dCanvas.getBoundingClientRect();
+    const iRect = iCanvas.getBoundingClientRect();
 
-    // Helper to map math coordinates to domain canvas pixels
+    const cssDWidth = dRect.width || 500;
+    const cssDHeight = dRect.height || 500;
+    const cssIWidth = iRect.width || 500;
+    const cssIHeight = iRect.height || 500;
+
+    const dWidth = cssDWidth * dpr;
+    const dHeight = cssDHeight * dpr;
+    const iWidth = cssIWidth * dpr;
+    const iHeight = cssIHeight * dpr;
+
+    if (dCanvas.width !== dWidth || dCanvas.height !== dHeight) {
+      dCanvas.width = dWidth;
+      dCanvas.height = dHeight;
+    }
+    if (iCanvas.width !== iWidth || iCanvas.height !== iHeight) {
+      iCanvas.width = iWidth;
+      iCanvas.height = iHeight;
+    }
+
+    // Helper to map math coordinates to domain canvas pixels (CSS)
     const mathToDomainPixel = (mx: number, my: number) => {
-      const sx = ((mx - domainCamera.x) / domainCamera.size) * dWidth;
-      const sy = dHeight - ((my - domainCamera.y) / domainCamera.size) * dHeight;
+      const sx = ((mx - domainCamera.x) / domainCamera.size) * cssDWidth;
+      const sy = cssDHeight - ((my - domainCamera.y) / domainCamera.size) * cssDHeight;
       return { x: sx, y: sy };
     };
 
-    // Helper to map math coordinates to image canvas pixels
+    // Helper to map math coordinates to image canvas pixels (CSS)
     const mathToImagePixel = (mx: number, my: number) => {
       const halfSize = imageCamera.size / 2;
       const minX = imageCamera.cx - halfSize;
       const maxY = imageCamera.cy + halfSize;
-      const sx = ((mx - minX) / imageCamera.size) * iWidth;
-      const sy = ((maxY - my) / imageCamera.size) * iHeight;
+      const sx = ((mx - minX) / imageCamera.size) * cssIWidth;
+      const sy = ((maxY - my) / imageCamera.size) * cssIHeight;
       return { x: sx, y: sy };
     };
 
     // --- DRAW DOMAIN CANVAS (LEFT) ---
     dCtx.clearRect(0, 0, dWidth, dHeight);
+    dCtx.save();
+    dCtx.scale(dpr, dpr);
 
     // 2. Draw Domain Axes
     const originZ = mathToDomainPixel(0, 0);
     dCtx.strokeStyle = "rgba(255, 255, 255, 0.15)";
     dCtx.lineWidth = 1;
     dCtx.beginPath();
-    dCtx.moveTo(0, originZ.y); dCtx.lineTo(dWidth, originZ.y);
-    dCtx.moveTo(originZ.x, 0); dCtx.lineTo(originZ.x, dHeight);
+    dCtx.moveTo(0, originZ.y); dCtx.lineTo(cssDWidth, originZ.y);
+    dCtx.moveTo(originZ.x, 0); dCtx.lineTo(originZ.x, cssDHeight);
     dCtx.stroke();
 
     // 3. Draw Active Square boundary
@@ -434,10 +464,10 @@ export default function QuadtreeVisualizer() {
 
         if (verdictReached) {
           if (idx === winningIndex) {
-            // Winning square: Flashes bright emerald
-            dCtx.fillStyle = "rgba(16, 185, 129, 0.15)";
+            // Winning square: Flashes bright version of its quadrant color
+            dCtx.fillStyle = colors[idx] + "26"; // 15% opacity fill
             dCtx.fillRect(bl.x, tr.y, w, h);
-            dCtx.strokeStyle = "#10b981"; // Bright emerald
+            dCtx.strokeStyle = colors[idx]; // Keep the quadrant color!
             dCtx.lineWidth = 3;
             dCtx.strokeRect(bl.x, tr.y, w, h);
           } else {
@@ -456,9 +486,12 @@ export default function QuadtreeVisualizer() {
         }
       });
     }
+    dCtx.restore();
 
     // --- DRAW IMAGE CANVAS (RIGHT) ---
     iCtx.clearRect(0, 0, iWidth, iHeight);
+    iCtx.save();
+    iCtx.scale(dpr, dpr);
 
     // 1. Draw subtle background Domain Coloring in P-plane
     const iColoringCanvas = document.createElement("canvas");
@@ -486,7 +519,7 @@ export default function QuadtreeVisualizer() {
         }
       }
       icCtx.putImageData(imgData, 0, 0);
-      iCtx.drawImage(iColoringCanvas, 0, 0, iWidth, iHeight);
+      iCtx.drawImage(iColoringCanvas, 0, 0, cssIWidth, cssIHeight);
     }
 
     // 2. Draw High Contrast Origin Crosshair
@@ -494,8 +527,8 @@ export default function QuadtreeVisualizer() {
     iCtx.strokeStyle = "rgba(239, 68, 68, 0.4)"; // red-500
     iCtx.lineWidth = 1.5;
     iCtx.beginPath();
-    iCtx.moveTo(0, originW.y); iCtx.lineTo(iWidth, originW.y);
-    iCtx.moveTo(originW.x, 0); iCtx.lineTo(originW.x, iHeight);
+    iCtx.moveTo(0, originW.y); iCtx.lineTo(cssIWidth, originW.y);
+    iCtx.moveTo(originW.x, 0); iCtx.lineTo(originW.x, cssIHeight);
     iCtx.stroke();
     // Center point marker
     iCtx.fillStyle = "#ef4444";
@@ -560,6 +593,7 @@ export default function QuadtreeVisualizer() {
         }
       });
     }
+    iCtx.restore();
 
   }, [domainCamera, imageCamera, activeSquare, subSquares, curves, animationFrame, isAnimating, verdictReached, winningIndex, windingNumbers, coeffs]);
 
