@@ -40,11 +40,15 @@ export default function QuadtreeVisualizer() {
   const domainCanvasRef = useRef<HTMLCanvasElement>(null);
   const imageCanvasRef = useRef<HTMLCanvasElement>(null);
   const webglCanvasRef = useRef<HTMLCanvasElement>(null);
+  const webglImageCanvasRef = useRef<HTMLCanvasElement>(null);
   const glRef = useRef<WebGLRenderingContext | null>(null);
+  const glImageRef = useRef<WebGLRenderingContext | null>(null);
   const programRef = useRef<WebGLProgram | null>(null);
+  const programImageRef = useRef<WebGLProgram | null>(null);
 
   // States
   const [activeSquare, setActiveSquare] = useState<Square>({ x: -2, y: -2, size: 4, depth: 0 });
+  const [activeColorIndex, setActiveColorIndex] = useState<number | null>(null);
   const [subSquares, setSubSquares] = useState<Square[] | null>(null);
   
   // Animation progress: 0 to 800 (representing 800 sampled boundary points)
@@ -214,6 +218,123 @@ export default function QuadtreeVisualizer() {
     gl.drawArrays(gl.TRIANGLES, 0, 6);
   }, [domainCamera, coeffs]);
 
+  // High-Resolution WebGL Image Plane Domain Coloring (f(w) = w) rendering loop
+  useEffect(() => {
+    const canvas = webglImageCanvasRef.current;
+    if (!canvas) return;
+
+    let gl = glImageRef.current;
+    if (!gl) {
+      gl = canvas.getContext("webgl");
+      if (!gl) return;
+      glImageRef.current = gl;
+    }
+
+    const dpr = typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1;
+    const rect = canvas.getBoundingClientRect();
+    const w = rect.width * dpr || 500;
+    const h = rect.height * dpr || 500;
+    if (canvas.width !== w || canvas.height !== h) {
+      canvas.width = w;
+      canvas.height = h;
+    }
+    gl.viewport(0, 0, canvas.width, canvas.height);
+
+    if (!programImageRef.current) {
+      const vsSource = `
+        attribute vec2 a_position;
+        varying vec2 v_texCoord;
+        void main() {
+          v_texCoord = a_position * 0.5 + 0.5;
+          gl_Position = vec4(a_position, 0.0, 1.0);
+        }
+      `;
+      const fsSource = `
+        precision mediump float;
+        varying vec2 v_texCoord;
+        uniform vec2 u_camera_pos;
+        uniform float u_camera_size;
+
+        const float PI = 3.141592653589793;
+        const float TAU = 2.0 * PI;
+
+        vec3 hsv2rgb(vec3 c) {
+          vec4 K = vec4(1.0, 2.0 / 3.0, 1.0 / 3.0, 3.0);
+          vec3 p = abs(fract(c.xxx + K.xyz) * 6.0 - K.www);
+          return c.z * mix(K.xxx, clamp(p - K.xxx, 0.0, 1.0), c.y);
+        }
+
+        void main() {
+          vec2 w = u_camera_pos + vec2(v_texCoord.x, v_texCoord.y) * u_camera_size;
+          float angle = atan(w.y, w.x + 1e-20);
+          float hue = (angle + PI) / TAU;
+          float mag = length(w);
+          float logMag = mag > 0.0 ? log(mag) / log(2.0) : 0.0;
+          float lightness = 0.35 + fract(logMag) * 0.15;
+          
+          vec3 rgb = hsv2rgb(vec3(hue, 0.6, lightness));
+          gl_FragColor = vec4(rgb, 0.35);
+        }
+      `;
+
+      const vs = gl.createShader(gl.VERTEX_SHADER);
+      const fs = gl.createShader(gl.FRAGMENT_SHADER);
+      if (!vs || !fs) return;
+
+      gl.shaderSource(vs, vsSource);
+      gl.compileShader(vs);
+      if (!gl.getShaderParameter(vs, gl.COMPILE_STATUS)) {
+        console.error("Image VS compilation failed:", gl.getShaderInfoLog(vs));
+        return;
+      }
+
+      gl.shaderSource(fs, fsSource);
+      gl.compileShader(fs);
+      if (!gl.getShaderParameter(fs, gl.COMPILE_STATUS)) {
+        console.error("Image FS compilation failed:", gl.getShaderInfoLog(fs));
+        return;
+      }
+
+      const prog = gl.createProgram();
+      if (!prog) return;
+      gl.attachShader(prog, vs);
+      gl.attachShader(prog, fs);
+      gl.linkProgram(prog);
+      if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) {
+        console.error("Image Linking failed:", gl.getProgramInfoLog(prog));
+        return;
+      }
+
+      programImageRef.current = prog;
+    }
+
+    const program = programImageRef.current;
+    gl.useProgram(program);
+
+    const positionBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
+      -1, -1,  1, -1, -1,  1,
+      -1,  1,  1, -1,  1,  1,
+    ]), gl.STATIC_DRAW);
+
+    const positionLocation = gl.getAttribLocation(program, "a_position");
+    gl.enableVertexAttribArray(positionLocation);
+    gl.vertexAttribPointer(positionLocation, 2, gl.FLOAT, false, 0, 0);
+
+    const camPosLoc = gl.getUniformLocation(program, "u_camera_pos");
+    const camSizeLoc = gl.getUniformLocation(program, "u_camera_size");
+
+    const halfSize = imageCamera.size / 2;
+    const minX = imageCamera.cx - halfSize;
+    const minY = imageCamera.cy - halfSize;
+
+    gl.uniform2f(camPosLoc, minX, minY);
+    gl.uniform1f(camSizeLoc, imageCamera.size);
+
+    gl.drawArrays(gl.TRIANGLES, 0, 6);
+  }, [imageCamera]);
+
   const t = {
     title: isPt ? "Visualizador do Teorema Fundamental (Quad-tree)" : "Fundamental Theorem Visualizer (Quadtree)",
     step: isPt ? "Próximo Passo" : "Next Step",
@@ -375,6 +496,7 @@ export default function QuadtreeVisualizer() {
         } else {
           // Set active square to winner for the next bisection step!
           setActiveSquare(winner);
+          setActiveColorIndex(winningIndex);
           setSubSquares(null);
         }
       };
@@ -450,7 +572,7 @@ export default function QuadtreeVisualizer() {
     // 3. Draw Active Square boundary
     const activeBL = mathToDomainPixel(activeSquare.x, activeSquare.y);
     const activeTR = mathToDomainPixel(activeSquare.x + activeSquare.size, activeSquare.y + activeSquare.size);
-    dCtx.strokeStyle = "rgba(16, 185, 129, 0.5)"; // emerald-500
+    dCtx.strokeStyle = activeColorIndex !== null ? colors[activeColorIndex] : "rgba(16, 185, 129, 0.5)"; // Use previous quadrant color if zoom was completed
     dCtx.lineWidth = 2.5;
     dCtx.strokeRect(activeBL.x, activeTR.y, activeTR.x - activeBL.x, activeBL.y - activeTR.y);
 
@@ -493,34 +615,7 @@ export default function QuadtreeVisualizer() {
     iCtx.save();
     iCtx.scale(dpr, dpr);
 
-    // 1. Draw subtle background Domain Coloring in P-plane
-    const iColoringCanvas = document.createElement("canvas");
-    iColoringCanvas.width = 120;
-    iColoringCanvas.height = 120;
-    const icCtx = iColoringCanvas.getContext("2d");
-    if (icCtx) {
-      const imgData = icCtx.createImageData(120, 120);
-      const data = imgData.data;
-      const halfSize = imageCamera.size / 2;
-      const minX = imageCamera.cx - halfSize;
-      const maxY = imageCamera.cy + halfSize;
-      for (let py = 0; py < 120; py++) {
-        const im = maxY - (py / 120) * imageCamera.size;
-        for (let px = 0; px < 120; px++) {
-          const re = minX + (px / 120) * imageCamera.size;
-          const angle = Math.atan2(im, re);
-          const hue = ((angle + Math.PI) / (2 * Math.PI)) * 360;
-          const mag = Math.hypot(re, im);
-          const logMag = mag > 0 ? Math.log2(mag) : 0;
-          const lightness = 35 + (logMag % 1) * 15;
-          const [r, g, b] = hslToRgb(hue, 60, lightness);
-          const idx = (py * 120 + px) * 4;
-          data[idx] = r; data[idx+1] = g; data[idx+2] = b; data[idx+3] = 90;
-        }
-      }
-      icCtx.putImageData(imgData, 0, 0);
-      iCtx.drawImage(iColoringCanvas, 0, 0, cssIWidth, cssIHeight);
-    }
+    // Background Domain Coloring is now rendered in pristine high-resolution via WebGL!
 
     // 2. Draw High Contrast Origin Crosshair
     const originW = mathToImagePixel(0, 0);
@@ -595,7 +690,7 @@ export default function QuadtreeVisualizer() {
     }
     iCtx.restore();
 
-  }, [domainCamera, imageCamera, activeSquare, subSquares, curves, animationFrame, isAnimating, verdictReached, winningIndex, windingNumbers, coeffs]);
+  }, [domainCamera, imageCamera, activeSquare, activeColorIndex, subSquares, curves, animationFrame, isAnimating, verdictReached, winningIndex, windingNumbers, coeffs]);
 
   // Restart/Reset state
   const handleReset = () => {
@@ -607,6 +702,7 @@ export default function QuadtreeVisualizer() {
     setWindingNumbers([]);
     setSubSquares(null);
     setActiveSquare({ x: -2, y: -2, size: 4, depth: 0 });
+    setActiveColorIndex(null);
     setDomainCamera({ x: -2, y: -2, size: 4 });
   };
 
@@ -690,10 +786,16 @@ export default function QuadtreeVisualizer() {
 
           <div className="relative aspect-square w-full rounded-xl overflow-hidden border border-zinc-800 bg-zinc-900/40">
             <canvas
+              ref={webglImageCanvasRef}
+              width={500}
+              height={500}
+              className="absolute inset-0 w-full h-full block"
+            />
+            <canvas
               ref={imageCanvasRef}
               width={500}
               height={500}
-              className="w-full h-full block"
+              className="absolute inset-0 w-full h-full pointer-events-none block"
             />
 
             {/* Live scanning/verdict absolute bottom alert */}
