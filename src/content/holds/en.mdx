@@ -1,0 +1,67 @@
+# Holds Substrate Compiler & Visualizer
+
+## Context
+
+The **Holds Substrate** is a low-level physical constraint solver and concurrent kernel simulator built entirely in Rust. It serves as an exploration of structural mechanics, collision contact dynamics, and compile-time optimization. Because traditional numerical simulators suffer from floating-point drift and thread scheduling latency under intensive loads, the Holds Substrate leverages a highly optimized, single-threaded **WebAssembly (WASM)** worker thread paired with a customized Svelte interface.
+
+## Objective
+
+The objetivo of this project is to provide a zero-cost, sandboxed playground to design, compile, and visualize physical structures (such as beams, joints, and multi-body nodes) undergoing non-linear forces. By compiling structural configurations into optimized Rust bytecode and running them in a WebAssembly worker, we achieve near-native execution speed on the web ($60$ Hz) while offering an interactive, modular desktop environment powered by Svelte and `Dockview`.
+
+---
+
+## Technical Architecture & Design
+
+The Holds Substrate is partitioned into three major architectural layers to maintain absolute fault isolation and performance:
+
+```text
+       +-------------------------------------------------+
+       |               Svelte UI (Dockview)              |
+       |  - Layout Orchestration                         |
+       |  - Drag-and-Drop Editor / Tree Hierarchy        |
+       +------------------------┬------------------------+
+                                │
+                 Serialized IPC (JSON Messages)
+                                │
+                                ▼
+       +-------------------------------------------------+
+       |          WebAssembly (WASM) Web Worker          |
+       |  - SharedArrayBuffer State Management           |
+       |  - Concurrent Physics Pipeline (60 FPS)         |
+       +------------------------┬------------------------+
+                                │
+                     Compiles Rust Bytecode
+                                │
+                                ▼
+       +-------------------------------------------------+
+       |           Rust Engine (Holds Kernel)            |
+       |  - Verlet Integration Constraint Solver         |
+       |  - Contact Jacobians / Friction Manifolds       |
+       +-------------------------------------------------+
+```
+
+### 1. The Core Solver (Rust Kernel)
+The core physical solver runs a highly optimized **Verlet integration scheme** paired with an iterative **sequential impulse solver** (similar to Box2D's constraint solver) to resolve velocity and position joint constraints. 
+To guarantee mathematical invariants and prevent physical drift under high structural load, joints are represented as rigid constraint equations:
+
+$$
+C(x_1, x_2) = \|x_1 - x_2\|^2 - d^2 = 0
+$$
+
+The solver projects constraint error gradients onto the mass-weighted velocity space, solving contact Jacobians via Jacobi-style iterations:
+
+$$
+J M^{-1} J^T \lambda = -\beta \frac{C}{\Delta t} - J v
+$$
+
+Where:
+*   $J$ is the constraint Jacobian.
+*   $M^{-1}$ is the inverse mass diagonal matrix.
+*   $\lambda$ is the Lagrange multiplier impulse.
+*   $\beta$ is the Baumgarte stabilization factor to counteract numerical drift.
+
+### 2. The Isolation Layer (WASM & Web Workers)
+The entire physics loop is compiled into WebAssembly using Rust's `wasm-bindgen` toolchain. To prevent UI lockups and frame drops on the Svelte main thread during intensive computations, the WASM instance resides inside a dedicated **Web Worker**. All state transfers occur via serialized JSON messages or `SharedArrayBuffer` for zero-copy memory transfers, keeping Svelte's main render loop perfectly responsive.
+
+### 3. The Desktop Shell (Svelte & Dockview)
+The frontend utilizes a modern Svelte layout wrapped in `Dockview` to emulate a full IDE desktop experience. Users can drag-and-drop structural components, inspect joint trees, adjust parameters dynamically via specialized control panels, and view real-time 2D/3D physics representations rendered onto GPU-accelerated canvas components.
