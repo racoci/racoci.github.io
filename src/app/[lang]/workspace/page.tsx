@@ -94,6 +94,221 @@ function PlantUMLRenderer({ code }: { code: string }) {
   );
 }
 
+interface InlineToken {
+  type: "text" | "strong" | "em" | "code" | "link";
+  content: string;
+  href?: string;
+}
+
+function splitInlineTokens(
+  tokens: InlineToken[],
+  regex: RegExp,
+  createToken: (match: RegExpExecArray) => InlineToken
+): InlineToken[] {
+  const result: InlineToken[] = [];
+  for (const t of tokens) {
+    if (t.type !== "text") {
+      result.push(t);
+      continue;
+    }
+
+    let lastIndex = 0;
+    let match: RegExpExecArray | null;
+    regex.lastIndex = 0;
+    const text = t.content;
+
+    while ((match = regex.exec(text)) !== null) {
+      const matchIndex = match.index;
+      if (matchIndex > lastIndex) {
+        result.push({ type: "text", content: text.substring(lastIndex, matchIndex) });
+      }
+      result.push(createToken(match));
+      lastIndex = regex.lastIndex;
+    }
+
+    if (lastIndex < text.length) {
+      result.push({ type: "text", content: text.substring(lastIndex) });
+    }
+  }
+  return result;
+}
+
+function parseInlineMarkdown(inputText: string): React.ReactNode[] {
+  let tokens: InlineToken[] = [{ type: "text", content: inputText }];
+
+  // 1. Split by Bold (**text**)
+  tokens = splitInlineTokens(tokens, /\*\*([\s\S]*?)\*\*/g, (match) => ({
+    type: "strong",
+    content: match[1],
+  }));
+
+  // 2. Split by Italic (*text*)
+  tokens = splitInlineTokens(tokens, /\*([\s\S]*?)\*/g, (match) => ({
+    type: "em",
+    content: match[1],
+  }));
+
+  // 3. Split by Inline Code (`text`)
+  tokens = splitInlineTokens(tokens, /`([^`]+?)`/g, (match) => ({
+    type: "code",
+    content: match[1],
+  }));
+
+  // 4. Split by Links ([text](url))
+  tokens = splitInlineTokens(tokens, /\[([^\]]+?)\]\(([^)]+?)\)/g, (match) => ({
+    type: "link",
+    content: match[1],
+    href: match[2],
+  }));
+
+  return tokens.map((tok, idx) => {
+    if (tok.type === "strong") return <strong key={idx} className="font-extrabold text-zinc-50">{tok.content}</strong>;
+    if (tok.type === "em") return <em key={idx} className="italic text-zinc-300">{tok.content}</em>;
+    if (tok.type === "code") return <code key={idx} className="font-mono text-[12px] text-emerald-400 bg-zinc-900/80 border border-zinc-850 px-1.5 py-0.5 rounded-md">{tok.content}</code>;
+    if (tok.type === "link") return <a key={idx} href={tok.href} target="_blank" rel="noopener noreferrer" className="text-emerald-400 hover:underline font-bold">{tok.content}</a>;
+    return tok.content;
+  });
+}
+
+// Symmetrical live Markdown block & inline compiler
+function renderMarkdownWithTables(text: string) {
+  const lines = text.split("\n");
+  let inTable = false;
+  const tableRows: string[][] = [];
+  let inList = false;
+  const listItems: React.ReactNode[] = [];
+  const elements: React.ReactNode[] = [];
+  let keyCounter = 0;
+
+  const flushList = () => {
+    if (inList && listItems.length > 0) {
+      elements.push(
+        <ul key={`ul-${keyCounter++}`} className="list-disc list-inside space-y-1.5 my-4 text-zinc-300 pl-2">
+          {listItems.map((item, idx) => <li key={idx} className="font-serif leading-relaxed text-sm md:text-base">{item}</li>)}
+        </ul>
+      );
+      listItems.length = 0;
+      inList = false;
+    }
+  };
+
+  const flushTable = () => {
+    if (inTable && tableRows.length > 0) {
+      elements.push(
+        <div key={`tab-${keyCounter++}`} className="overflow-x-auto my-6 border border-zinc-800 rounded-xl bg-zinc-900/10">
+          <table className="min-w-full divide-y divide-zinc-800 text-sm">
+            <thead>
+              <tr className="bg-zinc-900/40">
+                {tableRows[0].map((cell, cIdx) => (
+                  <th key={cIdx} className="px-4 py-3 text-left font-bold font-sans text-zinc-300 border-r border-zinc-800 last:border-none">
+                    {parseInlineMarkdown(cell)}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-zinc-800">
+              {tableRows.slice(1).map((row, rIdx) => (
+                <tr key={rIdx} className="hover:bg-zinc-900/20">
+                  {row.map((cell, cIdx) => (
+                    <td key={cIdx} className="px-4 py-3 font-serif text-zinc-400 border-r border-zinc-800 last:border-none">
+                      {parseInlineMarkdown(cell)}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      );
+      tableRows.length = 0;
+      inTable = false;
+    }
+  };
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+
+    // 1. Process Markdown Tables
+    if (trimmed.startsWith("|") && trimmed.endsWith("|")) {
+      flushList();
+      inTable = true;
+      const cells = trimmed.split("|").map(c => c.trim()).slice(1, -1);
+      if (cells.every(c => /^:-*-:|^:-*-|^:-:|-+$/.test(c))) {
+        continue;
+      }
+      tableRows.push(cells);
+      continue;
+    }
+
+    // Outside tables, flush active table if any
+    flushTable();
+
+    // 2. Process Lists (lines starting with '* ' or '- ')
+    if (trimmed.startsWith("* ") || trimmed.startsWith("- ")) {
+      inList = true;
+      const content = trimmed.substring(2);
+      listItems.push(parseInlineMarkdown(content));
+      continue;
+    }
+
+    // Outside lists, flush active list if any
+    flushList();
+
+    // 3. Process Headings
+    if (trimmed.startsWith("# ")) {
+      elements.push(
+        <h1 key={`h1-${keyCounter++}`} className="text-3xl font-extrabold tracking-tight text-zinc-50 mt-8 mb-4 font-sans border-b border-zinc-800/60 pb-2">
+          {parseInlineMarkdown(trimmed.substring(2))}
+        </h1>
+      );
+      continue;
+    }
+
+    if (trimmed.startsWith("## ")) {
+      elements.push(
+        <h2 key={`h2-${keyCounter++}`} className="text-2xl font-bold tracking-tight text-zinc-100 mt-6 mb-3 font-sans">
+          {parseInlineMarkdown(trimmed.substring(3))}
+        </h2>
+      );
+      continue;
+    }
+
+    if (trimmed.startsWith("### ")) {
+      elements.push(
+        <h3 key={`h3-${keyCounter++}`} className="text-xl font-bold text-zinc-200 mt-5 mb-2 font-sans">
+          {parseInlineMarkdown(trimmed.substring(4))}
+        </h3>
+      );
+      continue;
+    }
+
+    // 4. Process Blockquotes
+    if (trimmed.startsWith("> ")) {
+      elements.push(
+        <blockquote key={`bq-${keyCounter++}`} className="border-l-4 border-emerald-500 pl-4 py-1 my-4 italic text-zinc-400 bg-zinc-900/20 rounded-r-xl">
+          {parseInlineMarkdown(trimmed.substring(2))}
+        </blockquote>
+      );
+      continue;
+    }
+
+    // 5. Standard Paragraphs (skip completely empty lines to prevent double spacing)
+    if (trimmed !== "") {
+      elements.push(
+        <p key={`p-${keyCounter++}`} className="my-3 text-zinc-300 leading-relaxed font-serif text-sm md:text-base">
+          {parseInlineMarkdown(line)}
+        </p>
+      );
+    }
+  }
+
+  // Flush any trailing elements
+  flushTable();
+  flushList();
+
+  return <>{elements}</>;
+}
+
 // Recursive MDX split parser
 function parseMDXContent(text: string): Token[] {
   let tokens: Token[] = [{ type: "text", content: text }];
@@ -177,6 +392,9 @@ export default function WorkspacePage({ params }: PageProps) {
   const [repo, setRepo] = useState("racoci/racoci.github.io");
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
+  // Layout View Mode state: "split" (Side-by-Side) vs "wysiwyg" (Single Seamless Editor)
+  const [viewMode, setViewMode] = useState<"split" | "wysiwyg">("split");
+
   // Draft States
   const [drafts, setDrafts] = useState<DraftFile[]>([]);
   const [activeDraft, setActiveDraft] = useState<DraftFile | null>(null);
@@ -184,6 +402,13 @@ export default function WorkspacePage({ params }: PageProps) {
   const [slug, setSlug] = useState("");
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [syncStatus, setSyncStatus] = useState<"saved" | "unsaved" | "syncing" | "error">("saved");
+
+  // Inline Block-based WYSIWYG states
+  const [editingBlockIndex, setEditingBlockIndex] = useState<number | null>(null);
+
+  // AI Prompt Co-pilot State
+  const [aiPrompt, setAiPrompt] = useState("");
+  const [aiLoading, setAiLoading] = useState(false);
 
   // Login UI error/success messages
   const [loginError, setLoginError] = useState("");
@@ -226,7 +451,6 @@ export default function WorkspacePage({ params }: PageProps) {
       return;
     }
 
-    // Verify token validity by calling user API
     try {
       const res = await fetch("https://api.github.com/user", {
         headers: { Authorization: `Bearer ${token}` },
@@ -254,13 +478,11 @@ export default function WorkspacePage({ params }: PageProps) {
 
   const fetchDraftsList = async (authToken: string, targetRepo: string) => {
     try {
-      // 1. Check if "notes-drafts" branch exists, create if not
       const branchRes = await fetch(`https://api.github.com/repos/${targetRepo}/branches/notes-drafts`, {
         headers: { Authorization: `Bearer ${authToken}` },
       });
 
       if (branchRes.status === 404) {
-        // Fetch main branch SHA
         const mainRes = await fetch(`https://api.github.com/repos/${targetRepo}/branches/main`, {
           headers: { Authorization: `Bearer ${authToken}` },
         });
@@ -268,7 +490,6 @@ export default function WorkspacePage({ params }: PageProps) {
         const mainData = await mainRes.json();
         const sha = mainData.commit.sha;
 
-        // Create branch refs
         await fetch(`https://api.github.com/repos/${targetRepo}/git/refs`, {
           method: "POST",
           headers: {
@@ -279,13 +500,11 @@ export default function WorkspacePage({ params }: PageProps) {
         });
       }
 
-      // 2. Fetch drafts files
       const contentRes = await fetch(`https://api.github.com/repos/${targetRepo}/contents/src/content/drafts?ref=notes-drafts`, {
         headers: { Authorization: `Bearer ${authToken}` },
       });
 
       if (contentRes.status === 404) {
-        // Empty drafts folder
         setDrafts([]);
         return;
       }
@@ -301,7 +520,7 @@ export default function WorkspacePage({ params }: PageProps) {
 
   const handleCreateNewNote = async () => {
     const filename = `rascunho-${Date.now()}`;
-    const initialContent = `# Novo Rascunho\n\nComece a formular sua nota aqui...`;
+    const initialContent = `# Novo Rascunho\n\nComece a formular sua nota aqui...\n\nSinta-se livre para incluir tabelas de markdown:\n\n| Parâmetro | Valor |\n|---|---|\n| Velocidade | 60 Hz |\n| Resolvedor | Verlet |`;
 
     try {
       setSyncStatus("syncing");
@@ -441,7 +660,6 @@ ${diffText.slice(0, 1500)}`;
       const commitMsg = `feat(essay): publicar nota ${slug}`;
       const destPath = `src/content/essays/${slug}.mdx`;
 
-      // 1. Commit/Push directly to the main branch
       const res = await fetch(`https://api.github.com/repos/${repo}/contents/${destPath}`, {
         method: "PUT",
         headers: {
@@ -457,7 +675,6 @@ ${diffText.slice(0, 1500)}`;
 
       if (!res.ok) throw new Error("Falha ao comitar na main.");
 
-      // 2. Delete draft from the notes-drafts branch
       await fetch(`https://api.github.com/repos/${repo}/contents/${activeDraft.path}`, {
         method: "DELETE",
         headers: {
@@ -482,6 +699,112 @@ ${diffText.slice(0, 1500)}`;
     }
   };
 
+  // AI-Powered Translation Action
+  const handleAITranslate = async () => {
+    if (!geminiKey || !editorText) return;
+    setAiLoading(true);
+
+    try {
+      const targetLang = isPt ? "inglês" : "português";
+      const prompt = `Traduza o texto MDX abaixo perfeitamente para o ${targetLang}, preservando rigorosamente todas as equações matemáticas KaTeX ($...$ e $$...$$), todas as tags de componentes MDX (como <ComplexPlotter />, <NodeGraftViewer />, etc.) e todas as formatações estruturais originais. Retorne estritamente o conteúdo traduzido final de forma limpa, sem qualquer tipo de preâmbulo ou aspas explicativas.
+MDX original:
+${editorText}`;
+
+      const res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiKey}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: prompt }] }],
+          }),
+        }
+      );
+
+      if (!res.ok) throw new Error();
+      const data = await res.json();
+      const translated = data.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (translated) {
+        handleEditorChange(translated.trim());
+      }
+    } catch (err) {
+      alert("Falha na tradução da IA.");
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
+  // AI-Powered Slug Suggester Action
+  const handleAISuggestSlug = async () => {
+    if (!geminiKey || !editorText) return;
+    setAiLoading(true);
+
+    try {
+      const prompt = `Analise o texto abaixo e sugira um "slug" (nome de arquivo SEO amigável, apenas minúsculas e hifens) ideal para esta postagem. Retorne estritamente apenas a string do slug de forma limpa, sem aspas, extensões ou qualquer texto adicional.
+Texto:
+${editorText.slice(0, 1000)}`;
+
+      const res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiKey}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: prompt }] }],
+          }),
+        }
+      );
+
+      if (!res.ok) throw new Error();
+      const data = await res.json();
+      const suggestedSlug = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim().toLowerCase();
+      if (suggestedSlug) {
+        setSlug(suggestedSlug);
+        alert(`IA sugeriu o slug: ${suggestedSlug}. Ele será aplicado no próximo salvamento.`);
+      }
+    } catch (err) {
+      alert("Falha ao gerar sugestão de slug.");
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
+  // Custom Inline Prompt Assist Action
+  const handleAICoprompt = async () => {
+    if (!geminiKey || !editorText || !aiPrompt) return;
+    setAiLoading(true);
+
+    try {
+      const prompt = `Você é um co-piloto de escrita técnica e matemática. O usuário solicitou o seguinte ajuste no texto: "${aiPrompt}".
+Abaixo está o texto MDX completo. Modifique o texto aplicando o pedido do usuário da forma mais natural e elegante possível, mantendo toda a formatação MDX e fórmulas matemáticas. Retorne apenas o texto final modificado, sem explicações.
+Texto original:
+${editorText}`;
+
+      const res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiKey}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: prompt }] }],
+          }),
+        }
+      );
+
+      if (!res.ok) throw new Error();
+      const data = await res.json();
+      const updatedText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (updatedText) {
+        handleEditorChange(updatedText.trim());
+        setAiPrompt("");
+      }
+    } catch (err) {
+      alert("Falha no co-pilotagem de IA.");
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
   const handleEditorChange = (val: string) => {
     setEditorText(val);
     if (val !== lastSavedTextRef.current) {
@@ -491,6 +814,14 @@ ${diffText.slice(0, 1500)}`;
       setHasUnsavedChanges(false);
       setSyncStatus("saved");
     }
+  };
+
+  // Inline WYSIWYG block edit helpers
+  const handleBlockChange = (idx: number, newVal: string) => {
+    const blocks = editorText.split("\n\n");
+    blocks[idx] = newVal;
+    const jointText = blocks.join("\n\n");
+    handleEditorChange(jointText);
   };
 
   if (!mounted) return null;
@@ -505,7 +836,7 @@ ${diffText.slice(0, 1500)}`;
               Central de Comando CMS
             </h2>
             <p className="text-xs text-zinc-400 font-serif">
-              Faça login com seu GitHub PAT para gerenciar rascunhos de notas.
+              Faça login com seu GitHub PAT para acessar o painel de criação e edição.
             </p>
           </div>
 
@@ -582,12 +913,12 @@ ${diffText.slice(0, 1500)}`;
     );
   }
 
-  // Render Core Workspace dashboard (Once logged in)
+  // Render Core Workspace dashboard (Once logged in) with natural scroll (no independent window scrolls!)
   return (
-    <div className="flex flex-col h-screen bg-zinc-950 text-zinc-100 font-sans overflow-hidden">
+    <div className="min-h-screen bg-zinc-950 text-zinc-100 font-sans pb-12">
       
       {/* CMS Workspace Top Bar */}
-      <header className="h-14 border-b border-zinc-800 px-6 flex items-center justify-between shrink-0 bg-zinc-900/40 backdrop-blur">
+      <header className="h-14 border-b border-zinc-800 px-6 flex items-center justify-between sticky top-0 bg-zinc-900/80 backdrop-blur z-30">
         <div className="flex items-center gap-4">
           <Link href="/pt/projects" className="text-zinc-500 hover:text-zinc-300 transition-colors text-xs flex items-center gap-1.5 font-bold">
             ← Voltar
@@ -600,6 +931,26 @@ ${diffText.slice(0, 1500)}`;
 
         {/* Sync/Status indicators */}
         <div className="flex items-center gap-6">
+          {/* Editor Mode Toggler */}
+          <div className="flex bg-zinc-950 border border-zinc-800 rounded-lg p-0.5 font-mono text-[10px]">
+            <button
+              onClick={() => setViewMode("split")}
+              className={`px-2.5 py-1 rounded font-bold transition-all cursor-pointer ${
+                viewMode === "split" ? "bg-zinc-800 text-emerald-400" : "text-zinc-500 hover:text-zinc-300"
+              }`}
+            >
+              Tela Dividida (Código)
+            </button>
+            <button
+              onClick={() => setViewMode("wysiwyg")}
+              className={`px-2.5 py-1 rounded font-bold transition-all cursor-pointer ${
+                viewMode === "wysiwyg" ? "bg-zinc-800 text-emerald-400" : "text-zinc-500 hover:text-zinc-300"
+              }`}
+            >
+              Modo Visual (WYSIWYG)
+            </button>
+          </div>
+
           <div className="flex items-center gap-2">
             <span className={`h-2 w-2 rounded-full ${
               syncStatus === "saved" ? "bg-emerald-500" :
@@ -608,10 +959,10 @@ ${diffText.slice(0, 1500)}`;
               "bg-red-500 animate-pulse"
             }`} />
             <span className="text-[10px] font-mono tracking-wider font-bold uppercase text-zinc-400">
-              {syncStatus === "saved" && "Sincronizado no GitHub"}
-              {syncStatus === "unsaved" && "Modificações pendentes (Salva em 1min)"}
-              {syncStatus === "syncing" && "Enviando commits..."}
-              {syncStatus === "error" && "Erro de sincronização de rede"}
+              {syncStatus === "saved" && "Sincronizado"}
+              {syncStatus === "unsaved" && "Salva em 1min"}
+              {syncStatus === "syncing" && "Commitando..."}
+              {syncStatus === "error" && "Erro de Rede"}
             </span>
           </div>
 
@@ -624,27 +975,25 @@ ${diffText.slice(0, 1500)}`;
         </div>
       </header>
 
-      {/* Editor Main Board Layout */}
-      <div className="flex flex-1 overflow-hidden min-h-0">
+      {/* Main flow-based container (Natural page scrolling!) */}
+      <div className="max-w-7xl mx-auto px-6 mt-8 flex flex-col md:flex-row gap-6 items-start">
         
         {/* Left column: Sidebar */}
-        <aside className="w-64 border-r border-zinc-800 flex flex-col shrink-0 bg-zinc-950">
-          <div className="p-4 border-b border-zinc-800">
-            <button
-              onClick={handleCreateNewNote}
-              className="w-full py-2 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 font-bold text-xs rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1.5"
-            >
-              <span>+ Criar Rascunho</span>
-            </button>
-          </div>
+        <aside className="w-full md:w-64 border border-zinc-800 bg-zinc-900/30 rounded-2xl flex flex-col shrink-0 p-4 space-y-4">
+          <button
+            onClick={handleCreateNewNote}
+            className="w-full py-2 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 font-bold text-xs rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1.5"
+          >
+            <span>+ Criar Rascunho</span>
+          </button>
 
-          <div className="flex-1 overflow-y-auto p-2 space-y-1">
+          <div className="space-y-1">
             <span className="text-[9px] uppercase tracking-widest font-bold text-zinc-500 block px-2 mb-2">
               Meus Rascunhos (notes-drafts)
             </span>
             {drafts.length === 0 ? (
               <div className="text-[11px] text-zinc-600 px-2 py-4 italic font-serif">
-                Nenhum rascunho de nota localizado nesta branch.
+                Nenhum rascunho de nota localizado.
               </div>
             ) : (
               drafts.map((d, i) => (
@@ -666,101 +1015,267 @@ ${diffText.slice(0, 1500)}`;
 
         {/* Editing and preview views */}
         {activeDraft ? (
-          <main className="flex-1 flex overflow-hidden">
+          <div className="flex-1 w-full space-y-6">
             
-            {/* Middle: Code Editor */}
-            <div className="w-1/2 flex flex-col border-r border-zinc-800 bg-zinc-950">
-              <div className="h-10 border-b border-zinc-800 px-4 flex items-center justify-between shrink-0 bg-zinc-900/20 font-mono text-[10px]">
-                <div className="flex items-center gap-1">
-                  <span className="text-zinc-500">Editando:</span>
-                  <span className="text-emerald-400 font-bold">{activeDraft.name}</span>
+            {/* AI Co-pilot Tools Panel (Only visible if Gemini key configured) */}
+            {geminiKey && (
+              <div className="p-4 bg-zinc-900/40 border border-zinc-800/80 rounded-2xl space-y-3 shadow-inner">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 border-b border-zinc-800 pb-2.5">
+                  <span className="text-[10px] font-mono font-bold tracking-widest text-emerald-400 uppercase">
+                    ✨ Gemini AI Assistant Co-pilot
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={handleAITranslate}
+                      disabled={aiLoading}
+                      className="px-2.5 py-1 bg-zinc-950 hover:bg-zinc-800 border border-zinc-800 text-[10px] font-bold rounded-lg text-emerald-400 transition-all cursor-pointer flex items-center gap-1"
+                    >
+                      🌐 {isPt ? "Traduzir nota" : "Translate draft"}
+                    </button>
+                    <button
+                      onClick={handleAISuggestSlug}
+                      disabled={aiLoading}
+                      className="px-2.5 py-1 bg-zinc-950 hover:bg-zinc-800 border border-zinc-800 text-[10px] font-bold rounded-lg text-blue-400 transition-all cursor-pointer flex items-center gap-1"
+                    >
+                      🏷️ Sugerir Slug / URL
+                    </button>
+                  </div>
                 </div>
 
-                <button
-                  onClick={handlePublish}
-                  className="px-3 py-1 bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-extrabold text-[10px] rounded-lg transition-all cursor-pointer flex items-center gap-1 shadow-lg"
-                >
-                  🚀 Publicar nota na Main
-                </button>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    placeholder="Melhore a explicação da seção III... / Formule fórmulas KaTeX..."
+                    value={aiPrompt}
+                    onChange={(e) => setAiPrompt(e.target.value)}
+                    className="flex-1 px-3 py-2 bg-zinc-950 border border-zinc-800 rounded-xl text-xs text-zinc-100 placeholder-zinc-700 focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500"
+                  />
+                  <button
+                    onClick={handleAICoprompt}
+                    disabled={aiLoading || !aiPrompt}
+                    className="px-4 py-2 bg-emerald-500 text-zinc-950 hover:bg-emerald-400 font-bold text-xs rounded-xl transition-all cursor-pointer shadow-lg shrink-0"
+                  >
+                    Instruir IA
+                  </button>
+                </div>
               </div>
+            )}
 
-              <textarea
-                value={editorText}
-                onChange={(e) => handleEditorChange(e.target.value)}
-                className="flex-1 p-6 bg-zinc-950 text-zinc-100 font-mono text-sm leading-relaxed outline-none border-none resize-none overflow-y-auto selection:bg-emerald-500/10 focus:ring-0"
-                spellCheck="false"
-              />
-            </div>
+            {/* Layout Mode Rendering */}
+            {viewMode === "split" ? (
+              /* --- SPLIT MODE (CODE + PREVIEW SIDE-BY-SIDE) --- */
+              <div className="flex flex-col lg:flex-row gap-6 items-start w-full">
+                
+                {/* Code Editor */}
+                <div className="w-full lg:w-1/2 flex flex-col border border-zinc-800 bg-zinc-900/20 rounded-2xl overflow-hidden shadow-xl">
+                  <div className="h-10 border-b border-zinc-800 px-4 flex items-center justify-between shrink-0 bg-zinc-900/40 font-mono text-[10px]">
+                    <div className="flex items-center gap-1">
+                      <span className="text-zinc-500">Editando:</span>
+                      <span className="text-emerald-400 font-bold">{activeDraft.name}</span>
+                    </div>
 
-            {/* Right: Rich Preview */}
-            <div className="w-1/2 flex flex-col bg-zinc-950 overflow-y-auto p-6 scrollbar-thin">
-              <div className="border-b border-zinc-800 pb-3 mb-6">
-                <span className="text-[10px] font-mono font-bold tracking-widest text-zinc-500 uppercase block mb-1">
-                  Live Rich MDX Preview (Real-time WYSIWYG)
-                </span>
-                <h1 className="text-2xl font-extrabold tracking-tight text-zinc-50">
-                  {slug.toUpperCase()}
-                </h1>
+                    <button
+                      onClick={handlePublish}
+                      className="px-3 py-1 bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-extrabold text-[10px] rounded-lg transition-all cursor-pointer flex items-center gap-1 shadow-lg"
+                    >
+                      🚀 Publicar na Main
+                    </button>
+                  </div>
+
+                  <textarea
+                    value={editorText}
+                    onChange={(e) => handleEditorChange(e.target.value)}
+                    className="w-full min-h-[500px] p-6 bg-zinc-950 text-zinc-100 font-mono text-sm leading-relaxed outline-none border-none resize-y selection:bg-emerald-500/10 focus:ring-0"
+                    spellCheck="false"
+                  />
+                </div>
+
+                {/* Symmetrical Live Preview */}
+                <div className="w-full lg:w-1/2 border border-zinc-800 bg-zinc-900/10 p-6 rounded-2xl shadow-xl space-y-4">
+                  <div className="border-b border-zinc-800 pb-2 mb-4 flex items-center justify-between">
+                    <span className="text-[9px] font-mono font-bold tracking-widest text-zinc-500 uppercase block">
+                      Live Rich Preview
+                    </span>
+                    <span className="text-[9px] font-mono text-emerald-500">
+                      Slug: {slug}
+                    </span>
+                  </div>
+
+                  <div className="prose dark:prose-invert prose-emerald max-w-none text-zinc-300 font-serif leading-relaxed text-sm md:text-base space-y-4">
+                    {parseMDXContent(editorText).map((token, idx) => {
+                      if (token.type === "text") {
+                        return <React.Fragment key={idx}>{renderMarkdownWithTables(token.content)}</React.Fragment>;
+                      }
+
+                      if (token.type === "math_inline") {
+                        return <InlineMath key={idx} math={token.content} />;
+                      }
+
+                      if (token.type === "math_block") {
+                        return <BlockMath key={idx} math={token.content} />;
+                      }
+
+                      if (token.type === "code") {
+                        if (token.lang === "plantuml") {
+                          return <PlantUMLRenderer key={idx} code={token.content} />;
+                        }
+
+                        return (
+                          <pre key={idx} className="p-4 bg-zinc-900 border border-zinc-800/80 rounded-xl overflow-x-auto font-mono text-xs text-zinc-100 my-4">
+                            <code>{token.content}</code>
+                          </pre>
+                        );
+                      }
+
+                      if (token.type === "widget") {
+                        return (
+                          <div key={idx} className="my-8 border border-zinc-800/50 p-4 bg-zinc-900/10 rounded-2xl relative shadow-inner overflow-hidden">
+                            <div className="absolute top-2 right-2 px-2 py-0.5 bg-zinc-950/80 border border-zinc-800 rounded font-mono text-[9px] text-zinc-500 uppercase tracking-widest font-bold z-20">
+                              Reativo: {token.widgetName}
+                            </div>
+                            {token.widgetName === "ComplexPlotter" && <ComplexPlotter />}
+                            {token.widgetName === "NodeGraftViewer" && <NodeGraftViewer lang={lang as "en" | "pt"} />}
+                            {token.widgetName === "B3Screener" && <B3Screener lang={lang as "en" | "pt"} />}
+                            {token.widgetName === "SudokuViewer" && <SudokuViewer lang={lang as "en" | "pt"} />}
+                            {token.widgetName === "SudokuMiniWidget" && <SudokuMiniWidget lang={lang as "en" | "pt"} />}
+                            {token.widgetName === "QuadtreeVisualizer" && <QuadtreeVisualizer />}
+                            {token.widgetName === "MappingVisualizer" && <MappingVisualizer />}
+                            {token.widgetName === "CountersVisualizer" && <CountersVisualizer />}
+                            {token.widgetName === "PolynomialEditor" && <PolynomialEditor />}
+                          </div>
+                        );
+                      }
+
+                      return null;
+                    })}
+                  </div>
+                </div>
+
               </div>
+            ) : (
+              /* --- WYSIWYG SINGLE-PANE MODE (NOTION-LIKE BLOCK EDITOR) --- */
+              <div className="w-full border border-zinc-800 bg-zinc-900/10 p-8 rounded-2xl shadow-2xl relative space-y-4">
+                
+                <div className="border-b border-zinc-800 pb-3 mb-6 flex items-center justify-between">
+                  <div className="space-y-1">
+                    <span className="text-[10px] font-mono font-bold tracking-widest text-zinc-500 uppercase">
+                      Modo Editor Único (Visual)
+                    </span>
+                    <h2 className="text-sm font-mono text-zinc-400">
+                      Slug do arquivo: <code className="text-emerald-400">{slug}.mdx</code>
+                    </h2>
+                  </div>
 
-              <div className="prose dark:prose-invert prose-emerald max-w-none text-zinc-300 font-serif leading-relaxed text-sm md:text-base space-y-4">
-                {parseMDXContent(editorText).map((token, idx) => {
-                  if (token.type === "text") {
-                    return (
-                      <div key={idx} className="whitespace-pre-line my-4 font-serif">
-                        {token.content}
-                      </div>
-                    );
-                  }
+                  <div className="flex gap-2">
+                    <button
+                      onClick={handlePublish}
+                      className="px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-extrabold text-xs rounded-xl transition-all cursor-pointer flex items-center gap-1.5 shadow-lg"
+                    >
+                      🚀 Publicar nota na Main
+                    </button>
+                  </div>
+                </div>
 
-                  if (token.type === "math_inline") {
-                    return <InlineMath key={idx} math={token.content} />;
-                  }
+                <div className="prose dark:prose-invert prose-emerald max-w-none text-zinc-300 font-serif leading-relaxed text-sm md:text-base space-y-2">
+                  {editorText.split("\n\n").map((blockText, blockIdx) => {
+                    const isEditingThisBlock = editingBlockIndex === blockIdx;
 
-                  if (token.type === "math_block") {
-                    return <BlockMath key={idx} math={token.content} />;
-                  }
-
-                  if (token.type === "code") {
-                    if (token.lang === "plantuml") {
-                      return <PlantUMLRenderer key={idx} code={token.content} />;
+                    if (isEditingThisBlock) {
+                      return (
+                        <div key={blockIdx} className="my-4 border border-emerald-500/40 bg-zinc-950 p-4 rounded-xl flex flex-col gap-2">
+                          <textarea
+                            defaultValue={blockText}
+                            autoFocus
+                            onBlur={(e) => {
+                              handleBlockChange(blockIdx, e.target.value);
+                              setEditingBlockIndex(null);
+                            }}
+                            onKeyDown={(e) => {
+                              // Save block on Shift+Enter
+                              if (e.key === "Enter" && e.shiftKey) {
+                                e.preventDefault();
+                                handleBlockChange(blockIdx, (e.target as HTMLTextAreaElement).value);
+                                setEditingBlockIndex(null);
+                              }
+                            }}
+                            className="w-full p-2 bg-zinc-950 text-zinc-100 font-mono text-sm leading-relaxed outline-none border-none resize-y"
+                          />
+                          <div className="flex justify-between items-center text-[9px] font-mono text-zinc-500 px-1">
+                            <span>Pressione <kbd className="bg-zinc-900 px-1.5 py-0.5 rounded text-emerald-400">Shift + Enter</kbd> ou clique fora para compilar</span>
+                            <span className="uppercase text-emerald-500 font-bold">Editando Bloco</span>
+                          </div>
+                        </div>
+                      );
                     }
 
-                    // Treat other code blocks (like standard javascript, python, etc) natively
+                    // Render block visually with edit click handler
                     return (
-                      <pre key={idx} className="p-4 bg-zinc-900 border border-zinc-800/80 rounded-xl overflow-x-auto font-mono text-xs text-zinc-100 my-4">
-                        <code>{token.content}</code>
-                      </pre>
-                    );
-                  }
-
-                  if (token.type === "widget") {
-                    return (
-                      <div key={idx} className="my-8 border border-zinc-800/50 p-4 bg-zinc-900/10 rounded-2xl relative shadow-inner overflow-hidden">
-                        <div className="absolute top-2 right-2 px-2 py-0.5 bg-zinc-950/80 border border-zinc-800 rounded font-mono text-[9px] text-zinc-500 uppercase tracking-widest font-bold z-20">
-                          Reativo: {token.widgetName}
+                      <div
+                        key={blockIdx}
+                        onClick={() => setEditingBlockIndex(blockIdx)}
+                        className="group relative my-4 p-2 -mx-2 hover:bg-zinc-900/30 rounded-xl transition-all cursor-text"
+                        title="Clique para editar este bloco"
+                      >
+                        {/* Hover Edit Icon */}
+                        <div className="absolute top-1 right-2 opacity-0 group-hover:opacity-100 transition-opacity bg-zinc-950/80 border border-zinc-800 text-[9px] text-emerald-400 px-1.5 py-0.5 rounded font-mono font-bold select-none uppercase tracking-widest">
+                          Editar Bloco
                         </div>
-                        {token.widgetName === "ComplexPlotter" && <ComplexPlotter />}
-                        {token.widgetName === "NodeGraftViewer" && <NodeGraftViewer lang={lang as "en" | "pt"} />}
-                        {token.widgetName === "B3Screener" && <B3Screener lang={lang as "en" | "pt"} />}
-                        {token.widgetName === "SudokuViewer" && <SudokuViewer lang={lang as "en" | "pt"} />}
-                        {token.widgetName === "SudokuMiniWidget" && <SudokuMiniWidget lang={lang as "en" | "pt"} />}
-                        {token.widgetName === "QuadtreeVisualizer" && <QuadtreeVisualizer />}
-                        {token.widgetName === "MappingVisualizer" && <MappingVisualizer />}
-                        {token.widgetName === "CountersVisualizer" && <CountersVisualizer />}
-                        {token.widgetName === "PolynomialEditor" && <PolynomialEditor />}
+
+                        {parseMDXContent(blockText).map((token, tIdx) => {
+                          if (token.type === "text") {
+                            return <React.Fragment key={tIdx}>{renderMarkdownWithTables(token.content)}</React.Fragment>;
+                          }
+
+                          if (token.type === "math_inline") {
+                            return <InlineMath key={tIdx} math={token.content} />;
+                          }
+
+                          if (token.type === "math_block") {
+                            return <BlockMath key={tIdx} math={token.content} />;
+                          }
+
+                          if (token.type === "code") {
+                            if (token.lang === "plantuml") {
+                              return <PlantUMLRenderer key={tIdx} code={token.content} />;
+                            }
+
+                            return (
+                              <pre key={tIdx} className="p-4 bg-zinc-900 border border-zinc-800/80 rounded-xl overflow-x-auto font-mono text-xs text-zinc-100 my-4">
+                                <code>{token.content}</code>
+                              </pre>
+                            );
+                          }
+
+                          if (token.type === "widget") {
+                            return (
+                              <div key={tIdx} className="my-8 border border-zinc-800/50 p-4 bg-zinc-900/10 rounded-2xl relative shadow-inner overflow-hidden" onClick={(e) => e.stopPropagation()}>
+                                <div className="absolute top-2 right-2 px-2 py-0.5 bg-zinc-950/80 border border-zinc-800 rounded font-mono text-[9px] text-zinc-500 uppercase tracking-widest font-bold z-20">
+                                  Reativo: {token.widgetName}
+                                </div>
+                                {token.widgetName === "ComplexPlotter" && <ComplexPlotter />}
+                                {token.widgetName === "NodeGraftViewer" && <NodeGraftViewer lang={lang as "en" | "pt"} />}
+                                {token.widgetName === "B3Screener" && <B3Screener lang={lang as "en" | "pt"} />}
+                                {token.widgetName === "SudokuViewer" && <SudokuViewer lang={lang as "en" | "pt"} />}
+                                {token.widgetName === "SudokuMiniWidget" && <SudokuMiniWidget lang={lang as "en" | "pt"} />}
+                                {token.widgetName === "QuadtreeVisualizer" && <QuadtreeVisualizer />}
+                                {token.widgetName === "MappingVisualizer" && <MappingVisualizer />}
+                                {token.widgetName === "CountersVisualizer" && <CountersVisualizer />}
+                                {token.widgetName === "PolynomialEditor" && <PolynomialEditor />}
+                              </div>
+                            );
+                          }
+
+                          return null;
+                        })}
                       </div>
                     );
-                  }
-
-                  return null;
-                })}
+                  })}
+                </div>
               </div>
-            </div>
-
-          </main>
+            )}
+          </div>
         ) : (
-          <div className="flex-1 flex flex-col items-center justify-center bg-zinc-950 text-zinc-500 font-serif italic p-6 text-center">
+          <div className="flex-1 flex flex-col items-center justify-center bg-zinc-900/10 border border-zinc-800 p-12 rounded-2xl text-zinc-500 font-serif italic text-center min-h-[400px]">
             <div className="w-16 h-16 border border-dashed border-zinc-800 rounded-full flex items-center justify-center mb-4 text-2xl">
               ✍
             </div>
