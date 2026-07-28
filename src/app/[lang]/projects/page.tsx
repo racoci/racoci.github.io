@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { useEffect, useState } from "react";
+import Link from "next/link";
 
 interface Repository {
   id: number;
@@ -29,6 +30,10 @@ const dict = {
     githubProfileBtn: "View profile directly on GitHub",
     noReposFound: 'No projects found matching the term "{search}".',
     noDescription: "No description provided.",
+    featuredTitle: "Featured Project",
+    featuredBadge: "WebGPU Engine",
+    featuredDesc: "An interactive, real-time procedural 3D model generator driven by WebGPU Compute Shaders. Solves mathematical Signed Distance Fields (SDF) and extracts structured polygonal meshes via Dual Contouring.",
+    featuredBtn: "Launch NodeGraft Engine",
   },
   pt: {
     title: "Projetos & Repositórios",
@@ -40,6 +45,10 @@ const dict = {
     githubProfileBtn: "Ver perfil diretamente no GitHub",
     noReposFound: 'Nenhum projeto encontrado correspondendo ao termo "{search}".',
     noDescription: "Nenhuma descrição fornecida.",
+    featuredTitle: "Projeto de Destaque",
+    featuredBadge: "Motor WebGPU",
+    featuredDesc: "Gerador procedural 3D de modelos interativos alimentado por Compute Shaders em WebGPU. Resolve matematicamente Campos de Distância com Sinal (SDF) e extrai malhas poligonais em tempo real via Dual Contouring de alta performance.",
+    featuredBtn: "Iniciar Motor NodeGraft",
   },
 };
 
@@ -94,6 +103,43 @@ export default function ProjectsPage({ params }: PageProps) {
         <p className="text-zinc-600 dark:text-zinc-400 font-serif text-lg leading-relaxed">
           {t.subtitle}
         </p>
+      </div>
+
+      {/* Featured Project - NodeGraft */}
+      <div className="p-6 border border-emerald-500/20 dark:border-emerald-400/20 bg-emerald-500/[0.02] dark:bg-emerald-400/[0.01] rounded-2xl flex flex-col md:flex-row gap-6 items-center justify-between shadow-sm hover:shadow-md transition-all">
+        <div className="space-y-3 flex-1">
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] uppercase tracking-wider font-extrabold px-2.5 py-1 bg-emerald-100 dark:bg-emerald-950/50 text-emerald-800 dark:text-emerald-300 rounded-full">
+              {t.featuredTitle}
+            </span>
+            <span className="text-[10px] uppercase tracking-wider font-extrabold px-2.5 py-1 bg-zinc-100 dark:bg-zinc-800/60 text-zinc-600 dark:text-zinc-400 rounded-full font-mono">
+              {t.featuredBadge}
+            </span>
+          </div>
+          <h2 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">
+            NodeGraft Engine / PolyGraft 3D
+          </h2>
+          <p className="text-zinc-600 dark:text-zinc-400 font-serif leading-relaxed text-sm md:text-base">
+            {t.featuredDesc}
+          </p>
+        </div>
+        <div className="w-full md:w-auto shrink-0">
+          <Link
+            href={`/${lang}/projects/nodegraft`}
+            className="w-full md:w-auto inline-flex items-center justify-center gap-2 px-5 py-3 bg-zinc-900 dark:bg-zinc-100 hover:bg-zinc-800 dark:hover:bg-zinc-200 text-zinc-100 dark:text-zinc-950 font-semibold rounded-xl hover:shadow-lg hover:-translate-y-0.5 transition-all text-sm group"
+          >
+            <span>{t.featuredBtn}</span>
+            <svg
+              className="h-4 w-4 text-zinc-400 dark:text-zinc-600 group-hover:translate-x-0.5 transition-transform"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth="2.5"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
+            </svg>
+          </Link>
+        </div>
       </div>
 
       {/* Caixa de Busca */}
