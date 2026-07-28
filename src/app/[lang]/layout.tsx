@@ -23,6 +23,7 @@ const dict = {
     systems: "⚙️ Systems Engineering",
     essays: "🧠 Essays & Logic",
     lab: "🧪 Laboratory / Logistics",
+    finance: "📈 Quantitative Finance",
     footerText: "Analytically and statically built.",
   },
   pt: {
@@ -33,6 +34,7 @@ const dict = {
     systems: "⚙️ Engenharia de Sistemas",
     essays: "🧠 Ensaios e Lógica",
     lab: "🧪 Laboratório / Logística",
+    finance: "📈 Finanças Quantitativas",
     footerText: "Construído de forma analítica e estática.",
   },
 };
@@ -134,6 +136,13 @@ export default async function RootLayout({
                 className="hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors whitespace-nowrap"
               >
                 {t.lab}
+              </Link>
+              <span className="text-zinc-300 dark:text-zinc-800">•</span>
+              <Link
+                href={`/${lang}/finance`}
+                className="hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors whitespace-nowrap"
+              >
+                {t.finance}
               </Link>
             </div>
           </div>
