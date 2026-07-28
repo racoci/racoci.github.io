@@ -1,0 +1,65 @@
+# Systems Engineering & Reverse Engineering
+
+Welcome to the Systems Engineering and Reverse Engineering division of this digital garden. This section functions as a specialized lab notebook focusing on low-level analysis, custom firmware manipulation, embedded Android ecosystems, and hardware/software interfaces.
+
+I approach systems not merely as abstract layers of software, but as intricate, physical state-machines bounded by latency, energy, and physical constraints.
+
+---
+
+## Technical Directives & Focus Areas
+
+Here, you will find active logs, reverse engineering reports, and architectural specifications on:
+
+*   **Low-Level Android Internals:** Analysis of MediaTek-based system-on-chip (SoC) architectures, partition layouts, and partition extraction (`boot`, `vendor`, `super`).
+*   **Automated Security Assessments:** Leveraging `Android Debug Bridge (ADB)` and shell automation pipelines to perform non-interactive verification gates on enterprise deployments.
+*   **Infrastructure-as-Code (IaC) & Resilience:** Designing immutable deployments, container orchestration topologies, and resilient API endpoints with deep static type safety.
+
+---
+
+## Entropy Analysis of Binary Payloads
+
+When analyzing unknown firmware images, one of the primary hurdles is locating where obfuscation, compression, or encryption begins. We utilize **Shannon Entropy** to map information density across raw binary buffers.
+
+A uniform distribution of byte values yields an entropy of exactly $8.0$ bits per byte, indicating maximum chaos (typically compressed files or AES-encrypted blobs).
+
+$$
+H(S) = -\sum_{i=0}^{255} P(b_i) \log_2 P(b_i)
+$$
+
+Where $P(b_i)$ is the empirical probability of occurrence of the byte value $b_i$ within a sliding window $S$.
+
+### Automated Entropy Scanner (Python)
+
+Below is a utility routinely executed within my local toolchain to inspect firmware sections prior to disassembling them with Ghidra:
+
+```python
+def calculate_entropy(data: bytes) -> float:
+    if not data:
+        return 0.0
+    
+    # Calculate occurrence frequency of each byte value
+    counts = [0] * 256
+    for byte in data:
+        counts[byte] += 1
+        
+    entropy = 0.0
+    total_len = len(data)
+    
+    for count in counts:
+        if count == 0:
+            continue
+        p = count / total_len
+        entropy -= p * math.log2(p)
+        
+    return entropy
+```
+
+---
+
+## Active Cultivation Backlog
+
+> ⚠️ **Status:** The detailed field notes below are currently undergoing final transcription from raw markdown scratchpads into structured, static articles.
+
+1.  **[Draft-01]** MediaTek Partition Table extraction and Preloader decryption methodologies on MT67xx family chips.
+2.  **[Draft-02]** Non-root Android privilege escalation paths using specific OEM recovery configurations.
+3.  **[Draft-03]** Rebuilding on-premises virtualization infrastructure using bare-metal KVM and NixOS.
