@@ -34,6 +34,10 @@ const dict = {
     featuredBadge: "WebGPU Engine",
     featuredDesc: "An interactive, real-time procedural 3D model generator driven by WebGPU Compute Shaders. Solves mathematical Signed Distance Fields (SDF) and extracts structured polygonal meshes via Dual Contouring.",
     featuredBtn: "Launch NodeGraft Engine",
+    screenerTitle: "Quantitative Analytics",
+    screenerBadge: "Finance & Edge Caching",
+    screenerDesc: "An interactive B3 stock screener utilizing localized client-side caching (24h TTL) and edge sorting overrides. Solves professional financial logic for loss-making companies and operates with zero operational costs.",
+    screenerBtn: "Explore B3 Screener",
   },
   pt: {
     title: "Projetos & Repositórios",
@@ -49,6 +53,10 @@ const dict = {
     featuredBadge: "Motor WebGPU",
     featuredDesc: "Gerador procedural 3D de modelos interativos alimentado por Compute Shaders em WebGPU. Resolve matematicamente Campos de Distância com Sinal (SDF) e extrai malhas poligonais em tempo real via Dual Contouring de alta performance.",
     featuredBtn: "Iniciar Motor NodeGraft",
+    screenerTitle: "Análise Quantitativa",
+    screenerBadge: "Finanças & Cache Edge",
+    screenerDesc: "Um triador fundamentalista interativo de ações da B3 utilizando cache localizado no cliente (24h de TTL) e ordenação analítica avançada no navegador. Corrige regras de mercado para empresas em prejuízo e opera com custo zero de infraestrutura.",
+    screenerBtn: "Explorar Screener B3",
   },
 };
 
@@ -129,6 +137,43 @@ export default function ProjectsPage({ params }: PageProps) {
             className="w-full md:w-auto inline-flex items-center justify-center gap-2 px-5 py-3 bg-zinc-900 dark:bg-zinc-100 hover:bg-zinc-800 dark:hover:bg-zinc-200 text-zinc-100 dark:text-zinc-950 font-semibold rounded-xl hover:shadow-lg hover:-translate-y-0.5 transition-all text-sm group"
           >
             <span>{t.featuredBtn}</span>
+            <svg
+              className="h-4 w-4 text-zinc-400 dark:text-zinc-600 group-hover:translate-x-0.5 transition-transform"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth="2.5"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
+            </svg>
+          </Link>
+        </div>
+      </div>
+
+      {/* Featured Project - B3 Screener */}
+      <div className="p-6 border border-emerald-500/20 dark:border-emerald-400/20 bg-emerald-500/[0.02] dark:bg-emerald-400/[0.01] rounded-2xl flex flex-col md:flex-row gap-6 items-center justify-between shadow-sm hover:shadow-md transition-all">
+        <div className="space-y-3 flex-1">
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] uppercase tracking-wider font-extrabold px-2.5 py-1 bg-emerald-100 dark:bg-emerald-950/50 text-emerald-800 dark:text-emerald-300 rounded-full">
+              {t.featuredTitle}
+            </span>
+            <span className="text-[10px] uppercase tracking-wider font-extrabold px-2.5 py-1 bg-zinc-100 dark:bg-zinc-800/60 text-zinc-600 dark:text-zinc-400 rounded-full font-mono">
+              {t.screenerBadge}
+            </span>
+          </div>
+          <h2 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">
+            Screener B3 — Quantitative Dashboard
+          </h2>
+          <p className="text-zinc-600 dark:text-zinc-400 font-serif leading-relaxed text-sm md:text-base">
+            {t.screenerDesc}
+          </p>
+        </div>
+        <div className="w-full md:w-auto shrink-0">
+          <Link
+            href={`/${lang}/finance`}
+            className="w-full md:w-auto inline-flex items-center justify-center gap-2 px-5 py-3 bg-zinc-900 dark:bg-zinc-100 hover:bg-zinc-800 dark:hover:bg-zinc-200 text-zinc-100 dark:text-zinc-950 font-semibold rounded-xl hover:shadow-lg hover:-translate-y-0.5 transition-all text-sm group"
+          >
+            <span>{t.screenerBtn}</span>
             <svg
               className="h-4 w-4 text-zinc-400 dark:text-zinc-600 group-hover:translate-x-0.5 transition-transform"
               fill="none"
