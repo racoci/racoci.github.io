@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { BlockMath, InlineMath } from "react-katex";
 import "katex/dist/katex.min.css";
 
@@ -383,7 +384,7 @@ interface PageProps {
   params: Promise<{ lang: string }>;
 }
 
-export default function WorkspacePage({ params }: PageProps) {
+function WorkspaceDashboard({ params }: PageProps) {
   const { lang } = React.use(params);
   const isPt = lang === "pt";
   const [mounted, setMounted] = useState(false);
@@ -391,6 +392,44 @@ export default function WorkspacePage({ params }: PageProps) {
   const [geminiKey, setGeminiKey] = useState("");
   const [repo, setRepo] = useState("racoci/racoci.github.io");
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+
+  const searchParams = useSearchParams();
+  const urlDraft = searchParams.get("draft");
+
+  // Drag-to-resize split view panel state
+  const [splitWidth, setSplitWidth] = useState(50);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const isDraggingRef = useRef(false);
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault();
+    isDraggingRef.current = true;
+    document.addEventListener("mousemove", handleMouseMove);
+    document.addEventListener("mouseup", handleMouseUp);
+  };
+
+  const handleMouseMove = (e: MouseEvent) => {
+    if (!isDraggingRef.current || !containerRef.current) return;
+    const containerRect = containerRef.current.getBoundingClientRect();
+    const mouseXRelative = e.clientX - containerRect.left;
+    let newPercentage = (mouseXRelative / containerRect.width) * 100;
+    if (newPercentage < 20) newPercentage = 20;
+    if (newPercentage > 80) newPercentage = 80;
+    setSplitWidth(newPercentage);
+  };
+
+  const handleMouseUp = () => {
+    isDraggingRef.current = false;
+    document.removeEventListener("mousemove", handleMouseMove);
+    document.removeEventListener("mouseup", handleMouseUp);
+  };
+
+  useEffect(() => {
+    return () => {
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, []);
 
   // Layout View Mode state: "split" (Side-by-Side) vs "wysiwyg" (Single Seamless Editor)
   const [viewMode, setViewMode] = useState<"split" | "wysiwyg">("split");
@@ -402,6 +441,16 @@ export default function WorkspacePage({ params }: PageProps) {
   const [slug, setSlug] = useState("");
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [syncStatus, setSyncStatus] = useState<"saved" | "unsaved" | "syncing" | "error">("saved");
+
+  // Synchronize URL draft query parameter to load files dynamically from the Sidebar!
+  useEffect(() => {
+    if (urlDraft && drafts.length > 0) {
+      const match = drafts.find((d) => d.name === urlDraft);
+      if (match && activeDraft?.name !== urlDraft) {
+        handleSelectDraft(match);
+      }
+    }
+  }, [urlDraft, drafts]);
 
   // Inline Block-based WYSIWYG states
   const [editingBlockIndex, setEditingBlockIndex] = useState<number | null>(null);
@@ -913,13 +962,13 @@ ${editorText}`;
     );
   }
 
-  // Render Core Workspace dashboard (Once logged in) with natural scroll (no independent window scrolls!)
+  // Main flow-based container (Natural page scrolling!)
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100 font-sans pb-12">
       
       {/* CMS Workspace Top Bar */}
-      <header className="h-14 border-b border-zinc-800 px-6 flex items-center justify-between sticky top-0 bg-zinc-900/80 backdrop-blur z-30">
-        <div className="flex items-center gap-4">
+      <header className="h-14 border-b border-zinc-800 px-6 flex items-center justify-between sticky top-0 bg-zinc-900/80 backdrop-blur z-30 select-none">
+        <div className="flex items-center gap-4 animate-fade-in">
           <Link href="/pt/projects" className="text-zinc-500 hover:text-zinc-300 transition-colors text-xs flex items-center gap-1.5 font-bold">
             ← Voltar
           </Link>
@@ -927,6 +976,13 @@ ${editorText}`;
           <span className="font-extrabold tracking-tight text-sm uppercase text-zinc-300 font-mono">
             CMS Workspace Commander
           </span>
+          <div className="h-4 w-px bg-zinc-800"></div>
+          <button
+            onClick={handleCreateNewNote}
+            className="px-3 py-1 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 font-bold text-xs rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1.5 shadow-sm"
+          >
+            <span>+ Criar Rascunho</span>
+          </button>
         </div>
 
         {/* Sync/Status indicators */}
@@ -976,46 +1032,9 @@ ${editorText}`;
       </header>
 
       {/* Main flow-based container (Natural page scrolling!) */}
-      <div className="max-w-7xl mx-auto px-6 mt-8 flex flex-col md:flex-row gap-6 items-start">
-        
-        {/* Left column: Sidebar */}
-        <aside className="w-full md:w-64 border border-zinc-800 bg-zinc-900/30 rounded-2xl flex flex-col shrink-0 p-4 space-y-4">
-          <button
-            onClick={handleCreateNewNote}
-            className="w-full py-2 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 font-bold text-xs rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1.5"
-          >
-            <span>+ Criar Rascunho</span>
-          </button>
-
-          <div className="space-y-1">
-            <span className="text-[9px] uppercase tracking-widest font-bold text-zinc-500 block px-2 mb-2">
-              Meus Rascunhos (notes-drafts)
-            </span>
-            {drafts.length === 0 ? (
-              <div className="text-[11px] text-zinc-600 px-2 py-4 italic font-serif">
-                Nenhum rascunho de nota localizado.
-              </div>
-            ) : (
-              drafts.map((d, i) => (
-                <button
-                  key={i}
-                  onClick={() => handleSelectDraft(d)}
-                  className={`w-full text-left px-3 py-2.5 rounded-xl transition-all text-xs font-mono truncate flex items-center justify-between ${
-                    activeDraft?.path === d.path
-                      ? "bg-zinc-900/80 border border-zinc-800 text-emerald-400 font-bold"
-                      : "text-zinc-400 hover:bg-zinc-900/40 hover:text-zinc-200"
-                  }`}
-                >
-                  <span className="truncate">📄 {d.name}</span>
-                </button>
-              ))
-            )}
-          </div>
-        </aside>
-
-        {/* Editing and preview views */}
+      <div className="max-w-7xl mx-auto px-6 mt-8 w-full">
         {activeDraft ? (
-          <div className="flex-1 w-full space-y-6">
+          <div className="w-full space-y-6">
             
             {/* AI Co-pilot Tools Panel (Only visible if Gemini key configured) */}
             {geminiKey && (
@@ -1063,11 +1082,11 @@ ${editorText}`;
 
             {/* Layout Mode Rendering */}
             {viewMode === "split" ? (
-              /* --- SPLIT MODE (CODE + PREVIEW SIDE-BY-SIDE) --- */
-              <div className="flex flex-col lg:flex-row gap-6 items-start w-full">
+              /* --- SPLIT MODE (CODE + PREVIEW SIDE-BY-SIDE WITH DRAGGABLE DIVIDER) --- */
+              <div ref={containerRef} className="flex flex-row items-stretch w-full border border-zinc-800/80 bg-zinc-900/10 rounded-2xl overflow-hidden shadow-2xl relative">
                 
                 {/* Code Editor */}
-                <div className="w-full lg:w-1/2 flex flex-col border border-zinc-800 bg-zinc-900/20 rounded-2xl overflow-hidden shadow-xl">
+                <div style={{ width: `${splitWidth}%` }} className="flex flex-col bg-zinc-900/20 shrink-0">
                   <div className="h-10 border-b border-zinc-800 px-4 flex items-center justify-between shrink-0 bg-zinc-900/40 font-mono text-[10px]">
                     <div className="flex items-center gap-1">
                       <span className="text-zinc-500">Editando:</span>
@@ -1085,68 +1104,120 @@ ${editorText}`;
                   <textarea
                     value={editorText}
                     onChange={(e) => handleEditorChange(e.target.value)}
-                    className="w-full min-h-[500px] p-6 bg-zinc-950 text-zinc-100 font-mono text-sm leading-relaxed outline-none border-none resize-y selection:bg-emerald-500/10 focus:ring-0"
+                    className="w-full min-h-[600px] p-6 bg-zinc-950 text-zinc-100 font-mono text-sm leading-relaxed outline-none border-none resize-none selection:bg-emerald-500/10 focus:ring-0"
                     spellCheck="false"
                   />
                 </div>
 
-                {/* Symmetrical Live Preview */}
-                <div className="w-full lg:w-1/2 border border-zinc-800 bg-zinc-900/10 p-6 rounded-2xl shadow-xl space-y-4">
+                {/* Draggable Column Resizer */}
+                <div
+                  onMouseDown={handleMouseDown}
+                  className="w-1.5 hover:bg-emerald-500/50 bg-zinc-800 cursor-col-resize transition-colors h-stretch select-none shrink-0 border-r border-l border-zinc-950"
+                  title="Arraste para redimensionar painéis"
+                />
+
+                {/* Symmetrical Live Preview with Inline Click-to-Edit */}
+                <div style={{ width: `${100 - splitWidth}%` }} className="p-6 space-y-4 overflow-y-visible">
                   <div className="border-b border-zinc-800 pb-2 mb-4 flex items-center justify-between">
                     <span className="text-[9px] font-mono font-bold tracking-widest text-zinc-500 uppercase block">
-                      Live Rich Preview
+                      Live Rich Preview (Clique em qualquer bloco para editar!)
                     </span>
                     <span className="text-[9px] font-mono text-emerald-500">
                       Slug: {slug}
                     </span>
                   </div>
 
-                  <div className="prose dark:prose-invert prose-emerald max-w-none text-zinc-300 font-serif leading-relaxed text-sm md:text-base space-y-4">
-                    {parseMDXContent(editorText).map((token, idx) => {
-                      if (token.type === "text") {
-                        return <React.Fragment key={idx}>{renderMarkdownWithTables(token.content)}</React.Fragment>;
-                      }
+                  <div className="prose dark:prose-invert prose-emerald max-w-none text-zinc-300 font-serif leading-relaxed text-sm md:text-base space-y-2">
+                    {editorText.split("\n\n").map((blockText, blockIdx) => {
+                      const isEditingThisBlock = editingBlockIndex === blockIdx;
 
-                      if (token.type === "math_inline") {
-                        return <InlineMath key={idx} math={token.content} />;
-                      }
-
-                      if (token.type === "math_block") {
-                        return <BlockMath key={idx} math={token.content} />;
-                      }
-
-                      if (token.type === "code") {
-                        if (token.lang === "plantuml") {
-                          return <PlantUMLRenderer key={idx} code={token.content} />;
-                        }
-
+                      if (isEditingThisBlock) {
                         return (
-                          <pre key={idx} className="p-4 bg-zinc-900 border border-zinc-800/80 rounded-xl overflow-x-auto font-mono text-xs text-zinc-100 my-4">
-                            <code>{token.content}</code>
-                          </pre>
-                        );
-                      }
-
-                      if (token.type === "widget") {
-                        return (
-                          <div key={idx} className="my-8 border border-zinc-800/50 p-4 bg-zinc-900/10 rounded-2xl relative shadow-inner overflow-hidden">
-                            <div className="absolute top-2 right-2 px-2 py-0.5 bg-zinc-950/80 border border-zinc-800 rounded font-mono text-[9px] text-zinc-500 uppercase tracking-widest font-bold z-20">
-                              Reativo: {token.widgetName}
+                          <div key={blockIdx} className="my-4 border border-emerald-500/40 bg-zinc-950 p-4 rounded-xl flex flex-col gap-2" onClick={(e) => e.stopPropagation()}>
+                            <textarea
+                              defaultValue={blockText}
+                              autoFocus
+                              onBlur={(e) => {
+                                handleBlockChange(blockIdx, e.target.value);
+                                setEditingBlockIndex(null);
+                              }}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter" && e.shiftKey) {
+                                  e.preventDefault();
+                                  handleBlockChange(blockIdx, (e.target as HTMLTextAreaElement).value);
+                                  setEditingBlockIndex(null);
+                                }
+                              }}
+                              className="w-full p-2 bg-zinc-950 text-zinc-100 font-mono text-sm leading-relaxed outline-none border-none resize-y"
+                            />
+                            <div className="flex justify-between items-center text-[9px] font-mono text-zinc-500 px-1">
+                              <span>Pressione <kbd className="bg-zinc-900 px-1.5 py-0.5 rounded text-emerald-400">Shift + Enter</kbd> ou clique fora para compilar</span>
+                              <span className="uppercase text-emerald-500 font-bold">Editando Bloco</span>
                             </div>
-                            {token.widgetName === "ComplexPlotter" && <ComplexPlotter />}
-                            {token.widgetName === "NodeGraftViewer" && <NodeGraftViewer lang={lang as "en" | "pt"} />}
-                            {token.widgetName === "B3Screener" && <B3Screener lang={lang as "en" | "pt"} />}
-                            {token.widgetName === "SudokuViewer" && <SudokuViewer lang={lang as "en" | "pt"} />}
-                            {token.widgetName === "SudokuMiniWidget" && <SudokuMiniWidget lang={lang as "en" | "pt"} />}
-                            {token.widgetName === "QuadtreeVisualizer" && <QuadtreeVisualizer />}
-                            {token.widgetName === "MappingVisualizer" && <MappingVisualizer />}
-                            {token.widgetName === "CountersVisualizer" && <CountersVisualizer />}
-                            {token.widgetName === "PolynomialEditor" && <PolynomialEditor />}
                           </div>
                         );
                       }
 
-                      return null;
+                      return (
+                        <div
+                          key={blockIdx}
+                          onClick={() => setEditingBlockIndex(blockIdx)}
+                          className="group relative p-2 -mx-2 hover:bg-zinc-900/30 rounded-xl transition-all cursor-text"
+                          title="Clique para editar este bloco"
+                        >
+                          {/* Hover Edit Icon */}
+                          <div className="absolute top-1 right-2 opacity-0 group-hover:opacity-100 transition-opacity bg-zinc-950/80 border border-zinc-800 text-[9px] text-emerald-400 px-1.5 py-0.5 rounded font-mono font-bold select-none uppercase tracking-widest">
+                            Editar Bloco
+                          </div>
+
+                          {parseMDXContent(blockText).map((token, tIdx) => {
+                            if (token.type === "text") {
+                              return <React.Fragment key={tIdx}>{renderMarkdownWithTables(token.content)}</React.Fragment>;
+                            }
+
+                            if (token.type === "math_inline") {
+                              return <InlineMath key={tIdx} math={token.content} />;
+                            }
+
+                            if (token.type === "math_block") {
+                              return <BlockMath key={tIdx} math={token.content} />;
+                            }
+
+                            if (token.type === "code") {
+                              if (token.lang === "plantuml") {
+                                return <PlantUMLRenderer key={tIdx} code={token.content} />;
+                              }
+
+                              return (
+                                <pre key={tIdx} className="p-4 bg-zinc-900 border border-zinc-800/80 rounded-xl overflow-x-auto font-mono text-xs text-zinc-100 my-4">
+                                  <code>{token.content}</code>
+                                </pre>
+                              );
+                            }
+
+                            if (token.type === "widget") {
+                              return (
+                                <div key={tIdx} className="my-8 border border-zinc-800/50 p-4 bg-zinc-900/10 rounded-2xl relative shadow-inner overflow-hidden" onClick={(e) => e.stopPropagation()}>
+                                  <div className="absolute top-2 right-2 px-2 py-0.5 bg-zinc-950/80 border border-zinc-800 rounded font-mono text-[9px] text-zinc-500 uppercase tracking-widest font-bold z-20">
+                                    Reativo: {token.widgetName}
+                                  </div>
+                                  {token.widgetName === "ComplexPlotter" && <ComplexPlotter />}
+                                  {token.widgetName === "NodeGraftViewer" && <NodeGraftViewer lang={lang as "en" | "pt"} />}
+                                  {token.widgetName === "B3Screener" && <B3Screener lang={lang as "en" | "pt"} />}
+                                  {token.widgetName === "SudokuViewer" && <SudokuViewer lang={lang as "en" | "pt"} />}
+                                  {token.widgetName === "SudokuMiniWidget" && <SudokuMiniWidget lang={lang as "en" | "pt"} />}
+                                  {token.widgetName === "QuadtreeVisualizer" && <QuadtreeVisualizer />}
+                                  {token.widgetName === "MappingVisualizer" && <MappingVisualizer />}
+                                  {token.widgetName === "CountersVisualizer" && <CountersVisualizer />}
+                                  {token.widgetName === "PolynomialEditor" && <PolynomialEditor />}
+                                </div>
+                              );
+                            }
+
+                            return null;
+                          })}
+                        </div>
+                      );
                     })}
                   </div>
                 </div>
@@ -1275,19 +1346,38 @@ ${editorText}`;
             )}
           </div>
         ) : (
-          <div className="flex-1 flex flex-col items-center justify-center bg-zinc-900/10 border border-zinc-800 p-12 rounded-2xl text-zinc-500 font-serif italic text-center min-h-[400px]">
-            <div className="w-16 h-16 border border-dashed border-zinc-800 rounded-full flex items-center justify-center mb-4 text-2xl">
+          <div className="w-full border border-zinc-800 bg-zinc-900/10 p-12 rounded-2xl text-zinc-500 font-serif italic text-center min-h-[400px] flex flex-col items-center justify-center animate-fade-in">
+            <div className="w-16 h-16 border border-dashed border-zinc-800 rounded-full flex items-center justify-center mb-4 text-2xl not-italic bg-zinc-900/50">
               ✍
             </div>
-            Nenhum rascunho de nota selecionado.
-            <span className="text-xs text-zinc-600 font-mono tracking-wider uppercase mt-2 not-italic">
-              Selecione um rascunho na barra lateral ou clique em "+ Criar Rascunho" para começar
-            </span>
+            {isPt 
+              ? "Selecione um rascunho de nota na barra lateral esquerda do jardim digital para começar a escrever!" 
+              : "Select a draft note from the left digital garden sidebar to start writing!"}
+            <div className="mt-4 flex gap-4">
+              <button
+                onClick={handleCreateNewNote}
+                className="px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-bold text-xs rounded-xl transition-all cursor-pointer shadow-lg"
+              >
+                + {isPt ? "Criar Novo Rascunho" : "Create New Draft"}
+              </button>
+            </div>
           </div>
         )}
 
       </div>
 
     </div>
+  );
+}
+
+export default function WorkspacePage(props: PageProps) {
+  return (
+    <React.Suspense fallback={
+      <div className="min-h-screen bg-zinc-950 flex items-center justify-center font-mono">
+        <div className="w-8 h-8 border-2 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin"></div>
+      </div>
+    }>
+      <WorkspaceDashboard {...props} />
+    </React.Suspense>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import LanguageSwitcher from "../app/[lang]/LanguageSwitcher";
@@ -12,7 +12,49 @@ interface SidebarProps {
 export default function Sidebar({ lang }: SidebarProps) {
   const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
+  const [drafts, setDrafts] = useState<any[]>([]);
   const isPt = lang === "pt";
+
+  // Re-fetch drafts whenever user logs in, out, or synchronizes files
+  const fetchDrafts = () => {
+    const token = typeof window !== "undefined" ? localStorage.getItem("GITHUB_PAT") : null;
+    const repo = typeof window !== "undefined" ? localStorage.getItem("WORKSPACE_REPO") || "racoci/racoci.github.io" : "racoci/racoci.github.io";
+    if (token) {
+      fetch(`https://api.github.com/repos/${repo}/contents/src/content/drafts?ref=notes-drafts`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+        .then((res) => {
+          if (!res.ok) throw new Error();
+          return res.json();
+        })
+        .then((files) => {
+          if (Array.isArray(files)) {
+            setDrafts(files.filter((f) => f.name.endsWith(".mdx")));
+          } else {
+            setDrafts([]);
+          }
+        })
+        .catch(() => setDrafts([]));
+    } else {
+      setDrafts([]);
+    }
+  };
+
+  useEffect(() => {
+    fetchDrafts();
+
+    // Setup event listeners for seamless real-time syncing between Sidebar & Workspace page!
+    if (typeof window !== "undefined") {
+      window.addEventListener("storage", fetchDrafts);
+      window.addEventListener("workspace-sync", fetchDrafts);
+    }
+    return () => {
+      if (typeof window !== "undefined") {
+        window.removeEventListener("storage", fetchDrafts);
+        window.removeEventListener("workspace-sync", fetchDrafts);
+      }
+    };
+  }, []);
 
   const dict = {
     en: {
@@ -109,6 +151,31 @@ export default function Sidebar({ lang }: SidebarProps) {
             </Link>
           ))}
         </nav>
+
+        {/* Active Drafts (Visible only when logged in on Workspace) */}
+        {drafts.length > 0 && (
+          <div className="space-y-2 bg-emerald-500/[0.02] border border-emerald-500/10 rounded-2xl p-2.5">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 block px-2.5">
+              ✍️ {isPt ? "Rascunhos" : "Active Drafts"}
+            </span>
+            <nav className="flex flex-col gap-0.5">
+              {drafts.map((d) => (
+                <Link
+                  key={d.name}
+                  href={`/${lang}/workspace?draft=${d.name}`}
+                  onClick={() => setIsOpen(false)}
+                  className={`px-2.5 py-1.5 rounded-lg text-[11px] font-semibold font-mono truncate transition-all flex items-center justify-between ${
+                    pathname.includes("/workspace") && pathname.includes(d.name)
+                      ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 font-bold"
+                      : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-900/30"
+                  }`}
+                >
+                  <span className="truncate">📄 {d.name.replace(".mdx", "")}</span>
+                </Link>
+              ))}
+            </nav>
+          </div>
+        )}
 
         {/* Garden Categories Links */}
         <div className="space-y-2">
