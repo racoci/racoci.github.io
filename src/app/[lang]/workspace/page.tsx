@@ -171,6 +171,816 @@ function parseInlineMarkdown(inputText: string): React.ReactNode[] {
   });
 }
 
+interface TableData {
+  headers: string[];
+  alignments: ("left" | "center" | "right")[];
+  rows: string[][];
+}
+
+function parseMarkdownTable(markdown: string): TableData | null {
+  const lines = markdown.split("\n").map(l => l.trim()).filter(l => l.startsWith("|") && l.endsWith("|"));
+  if (lines.length === 0) return null;
+
+  let alignIdx = -1;
+  let alignments: ("left" | "center" | "right")[] = [];
+
+  for (let i = 0; i < lines.length; i++) {
+    const cells = lines[i].split("|").map(c => c.trim()).slice(1, -1);
+    if (cells.length > 0 && cells.every(c => /^:?-+:?$/.test(c))) {
+      alignIdx = i;
+      alignments = cells.map(c => {
+        const left = c.startsWith(":");
+        const right = c.endsWith(":");
+        if (left && right) return "center";
+        if (right) return "right";
+        return "left";
+      });
+      break;
+    }
+  }
+
+  let headers: string[] = [];
+  let rows: string[][] = [];
+
+  if (alignIdx !== -1) {
+    const headerLine = lines[alignIdx - 1];
+    if (headerLine) {
+      headers = headerLine.split("|").map(c => c.trim()).slice(1, -1);
+    }
+    
+    for (let i = 0; i < lines.length; i++) {
+      if (i === alignIdx || i === alignIdx - 1) continue;
+      const cells = lines[i].split("|").map(c => c.trim()).slice(1, -1);
+      rows.push(cells);
+    }
+  } else {
+    headers = lines[0].split("|").map(c => c.trim()).slice(1, -1);
+    alignments = headers.map(() => "left");
+    for (let i = 1; i < lines.length; i++) {
+      const cells = lines[i].split("|").map(c => c.trim()).slice(1, -1);
+      rows.push(cells);
+    }
+  }
+
+  const numCols = headers.length;
+  if (numCols === 0) return null;
+
+  rows = rows.map(r => {
+    const newRow = [...r];
+    while (newRow.length < numCols) newRow.push("");
+    if (newRow.length > numCols) newRow.splice(numCols);
+    return newRow;
+  });
+
+  while (alignments.length < numCols) alignments.push("left");
+
+  return { headers, alignments, rows };
+}
+
+function serializeMarkdownTable(data: TableData): string {
+  const { headers, alignments, rows } = data;
+  const headerStr = "| " + headers.join(" | ") + " |";
+  const alignStr = "| " + alignments.map(a => {
+    if (a === "center") return ":---:";
+    if (a === "right") return "---:";
+    return ":---";
+  }).join(" | ") + " |";
+  
+  const rowsStr = rows.map(r => "| " + r.join(" | ") + " |").join("\n");
+  
+  return `${headerStr}\n${alignStr}\n${rowsStr}`;
+}
+
+interface BlockPart {
+  type: "text" | "table";
+  content: string;
+}
+
+function parseBlockParts(text: string): BlockPart[] {
+  const lines = text.split("\n");
+  const parts: BlockPart[] = [];
+  let currentTextLines: string[] = [];
+  let currentTableLines: string[] = [];
+  let inTable = false;
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    const isTableLine = trimmed.startsWith("|") && trimmed.endsWith("|");
+
+    if (isTableLine) {
+      if (!inTable) {
+        if (currentTextLines.length > 0) {
+          parts.push({ type: "text", content: currentTextLines.join("\n") });
+          currentTextLines = [];
+        }
+        inTable = true;
+      }
+      currentTableLines.push(line);
+    } else {
+      if (inTable) {
+        if (currentTableLines.length > 0) {
+          parts.push({ type: "table", content: currentTableLines.join("\n") });
+          currentTableLines = [];
+        }
+        inTable = false;
+      }
+      currentTextLines.push(line);
+    }
+  }
+
+  if (inTable && currentTableLines.length > 0) {
+    parts.push({ type: "table", content: currentTableLines.join("\n") });
+  } else if (currentTextLines.length > 0) {
+    parts.push({ type: "text", content: currentTextLines.join("\n") });
+  }
+
+  return parts;
+}
+
+const WIDGET_SUGGESTIONS = [
+  "ComplexPlotter",
+  "NodeGraftViewer",
+  "B3Screener",
+  "SudokuViewer",
+  "SudokuMiniWidget",
+  "QuadtreeVisualizer",
+  "MappingVisualizer",
+  "CountersVisualizer",
+  "PolynomialEditor"
+];
+
+function getCaretCoordinates(textarea: HTMLTextAreaElement, position: number) {
+  if (typeof window === "undefined") return { top: 0, left: 0 };
+  
+  const style = window.getComputedStyle(textarea);
+  const div = document.createElement("div");
+  document.body.appendChild(div);
+  
+  const copyStyles = [
+    "direction", "boxSizing", "width", "height", "overflowX", "overflowY",
+    "borderWidth", "borderStyle", "borderColor",
+    "paddingTop", "paddingRight", "paddingBottom", "paddingLeft",
+    "fontSize", "fontFamily", "fontStyle", "fontWeight", "fontVariant",
+    "textTransform", "textIndent", "textDecoration",
+    "letterSpacing", "wordSpacing", "lineHeight", "whiteSpace", "wordBreak"
+  ];
+  
+  copyStyles.forEach(prop => {
+    (div.style as any)[prop] = (style as any)[prop];
+  });
+  
+  div.style.position = "absolute";
+  div.style.visibility = "hidden";
+  div.style.whiteSpace = "pre-wrap";
+  div.style.wordBreak = "break-word";
+  
+  const text = textarea.value;
+  div.textContent = text.substring(0, position);
+  
+  const span = document.createElement("span");
+  span.textContent = text.substring(position) || ".";
+  div.appendChild(span);
+  
+  const top = span.offsetTop - textarea.scrollTop + 20;
+  const left = span.offsetLeft - textarea.scrollLeft;
+  
+  document.body.removeChild(div);
+  
+  return {
+    top: Math.min(top, textarea.clientHeight - 150),
+    left: Math.min(left, textarea.clientWidth - 220)
+  };
+}
+
+interface AutosizingBlockTextareaProps {
+  defaultValue: string;
+  onSave: (val: string) => void;
+  onCancel: () => void;
+  className?: string;
+}
+
+function AutosizingBlockTextarea({
+  defaultValue,
+  onSave,
+  onCancel,
+  className,
+}: AutosizingBlockTextareaProps) {
+  const [val, setVal] = useState(defaultValue);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const [autocomplete, setAutocomplete] = useState<{
+    isOpen: boolean;
+    query: string;
+    triggerIndex: number;
+    cursorIndex: number;
+    selectedIndex: number;
+    top: number;
+    left: number;
+  }>({
+    isOpen: false,
+    query: "",
+    triggerIndex: -1,
+    cursorIndex: -1,
+    selectedIndex: 0,
+    top: 0,
+    left: 0,
+  });
+
+  const filteredSuggestions = WIDGET_SUGGESTIONS.filter((widget) =>
+    widget.toLowerCase().includes(autocomplete.query.toLowerCase())
+  );
+
+  const adjustHeight = () => {
+    const tx = textareaRef.current;
+    if (tx) {
+      tx.style.height = "auto";
+      tx.style.height = `${tx.scrollHeight}px`;
+    }
+  };
+
+  useEffect(() => {
+    setVal(defaultValue);
+  }, [defaultValue]);
+
+  useEffect(() => {
+    adjustHeight();
+  }, [val]);
+
+  const checkAutocomplete = (target: HTMLTextAreaElement) => {
+    const cursor = target.selectionStart;
+    const textBefore = target.value.substring(0, cursor);
+    const match = textBefore.match(/<([a-zA-Z0-9]*)$/);
+
+    if (match) {
+      const query = match[1];
+      const triggerIndex = textBefore.length - match[0].length;
+      const suggestions = WIDGET_SUGGESTIONS.filter((w) =>
+        w.toLowerCase().includes(query.toLowerCase())
+      );
+
+      if (suggestions.length > 0) {
+        const coords = getCaretCoordinates(target, cursor);
+        setAutocomplete({
+          isOpen: true,
+          query,
+          triggerIndex,
+          cursorIndex: cursor,
+          selectedIndex: 0,
+          top: coords.top,
+          left: coords.left,
+        });
+        return;
+      }
+    }
+    setAutocomplete((prev) => ({ ...prev, isOpen: false }));
+  };
+
+  const handleSelectSuggestion = (widgetName: string) => {
+    const tx = textareaRef.current;
+    if (!tx) return;
+
+    const completedTag = `<${widgetName} />`;
+    const before = val.substring(0, autocomplete.triggerIndex);
+    const after = val.substring(autocomplete.cursorIndex);
+    const newVal = before + completedTag + after;
+
+    setVal(newVal);
+
+    const newCursorPos = autocomplete.triggerIndex + completedTag.length;
+    setTimeout(() => {
+      tx.focus();
+      tx.setSelectionRange(newCursorPos, newCursorPos);
+    }, 0);
+
+    setAutocomplete((prev) => ({ ...prev, isOpen: false }));
+  };
+
+  return (
+    <div className="relative w-full flex flex-col">
+      <textarea
+        ref={textareaRef}
+        value={val}
+        onChange={(e) => {
+          setVal(e.target.value);
+          checkAutocomplete(e.currentTarget);
+        }}
+        onKeyUp={(e) => checkAutocomplete(e.currentTarget)}
+        onClick={(e) => checkAutocomplete(e.currentTarget)}
+        autoFocus
+        onBlur={() => {
+          onSave(val);
+        }}
+        onKeyDown={(e) => {
+          if (autocomplete.isOpen && filteredSuggestions.length > 0) {
+            if (e.key === "ArrowDown") {
+              e.preventDefault();
+              setAutocomplete((prev) => ({
+                ...prev,
+                selectedIndex: (prev.selectedIndex + 1) % filteredSuggestions.length,
+              }));
+              return;
+            }
+            if (e.key === "ArrowUp") {
+              e.preventDefault();
+              setAutocomplete((prev) => ({
+                ...prev,
+                selectedIndex: (prev.selectedIndex - 1 + filteredSuggestions.length) % filteredSuggestions.length,
+              }));
+              return;
+            }
+            if (e.key === "Enter") {
+              e.preventDefault();
+              handleSelectSuggestion(filteredSuggestions[autocomplete.selectedIndex]);
+              return;
+            }
+            if (e.key === "Escape") {
+              e.preventDefault();
+              setAutocomplete((prev) => ({ ...prev, isOpen: false }));
+              return;
+            }
+          }
+
+          if (e.key === "Enter" && e.shiftKey) {
+            e.preventDefault();
+            onSave(val);
+          } else if (e.key === "Escape") {
+            e.preventDefault();
+            onCancel();
+          }
+        }}
+        className={className}
+        spellCheck="false"
+      />
+
+      {/* Autocomplete Overlay */}
+      {autocomplete.isOpen && filteredSuggestions.length > 0 && (
+        <div
+          className="absolute z-50 bg-zinc-900/95 border border-zinc-800/80 rounded-xl shadow-2xl p-1.5 max-w-xs min-w-[220px] font-mono text-xs select-none backdrop-blur animate-fade-in animate-duration-150"
+          style={{
+            top: `${autocomplete.top}px`,
+            left: `${autocomplete.left}px`,
+          }}
+        >
+          <div className="px-2 py-1 text-[9px] font-bold tracking-widest text-zinc-500 border-b border-zinc-800 mb-1 uppercase">
+            Componentes Disponíveis
+          </div>
+          <div className="max-h-[200px] overflow-y-auto space-y-0.5">
+            {filteredSuggestions.map((widget, idx) => {
+              const isSelected = idx === autocomplete.selectedIndex;
+              return (
+                <div
+                  key={widget}
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    handleSelectSuggestion(widget);
+                  }}
+                  onMouseEnter={() => setAutocomplete(prev => ({ ...prev, selectedIndex: idx }))}
+                  className={`px-2.5 py-1.5 rounded-lg cursor-pointer flex items-center justify-between transition-all ${
+                    isSelected
+                      ? "bg-emerald-500/20 text-emerald-400 font-extrabold shadow-sm"
+                      : "text-zinc-300 hover:bg-zinc-800/50 hover:text-zinc-100"
+                  }`}
+                >
+                  <span>{widget}</span>
+                  {isSelected && <span className="text-[9px] bg-emerald-500/30 text-emerald-400 px-1 py-0.5 rounded font-bold">↵ ENTER</span>}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+interface InteractiveTableProps {
+  markdown: string;
+  onUpdate: (newMarkdown: string) => void;
+}
+
+function InteractiveTable({ markdown, onUpdate }: InteractiveTableProps) {
+  const tableData = parseMarkdownTable(markdown);
+  
+  const [editingCell, setEditingCell] = useState<{
+    rowIdx: number;
+    colIdx: number;
+  } | null>(null);
+
+  const [selectedCell, setSelectedCell] = useState<{
+    rowIdx: number;
+    colIdx: number;
+  } | null>(null);
+
+  const [editValue, setEditValue] = useState("");
+
+  if (!tableData) {
+    return <div className="text-red-500 font-mono">Erro ao analisar tabela</div>;
+  }
+
+  const { headers, alignments, rows } = tableData;
+
+  const handleCellClick = (rowIdx: number, colIdx: number, currentVal: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setSelectedCell({ rowIdx, colIdx });
+    setEditingCell({ rowIdx, colIdx });
+    setEditValue(currentVal);
+  };
+
+  const saveActiveCell = () => {
+    if (!editingCell) return;
+    const { rowIdx, colIdx } = editingCell;
+
+    const newHeaders = [...headers];
+    const newRows = rows.map(r => [...r]);
+
+    if (rowIdx === -1) {
+      newHeaders[colIdx] = editValue;
+    } else {
+      newRows[rowIdx][colIdx] = editValue;
+    }
+
+    const updatedData: TableData = {
+      headers: newHeaders,
+      alignments,
+      rows: newRows,
+    };
+
+    onUpdate(serializeMarkdownTable(updatedData));
+    setEditingCell(null);
+  };
+
+  const handleAddRow = () => {
+    const newRow = Array(headers.length).fill("");
+    const insertIdx = selectedCell && selectedCell.rowIdx >= 0 ? selectedCell.rowIdx + 1 : rows.length;
+    const newRows = [...rows];
+    newRows.splice(insertIdx, 0, newRow);
+
+    const updatedData: TableData = {
+      headers,
+      alignments,
+      rows: newRows,
+    };
+
+    onUpdate(serializeMarkdownTable(updatedData));
+    setSelectedCell({ rowIdx: insertIdx, colIdx: selectedCell?.colIdx ?? 0 });
+  };
+
+  const handleAddColumn = () => {
+    const insertIdx = selectedCell ? selectedCell.colIdx + 1 : headers.length;
+
+    const newHeaders = [...headers];
+    newHeaders.splice(insertIdx, 0, `Col ${newHeaders.length + 1}`);
+
+    const newAlignments = [...alignments];
+    newAlignments.splice(insertIdx, 0, "left");
+
+    const newRows = rows.map(r => {
+      const nr = [...r];
+      nr.splice(insertIdx, 0, "");
+      return nr;
+    });
+
+    const updatedData: TableData = {
+      headers: newHeaders,
+      alignments: newAlignments,
+      rows: newRows,
+    };
+
+    onUpdate(serializeMarkdownTable(updatedData));
+    setSelectedCell({ rowIdx: selectedCell?.rowIdx ?? -1, colIdx: insertIdx });
+  };
+
+  const handleDeleteActiveRow = () => {
+    if (rows.length <= 1) return;
+
+    const deleteIdx = selectedCell && selectedCell.rowIdx >= 0 ? selectedCell.rowIdx : rows.length - 1;
+    const newRows = rows.filter((_, i) => i !== deleteIdx);
+
+    const updatedData: TableData = {
+      headers,
+      alignments,
+      rows: newRows,
+    };
+
+    onUpdate(serializeMarkdownTable(updatedData));
+    
+    const nextRowIdx = Math.min(deleteIdx, newRows.length - 1);
+    setSelectedCell({ rowIdx: nextRowIdx, colIdx: selectedCell?.colIdx ?? 0 });
+  };
+
+  const handleDeleteActiveColumn = () => {
+    if (headers.length <= 1) return;
+
+    const deleteIdx = selectedCell ? selectedCell.colIdx : headers.length - 1;
+
+    const newHeaders = headers.filter((_, i) => i !== deleteIdx);
+    const newAlignments = alignments.filter((_, i) => i !== deleteIdx);
+    const newRows = rows.map(r => r.filter((_, i) => i !== deleteIdx));
+
+    const updatedData: TableData = {
+      headers: newHeaders,
+      alignments: newAlignments,
+      rows: newRows,
+    };
+
+    onUpdate(serializeMarkdownTable(updatedData));
+    
+    const nextColIdx = Math.min(deleteIdx, newHeaders.length - 1);
+    setSelectedCell({ rowIdx: selectedCell?.rowIdx ?? -1, colIdx: nextColIdx });
+  };
+
+  return (
+    <div
+      className="relative group my-6 border border-zinc-850 rounded-xl bg-zinc-900/10 p-2 overflow-visible select-text"
+      onClick={(e) => e.stopPropagation()}
+    >
+      <div className="absolute -top-3.5 right-4 flex items-center gap-1 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity bg-zinc-900 border border-zinc-800 px-2 py-1 rounded-lg shadow-xl z-20">
+        <button
+          onClick={(e) => { e.stopPropagation(); handleAddRow(); }}
+          className="p-1 hover:bg-zinc-800 rounded text-[10px] text-zinc-300 font-extrabold flex items-center gap-1 transition-colors"
+          title="Adicionar Linha"
+        >
+          <span className="text-emerald-500 font-mono font-bold">+</span>
+          <span>Linha</span>
+        </button>
+        <button
+          onClick={(e) => { e.stopPropagation(); handleAddColumn(); }}
+          className="p-1 hover:bg-zinc-800 rounded text-[10px] text-zinc-300 font-extrabold flex items-center gap-1 transition-colors"
+          title="Adicionar Coluna"
+        >
+          <span className="text-emerald-500 font-mono font-bold">+</span>
+          <span>Coluna</span>
+        </button>
+        <div className="w-px h-3 bg-zinc-800 mx-1" />
+        <button
+          onClick={(e) => { e.stopPropagation(); handleDeleteActiveRow(); }}
+          className={`p-1 hover:bg-zinc-800 rounded text-[10px] text-zinc-400 hover:text-red-400 font-extrabold flex items-center gap-1 transition-colors ${
+            rows.length <= 1 ? "opacity-30 cursor-not-allowed" : ""
+          }`}
+          disabled={rows.length <= 1}
+          title="Excluir Linha Ativa"
+        >
+          <span className="text-red-500 font-mono font-bold">-</span>
+          <span>Linha</span>
+        </button>
+        <button
+          onClick={(e) => { e.stopPropagation(); handleDeleteActiveColumn(); }}
+          className={`p-1 hover:bg-zinc-800 rounded text-[10px] text-zinc-400 hover:text-red-400 font-extrabold flex items-center gap-1 transition-colors ${
+            headers.length <= 1 ? "opacity-30 cursor-not-allowed" : ""
+          }`}
+          disabled={headers.length <= 1}
+          title="Excluir Coluna Ativa"
+        >
+          <span className="text-red-500 font-mono font-bold">-</span>
+          <span>Coluna</span>
+        </button>
+      </div>
+
+      <div className="overflow-x-auto rounded-lg">
+        <table className="min-w-full divide-y divide-zinc-800 text-sm border-collapse">
+          <thead>
+            <tr className="bg-zinc-900/40">
+              {headers.map((h, cIdx) => {
+                const isEditing = editingCell?.rowIdx === -1 && editingCell?.colIdx === cIdx;
+                const isSelected = selectedCell?.colIdx === cIdx;
+                const alignmentClass =
+                  alignments[cIdx] === "center" ? "text-center" :
+                  alignments[cIdx] === "right" ? "text-right" : "text-left";
+
+                return (
+                  <th
+                    key={cIdx}
+                    className={`px-4 py-3 relative border-r border-zinc-800 last:border-none font-bold font-sans text-zinc-300 cursor-pointer group/cell select-text ${alignmentClass} ${
+                      isSelected ? "bg-emerald-500/5 ring-1 ring-inset ring-emerald-500/20" : "hover:bg-zinc-800/20"
+                    }`}
+                    onClick={(e) => handleCellClick(-1, cIdx, h, e)}
+                  >
+                    {isEditing ? (
+                      <input
+                        type="text"
+                        value={editValue}
+                        autoFocus
+                        onChange={(e) => setEditValue(e.target.value)}
+                        onBlur={saveActiveCell}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            saveActiveCell();
+                          } else if (e.key === "Escape") {
+                            setEditingCell(null);
+                          }
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                        className="w-full bg-zinc-950 text-zinc-50 px-2 py-1 rounded border border-emerald-500 outline-none font-sans text-sm"
+                      />
+                    ) : (
+                      <div className="min-h-[1.5rem] flex items-center justify-between gap-1 w-full">
+                        <span className="flex-1">{parseInlineMarkdown(h)}</span>
+                        <span className="text-[8px] font-mono text-zinc-600 opacity-0 group-hover/cell:opacity-100 transition-opacity font-bold uppercase shrink-0">
+                          edit
+                        </span>
+                      </div>
+                    )}
+                  </th>
+                );
+              })}
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-zinc-800">
+            {rows.map((row, rIdx) => {
+              const isRowSelected = selectedCell?.rowIdx === rIdx;
+
+              return (
+                <tr
+                  key={rIdx}
+                  className={`hover:bg-zinc-900/10 ${
+                    isRowSelected ? "bg-emerald-500/[0.02]" : ""
+                  }`}
+                >
+                  {row.map((cell, cIdx) => {
+                    const isEditing = editingCell?.rowIdx === rIdx && editingCell?.colIdx === cIdx;
+                    const isSelected = selectedCell?.rowIdx === rIdx && selectedCell?.colIdx === cIdx;
+                    const alignmentClass =
+                      alignments[cIdx] === "center" ? "text-center" :
+                      alignments[cIdx] === "right" ? "text-right" : "text-left";
+
+                    return (
+                      <td
+                        key={cIdx}
+                        className={`px-4 py-3 relative border-r border-zinc-800 last:border-none font-serif text-zinc-400 cursor-pointer group/cell select-text ${alignmentClass} ${
+                          isSelected
+                            ? "bg-emerald-500/10 ring-1 ring-inset ring-emerald-500/40"
+                            : isRowSelected || selectedCell?.colIdx === cIdx
+                            ? "bg-emerald-500/[0.01]"
+                            : "hover:bg-zinc-900/30"
+                        }`}
+                        onClick={(e) => handleCellClick(rIdx, cIdx, cell, e)}
+                      >
+                        {isEditing ? (
+                          <textarea
+                            value={editValue}
+                            autoFocus
+                            rows={1}
+                            onChange={(e) => {
+                              setEditValue(e.target.value);
+                              const target = e.target as HTMLTextAreaElement;
+                              target.style.height = "auto";
+                              target.style.height = `${target.scrollHeight}px`;
+                            }}
+                            onBlur={saveActiveCell}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" && !e.shiftKey) {
+                                e.preventDefault();
+                                saveActiveCell();
+                              } else if (e.key === "Escape") {
+                                setEditingCell(null);
+                              }
+                            }}
+                            onClick={(e) => e.stopPropagation()}
+                            className="w-full bg-zinc-950 text-zinc-100 px-2 py-1 rounded border border-emerald-500 outline-none font-serif text-sm resize-none overflow-hidden"
+                          />
+                        ) : (
+                          <div className="min-h-[1.5rem] flex items-center justify-between gap-1 w-full">
+                            <span className="flex-1">{parseInlineMarkdown(cell)}</span>
+                            <span className="text-[8px] font-mono text-zinc-600 opacity-0 group-hover/cell:opacity-100 transition-opacity font-bold uppercase shrink-0">
+                              edit
+                            </span>
+                          </div>
+                        )}
+                      </td>
+                    );
+                  })}
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function TextAndTableRenderer({
+  text,
+  onUpdate,
+}: {
+  text: string;
+  onUpdate: (newVal: string) => void;
+}) {
+  const parts = parseBlockParts(text);
+
+  return (
+    <>
+      {parts.map((part, pIdx) => {
+        if (part.type === "table") {
+          return (
+            <InteractiveTable
+              key={pIdx}
+              markdown={part.content}
+              onUpdate={(newTableMarkdown) => {
+                const updatedParts = [...parts];
+                updatedParts[pIdx] = { ...part, content: newTableMarkdown };
+                const newText = updatedParts.map(p => p.content).join("\n");
+                onUpdate(newText);
+              }}
+            />
+          );
+        }
+
+        return (
+          <React.Fragment key={pIdx}>
+            {renderMarkdownWithTables(part.content)}
+          </React.Fragment>
+        );
+      })}
+    </>
+  );
+}
+
+function serializeTokens(tokens: Token[]): string {
+  return tokens.map(t => {
+    if (t.type === "text") return t.content;
+    if (t.type === "math_inline") return `$${t.content}$`;
+    if (t.type === "math_block") return `$$${t.content}$$`;
+    if (t.type === "code") return `\`\`\`${t.lang || ""}\n${t.content}\n\`\`\``;
+    if (t.type === "widget") return t.content;
+    return "";
+  }).join("");
+}
+
+function BlockContentRenderer({
+  text,
+  onBlockUpdate,
+  lang,
+}: {
+  text: string;
+  onBlockUpdate: (newVal: string) => void;
+  lang: string;
+}) {
+  const tokens = parseMDXContent(text);
+  
+  return (
+    <>
+      {tokens.map((token, tIdx) => {
+        if (token.type === "text") {
+          return (
+            <TextAndTableRenderer
+              key={tIdx}
+              text={token.content}
+              onUpdate={(newText) => {
+                const newTokens = [...tokens];
+                newTokens[tIdx] = { ...token, content: newText };
+                const serialized = serializeTokens(newTokens);
+                onBlockUpdate(serialized);
+              }}
+            />
+          );
+        }
+
+        if (token.type === "math_inline") {
+          return <InlineMath key={tIdx} math={token.content} />;
+        }
+
+        if (token.type === "math_block") {
+          return <BlockMath key={tIdx} math={token.content} />;
+        }
+
+        if (token.type === "code") {
+          if (token.lang === "plantuml") {
+            return <PlantUMLRenderer key={tIdx} code={token.content} />;
+          }
+
+          return (
+            <pre key={tIdx} className="p-4 bg-zinc-900 border border-zinc-800/80 rounded-xl overflow-x-auto font-mono text-xs text-zinc-100 my-4">
+              <code>{token.content}</code>
+            </pre>
+          );
+        }
+
+        if (token.type === "widget") {
+          return (
+            <div key={tIdx} className="my-8 border border-zinc-800/50 p-4 bg-zinc-900/10 rounded-2xl relative shadow-inner overflow-hidden" onClick={(e) => e.stopPropagation()}>
+              <div className="absolute top-2 right-2 px-2 py-0.5 bg-zinc-950/80 border border-zinc-800 rounded font-mono text-[9px] text-zinc-500 uppercase tracking-widest font-bold z-20">
+                Reativo: {token.widgetName}
+              </div>
+              {token.widgetName === "ComplexPlotter" && <ComplexPlotter />}
+              {token.widgetName === "NodeGraftViewer" && <NodeGraftViewer lang={lang as "en" | "pt"} />}
+              {token.widgetName === "B3Screener" && <B3Screener lang={lang as "en" | "pt"} />}
+              {token.widgetName === "SudokuViewer" && <SudokuViewer lang={lang as "en" | "pt"} />}
+              {token.widgetName === "SudokuMiniWidget" && <SudokuMiniWidget lang={lang as "en" | "pt"} />}
+              {token.widgetName === "QuadtreeVisualizer" && <QuadtreeVisualizer />}
+              {token.widgetName === "MappingVisualizer" && <MappingVisualizer />}
+              {token.widgetName === "CountersVisualizer" && <CountersVisualizer />}
+              {token.widgetName === "PolynomialEditor" && <PolynomialEditor />}
+            </div>
+          );
+        }
+
+        return null;
+      })}
+    </>
+  );
+}
+
 // Symmetrical live Markdown block & inline compiler
 function renderMarkdownWithTables(text: string) {
   const lines = text.split("\n");
@@ -432,7 +1242,7 @@ function WorkspaceDashboard({ params }: PageProps) {
   }, []);
 
   // Layout View Mode state: "split" (Side-by-Side) vs "wysiwyg" (Single Seamless Editor)
-  const [viewMode, setViewMode] = useState<"split" | "wysiwyg">("split");
+  const [viewMode, setViewMode] = useState<"split" | "wysiwyg">("wysiwyg");
 
   // Draft States
   const [drafts, setDrafts] = useState<DraftFile[]>([]);
@@ -442,15 +1252,78 @@ function WorkspaceDashboard({ params }: PageProps) {
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [syncStatus, setSyncStatus] = useState<"saved" | "unsaved" | "syncing" | "error">("saved");
 
-  // Synchronize URL draft query parameter to load files dynamically from the Sidebar!
-  useEffect(() => {
-    if (urlDraft && drafts.length > 0) {
-      const match = drafts.find((d) => d.name === urlDraft);
-      if (match && activeDraft?.name !== urlDraft) {
-        handleSelectDraft(match);
+  // Autocomplete ref & states for the Split view code editor
+  const mainTextareaRef = useRef<HTMLTextAreaElement>(null);
+  const [mainAutocomplete, setMainAutocomplete] = useState<{
+    isOpen: boolean;
+    query: string;
+    triggerIndex: number;
+    cursorIndex: number;
+    selectedIndex: number;
+    top: number;
+    left: number;
+  }>({
+    isOpen: false,
+    query: "",
+    triggerIndex: -1,
+    cursorIndex: -1,
+    selectedIndex: 0,
+    top: 0,
+    left: 0,
+  });
+
+  const mainFilteredSuggestions = WIDGET_SUGGESTIONS.filter((widget) =>
+    widget.toLowerCase().includes(mainAutocomplete.query.toLowerCase())
+  );
+
+  const checkMainAutocomplete = (target: HTMLTextAreaElement) => {
+    const cursor = target.selectionStart;
+    const textBefore = target.value.substring(0, cursor);
+    const match = textBefore.match(/<([a-zA-Z0-9]*)$/);
+
+    if (match) {
+      const query = match[1];
+      const triggerIndex = textBefore.length - match[0].length;
+      const suggestions = WIDGET_SUGGESTIONS.filter((w) =>
+        w.toLowerCase().includes(query.toLowerCase())
+      );
+
+      if (suggestions.length > 0) {
+        const coords = getCaretCoordinates(target, cursor);
+        setMainAutocomplete({
+          isOpen: true,
+          query,
+          triggerIndex,
+          cursorIndex: cursor,
+          selectedIndex: 0,
+          top: coords.top,
+          left: coords.left,
+        });
+        return;
       }
     }
-  }, [urlDraft, drafts]);
+    setMainAutocomplete((prev) => ({ ...prev, isOpen: false }));
+  };
+
+  const handleSelectMainSuggestion = (widgetName: string) => {
+    const tx = mainTextareaRef.current;
+    if (!tx) return;
+
+    const completedTag = `<${widgetName} />`;
+    const before = editorText.substring(0, mainAutocomplete.triggerIndex);
+    const after = editorText.substring(mainAutocomplete.cursorIndex);
+    const newVal = before + completedTag + after;
+
+    handleEditorChange(newVal);
+
+    const newCursorPos = mainAutocomplete.triggerIndex + completedTag.length;
+    setTimeout(() => {
+      tx.focus();
+      tx.setSelectionRange(newCursorPos, newCursorPos);
+    }, 0);
+
+    setMainAutocomplete((prev) => ({ ...prev, isOpen: false }));
+  };
 
   // Inline Block-based WYSIWYG states
   const [editingBlockIndex, setEditingBlockIndex] = useState<number | null>(null);
@@ -464,32 +1337,6 @@ function WorkspaceDashboard({ params }: PageProps) {
 
   // Refs for tracking changes
   const lastSavedTextRef = useRef("");
-
-  useEffect(() => {
-    setMounted(true);
-    const cachedToken = localStorage.getItem("GITHUB_PAT") || "";
-    const cachedGemini = localStorage.getItem("GEMINI_API_KEY") || "";
-    const cachedRepo = localStorage.getItem("WORKSPACE_REPO") || "racoci/racoci.github.io";
-
-    if (cachedToken) {
-      setToken(cachedToken);
-      setGeminiKey(cachedGemini);
-      setRepo(cachedRepo);
-      setIsAuthenticated(true);
-      fetchDraftsList(cachedToken, cachedRepo);
-    }
-  }, []);
-
-  // Background Auto-Sync Engine: commit every 60 seconds if hasUnsavedChanges
-  useEffect(() => {
-    if (!isAuthenticated || !hasUnsavedChanges || !activeDraft) return;
-
-    const interval = setInterval(() => {
-      autoSyncToGitHub();
-    }, 60000); // 1 minute
-
-    return () => clearInterval(interval);
-  }, [isAuthenticated, hasUnsavedChanges, activeDraft, editorText]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -525,7 +1372,7 @@ function WorkspaceDashboard({ params }: PageProps) {
     setEditorText("");
   };
 
-  const fetchDraftsList = async (authToken: string, targetRepo: string) => {
+  async function fetchDraftsList(authToken: string, targetRepo: string) {
     try {
       const branchRes = await fetch(`https://api.github.com/repos/${targetRepo}/branches/notes-drafts`, {
         headers: { Authorization: `Bearer ${authToken}` },
@@ -606,7 +1453,7 @@ function WorkspaceDashboard({ params }: PageProps) {
     }
   };
 
-  const handleSelectDraft = async (file: DraftFile) => {
+  async function handleSelectDraft(file: DraftFile) {
     setActiveDraft(file);
     setSlug(file.name.replace(".mdx", ""));
 
@@ -854,6 +1701,45 @@ ${editorText}`;
     }
   };
 
+  // Synchronize URL draft query parameter to load files dynamically from the Sidebar!
+  useEffect(() => {
+    if (urlDraft && drafts.length > 0) {
+      const match = drafts.find((d) => d.name === urlDraft);
+      if (match && activeDraft?.name !== urlDraft) {
+        handleSelectDraft(match);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [urlDraft, drafts]);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setMounted(true);
+    const cachedToken = localStorage.getItem("GITHUB_PAT") || "";
+    const cachedGemini = localStorage.getItem("GEMINI_API_KEY") || "";
+    const cachedRepo = localStorage.getItem("WORKSPACE_REPO") || "racoci/racoci.github.io";
+
+    if (cachedToken) {
+      setToken(cachedToken);
+      setGeminiKey(cachedGemini);
+      setRepo(cachedRepo);
+      setIsAuthenticated(true);
+      fetchDraftsList(cachedToken, cachedRepo);
+    }
+  }, []);
+
+  // Background Auto-Sync Engine: commit every 60 seconds if hasUnsavedChanges
+  useEffect(() => {
+    if (!isAuthenticated || !hasUnsavedChanges || !activeDraft) return;
+
+    const interval = setInterval(() => {
+      autoSyncToGitHub();
+    }, 60000); // 1 minute
+
+    return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated, hasUnsavedChanges, activeDraft, editorText]);
+
   const handleEditorChange = (val: string) => {
     setEditorText(val);
     if (val !== lastSavedTextRef.current) {
@@ -917,7 +1803,7 @@ ${editorText}`;
                   <>
                     💡 <strong>How to get your PAT:</strong>
                     <ol className="list-decimal list-inside space-y-1 mt-1 text-[9px] text-zinc-500">
-                      <li>Go to GitHub's <a href="https://github.com/settings/tokens?type=beta" target="_blank" rel="noopener noreferrer" className="text-emerald-400 hover:underline font-bold">Fine-Grained Tokens Settings</a> page.</li>
+                    <li>Go to GitHub&apos;s <a href="https://github.com/settings/tokens?type=beta" target="_blank" rel="noopener noreferrer" className="text-emerald-400 hover:underline font-bold">Fine-Grained Tokens Settings</a> page.</li>
                       <li>Click <strong>Generate new token</strong>.</li>
                       <li>Name your token (e.g., <code>blog-cms</code>) and under <strong>Repository access</strong> select <strong>Only select repositories</strong>, picking your portfolio repository.</li>
                       <li>In <strong>Permissions</strong>, under <strong>Repository permissions</strong>, select <strong>Contents</strong> and set access to <strong>Read and Write</strong>.</li>
@@ -1032,10 +1918,37 @@ ${editorText}`;
       </header>
 
       {/* Main flow-based container (Natural page scrolling!) */}
-      <div className="max-w-7xl mx-auto px-6 mt-8 w-full">
+      <div className="max-w-full w-full px-6 md:px-12 mt-8">
         {activeDraft ? (
           <div className="w-full space-y-6">
             
+            {/* Elegant Document Slug Editor */}
+            <div className="p-4 bg-zinc-900/30 border border-zinc-800/80 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="space-y-0.5">
+                <span className="text-[10px] font-mono font-bold tracking-widest text-zinc-500 uppercase block">
+                  Identificador / URL da Nota (Slug)
+                </span>
+                <span className="text-xs text-zinc-400">
+                  O slug define o nome do arquivo final e o caminho da URL do seu projeto.
+                </span>
+              </div>
+              <div className="flex items-center gap-2 w-full sm:max-w-md bg-zinc-950 px-3 py-1.5 border border-zinc-800 rounded-xl focus-within:ring-1 focus-within:ring-emerald-500/50 focus-within:border-emerald-500/50 transition-all">
+                <span className="text-xs font-mono text-zinc-600 shrink-0">essays/</span>
+                <input
+                  type="text"
+                  value={slug}
+                  onChange={(e) => {
+                    const sanitized = e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "");
+                    setSlug(sanitized);
+                    setHasUnsavedChanges(true);
+                  }}
+                  placeholder="meu-novo-artigo"
+                  className="w-full bg-transparent font-mono text-xs text-emerald-400 outline-none border-none focus:ring-0 p-0"
+                />
+                <span className="text-xs font-mono text-zinc-600 shrink-0">.mdx</span>
+              </div>
+            </div>
+
             {/* AI Co-pilot Tools Panel (Only visible if Gemini key configured) */}
             {geminiKey && (
               <div className="p-4 bg-zinc-900/40 border border-zinc-800/80 rounded-2xl space-y-3 shadow-inner">
@@ -1101,12 +2014,85 @@ ${editorText}`;
                     </button>
                   </div>
 
-                  <textarea
-                    value={editorText}
-                    onChange={(e) => handleEditorChange(e.target.value)}
-                    className="w-full min-h-[600px] p-6 bg-zinc-950 text-zinc-100 font-mono text-sm leading-relaxed outline-none border-none resize-none selection:bg-emerald-500/10 focus:ring-0"
-                    spellCheck="false"
-                  />
+                  <div className="relative flex-1 w-full flex flex-col">
+                    <textarea
+                      ref={mainTextareaRef}
+                      value={editorText}
+                      onChange={(e) => handleEditorChange(e.target.value)}
+                      onKeyUp={(e) => checkMainAutocomplete(e.currentTarget)}
+                      onClick={(e) => checkMainAutocomplete(e.currentTarget)}
+                      onKeyDown={(e) => {
+                        if (mainAutocomplete.isOpen && mainFilteredSuggestions.length > 0) {
+                          if (e.key === "ArrowDown") {
+                            e.preventDefault();
+                            setMainAutocomplete((prev) => ({
+                              ...prev,
+                              selectedIndex: (prev.selectedIndex + 1) % mainFilteredSuggestions.length,
+                            }));
+                            return;
+                          }
+                          if (e.key === "ArrowUp") {
+                            e.preventDefault();
+                            setMainAutocomplete((prev) => ({
+                              ...prev,
+                              selectedIndex: (prev.selectedIndex - 1 + mainFilteredSuggestions.length) % mainFilteredSuggestions.length,
+                            }));
+                            return;
+                          }
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            handleSelectMainSuggestion(mainFilteredSuggestions[mainAutocomplete.selectedIndex]);
+                            return;
+                          }
+                          if (e.key === "Escape") {
+                            e.preventDefault();
+                            setMainAutocomplete((prev) => ({ ...prev, isOpen: false }));
+                            return;
+                          }
+                        }
+                      }}
+                      className="flex-1 w-full min-h-[600px] p-6 bg-zinc-950 text-zinc-100 font-mono text-sm leading-relaxed outline-none border-none resize-none selection:bg-emerald-500/10 focus:ring-0"
+                      spellCheck="false"
+                    />
+
+                    {/* Autocomplete Overlay */}
+                    {mainAutocomplete.isOpen && mainFilteredSuggestions.length > 0 && (
+                      <div
+                        className="absolute z-50 bg-zinc-900/95 border border-zinc-800/80 rounded-xl shadow-2xl p-1.5 max-w-xs min-w-[220px] font-mono text-xs select-none backdrop-blur animate-fade-in animate-duration-150"
+                        style={{
+                          top: `${mainAutocomplete.top}px`,
+                          left: `${mainAutocomplete.left}px`,
+                        }}
+                      >
+                        <div className="px-2 py-1 text-[9px] font-bold tracking-widest text-zinc-500 border-b border-zinc-800 mb-1 uppercase">
+                          Componentes Disponíveis
+                        </div>
+                        <div className="max-h-[200px] overflow-y-auto space-y-0.5">
+                          {mainFilteredSuggestions.map((widget, idx) => {
+                            const isSelected = idx === mainAutocomplete.selectedIndex;
+                            return (
+                              <div
+                                key={widget}
+                                onMouseDown={(e) => {
+                                  e.preventDefault();
+                                  handleSelectMainSuggestion(widget);
+                                }}
+                                onMouseEnter={() => setMainAutocomplete(prev => ({ ...prev, selectedIndex: idx }))}
+                                className={`px-2.5 py-1.5 rounded-lg cursor-pointer flex items-center justify-between transition-all ${
+                                  isSelected
+                                    ? "bg-emerald-500/20 text-emerald-400 font-extrabold shadow-sm"
+                                    : "text-zinc-300 hover:bg-zinc-800/50 hover:text-zinc-100"
+                                }`}
+                              >
+                                <span>{widget}</span>
+                                {isSelected && <span className="text-[9px] bg-emerald-500/30 text-emerald-400 px-1 py-0.5 rounded font-bold">↵ ENTER</span>}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 {/* Draggable Column Resizer */}
@@ -1134,21 +2120,14 @@ ${editorText}`;
                       if (isEditingThisBlock) {
                         return (
                           <div key={blockIdx} className="my-4 border border-emerald-500/40 bg-zinc-950 p-4 rounded-xl flex flex-col gap-2" onClick={(e) => e.stopPropagation()}>
-                            <textarea
+                            <AutosizingBlockTextarea
                               defaultValue={blockText}
-                              autoFocus
-                              onBlur={(e) => {
-                                handleBlockChange(blockIdx, e.target.value);
+                              onSave={(val) => {
+                                handleBlockChange(blockIdx, val);
                                 setEditingBlockIndex(null);
                               }}
-                              onKeyDown={(e) => {
-                                if (e.key === "Enter" && e.shiftKey) {
-                                  e.preventDefault();
-                                  handleBlockChange(blockIdx, (e.target as HTMLTextAreaElement).value);
-                                  setEditingBlockIndex(null);
-                                }
-                              }}
-                              className="w-full p-2 bg-zinc-950 text-zinc-100 font-mono text-sm leading-relaxed outline-none border-none resize-y"
+                              onCancel={() => setEditingBlockIndex(null)}
+                              className="w-full p-2 bg-zinc-950 text-zinc-100 font-mono text-sm leading-relaxed outline-none border-none resize-none overflow-hidden"
                             />
                             <div className="flex justify-between items-center text-[9px] font-mono text-zinc-500 px-1">
                               <span>Pressione <kbd className="bg-zinc-900 px-1.5 py-0.5 rounded text-emerald-400">Shift + Enter</kbd> ou clique fora para compilar</span>
@@ -1170,52 +2149,11 @@ ${editorText}`;
                             Editar Bloco
                           </div>
 
-                          {parseMDXContent(blockText).map((token, tIdx) => {
-                            if (token.type === "text") {
-                              return <React.Fragment key={tIdx}>{renderMarkdownWithTables(token.content)}</React.Fragment>;
-                            }
-
-                            if (token.type === "math_inline") {
-                              return <InlineMath key={tIdx} math={token.content} />;
-                            }
-
-                            if (token.type === "math_block") {
-                              return <BlockMath key={tIdx} math={token.content} />;
-                            }
-
-                            if (token.type === "code") {
-                              if (token.lang === "plantuml") {
-                                return <PlantUMLRenderer key={tIdx} code={token.content} />;
-                              }
-
-                              return (
-                                <pre key={tIdx} className="p-4 bg-zinc-900 border border-zinc-800/80 rounded-xl overflow-x-auto font-mono text-xs text-zinc-100 my-4">
-                                  <code>{token.content}</code>
-                                </pre>
-                              );
-                            }
-
-                            if (token.type === "widget") {
-                              return (
-                                <div key={tIdx} className="my-8 border border-zinc-800/50 p-4 bg-zinc-900/10 rounded-2xl relative shadow-inner overflow-hidden" onClick={(e) => e.stopPropagation()}>
-                                  <div className="absolute top-2 right-2 px-2 py-0.5 bg-zinc-950/80 border border-zinc-800 rounded font-mono text-[9px] text-zinc-500 uppercase tracking-widest font-bold z-20">
-                                    Reativo: {token.widgetName}
-                                  </div>
-                                  {token.widgetName === "ComplexPlotter" && <ComplexPlotter />}
-                                  {token.widgetName === "NodeGraftViewer" && <NodeGraftViewer lang={lang as "en" | "pt"} />}
-                                  {token.widgetName === "B3Screener" && <B3Screener lang={lang as "en" | "pt"} />}
-                                  {token.widgetName === "SudokuViewer" && <SudokuViewer lang={lang as "en" | "pt"} />}
-                                  {token.widgetName === "SudokuMiniWidget" && <SudokuMiniWidget lang={lang as "en" | "pt"} />}
-                                  {token.widgetName === "QuadtreeVisualizer" && <QuadtreeVisualizer />}
-                                  {token.widgetName === "MappingVisualizer" && <MappingVisualizer />}
-                                  {token.widgetName === "CountersVisualizer" && <CountersVisualizer />}
-                                  {token.widgetName === "PolynomialEditor" && <PolynomialEditor />}
-                                </div>
-                              );
-                            }
-
-                            return null;
-                          })}
+                          <BlockContentRenderer
+                            text={blockText}
+                            onBlockUpdate={(newText) => handleBlockChange(blockIdx, newText)}
+                            lang={lang}
+                          />
                         </div>
                       );
                     })}
@@ -1254,22 +2192,14 @@ ${editorText}`;
                     if (isEditingThisBlock) {
                       return (
                         <div key={blockIdx} className="my-4 border border-emerald-500/40 bg-zinc-950 p-4 rounded-xl flex flex-col gap-2">
-                          <textarea
+                          <AutosizingBlockTextarea
                             defaultValue={blockText}
-                            autoFocus
-                            onBlur={(e) => {
-                              handleBlockChange(blockIdx, e.target.value);
+                            onSave={(val) => {
+                              handleBlockChange(blockIdx, val);
                               setEditingBlockIndex(null);
                             }}
-                            onKeyDown={(e) => {
-                              // Save block on Shift+Enter
-                              if (e.key === "Enter" && e.shiftKey) {
-                                e.preventDefault();
-                                handleBlockChange(blockIdx, (e.target as HTMLTextAreaElement).value);
-                                setEditingBlockIndex(null);
-                              }
-                            }}
-                            className="w-full p-2 bg-zinc-950 text-zinc-100 font-mono text-sm leading-relaxed outline-none border-none resize-y"
+                            onCancel={() => setEditingBlockIndex(null)}
+                            className="w-full p-2 bg-zinc-950 text-zinc-100 font-mono text-sm leading-relaxed outline-none border-none resize-none overflow-hidden"
                           />
                           <div className="flex justify-between items-center text-[9px] font-mono text-zinc-500 px-1">
                             <span>Pressione <kbd className="bg-zinc-900 px-1.5 py-0.5 rounded text-emerald-400">Shift + Enter</kbd> ou clique fora para compilar</span>
@@ -1292,52 +2222,11 @@ ${editorText}`;
                           Editar Bloco
                         </div>
 
-                        {parseMDXContent(blockText).map((token, tIdx) => {
-                          if (token.type === "text") {
-                            return <React.Fragment key={tIdx}>{renderMarkdownWithTables(token.content)}</React.Fragment>;
-                          }
-
-                          if (token.type === "math_inline") {
-                            return <InlineMath key={tIdx} math={token.content} />;
-                          }
-
-                          if (token.type === "math_block") {
-                            return <BlockMath key={tIdx} math={token.content} />;
-                          }
-
-                          if (token.type === "code") {
-                            if (token.lang === "plantuml") {
-                              return <PlantUMLRenderer key={tIdx} code={token.content} />;
-                            }
-
-                            return (
-                              <pre key={tIdx} className="p-4 bg-zinc-900 border border-zinc-800/80 rounded-xl overflow-x-auto font-mono text-xs text-zinc-100 my-4">
-                                <code>{token.content}</code>
-                              </pre>
-                            );
-                          }
-
-                          if (token.type === "widget") {
-                            return (
-                              <div key={tIdx} className="my-8 border border-zinc-800/50 p-4 bg-zinc-900/10 rounded-2xl relative shadow-inner overflow-hidden" onClick={(e) => e.stopPropagation()}>
-                                <div className="absolute top-2 right-2 px-2 py-0.5 bg-zinc-950/80 border border-zinc-800 rounded font-mono text-[9px] text-zinc-500 uppercase tracking-widest font-bold z-20">
-                                  Reativo: {token.widgetName}
-                                </div>
-                                {token.widgetName === "ComplexPlotter" && <ComplexPlotter />}
-                                {token.widgetName === "NodeGraftViewer" && <NodeGraftViewer lang={lang as "en" | "pt"} />}
-                                {token.widgetName === "B3Screener" && <B3Screener lang={lang as "en" | "pt"} />}
-                                {token.widgetName === "SudokuViewer" && <SudokuViewer lang={lang as "en" | "pt"} />}
-                                {token.widgetName === "SudokuMiniWidget" && <SudokuMiniWidget lang={lang as "en" | "pt"} />}
-                                {token.widgetName === "QuadtreeVisualizer" && <QuadtreeVisualizer />}
-                                {token.widgetName === "MappingVisualizer" && <MappingVisualizer />}
-                                {token.widgetName === "CountersVisualizer" && <CountersVisualizer />}
-                                {token.widgetName === "PolynomialEditor" && <PolynomialEditor />}
-                              </div>
-                            );
-                          }
-
-                          return null;
-                        })}
+                        <BlockContentRenderer
+                          text={blockText}
+                          onBlockUpdate={(newText) => handleBlockChange(blockIdx, newText)}
+                          lang={lang}
+                        />
                       </div>
                     );
                   })}
