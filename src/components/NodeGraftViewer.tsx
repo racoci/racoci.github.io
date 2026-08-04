@@ -25,10 +25,42 @@ interface Quad3D {
   normal: { x: number; y: number; z: number };
 }
 
-const DEFAULT_WGSL = `/**
- * @name NodeGraft Procedural Prop
+interface PropItem {
+  id: string;
+  name: string;
+  tags: string[];
+  wgsl: string;
+  defaultTraits: Record<string, number>;
+  description: {
+    en: string;
+    pt: string;
+  };
+}
+
+interface Category {
+  name: {
+    en: string;
+    pt: string;
+  };
+  icon: string;
+  props: PropItem[];
+}
+
+// Predefined procedural props with custom WGSL and default traits
+const PROPS_LIBRARY: PropItem[] = [
+  {
+    id: "gyroid-core",
+    name: "Gyroid Reactor Core",
+    tags: ["procedural", "organic", "ornament", "energetics"],
+    defaultTraits: { Size: 0.75, Complexity: 4.0, Twist: 1.5, Hollow: 0.0 },
+    description: {
+      en: "Procedural reactor core modulated by high-frequency trigonometric noise fields.",
+      pt: "Núcleo de reator procedural modulado por campos de ruído trigonométrico senoidal."
+    },
+    wgsl: `/**
+ * @name Gyroid Reactor Core
  * @version 1.0.4
- * @scion RootGraft
+ * @scion ReactorGraft
  * @trait Size [0.3, 1.2, 0.75]
  * @trait Complexity [1.0, 10.0, 4.0]
  * @trait Twist [-5.0, 5.0, 1.5]
@@ -42,37 +74,236 @@ struct Trait {
   hollow: f32,
 }
 
-// Pass 1: SDF Evaluation
 fn sdf(p: vec3f, t: Trait) -> f32 {
-  // Apply twisting transformation
   let angle = p.y * t.twist * 0.8;
   let s = sin(angle);
   let c = cos(angle);
   let q = vec3f(p.x * c - p.z * s, p.y, p.x * s + p.z * c);
   
-  // Base sphere
   var d = length(q) - t.size;
-  
-  // Gyroid noise modulation
   let noise = sin(q.x * t.complexity) * sin(q.y * t.complexity) * sin(q.z * t.complexity) * 0.12;
   d += noise;
   
-  // Hollow shell operation
   if (t.hollow > 0.5) {
     d = abs(d) - 0.04;
   }
   return d;
+}`
+  },
+  {
+    id: "threaded-bolt",
+    name: "Threaded Mechanical Bolt",
+    tags: ["mechanical", "hard-surface", "kitbash", "joint"],
+    defaultTraits: { Size: 0.8, Complexity: 8.0, Twist: 2.0, Hollow: 0.0 },
+    description: {
+      en: "Hexagonal head structural bolt featuring helical thread pitch modulation.",
+      pt: "Parafuso estrutural de cabeça hexagonal com passo de rosca helicoidal regulável."
+    },
+    wgsl: `/**
+ * @name Threaded Mechanical Bolt
+ * @version 1.1.0
+ * @scion JointGraft
+ * @trait Size [0.3, 1.2, 0.8]
+ * @trait Complexity [1.0, 20.0, 8.0]
+ * @trait Twist [-5.0, 5.0, 2.0]
+ * @trait Hollow [0.0, 1.0, 0.0]
+ */
+
+struct Trait {
+  size: f32,
+  complexity: f32,
+  twist: f32,
+  hollow: f32,
 }
 
-// Pass 2: Dual Contouring Vertex Placement
-// Pass 3: Quad Mesh Stitching
-`;
+fn sdf(p: vec3f, t: Trait) -> f32 {
+  let radius = t.size * 0.4;
+  let d_cyl = length(p.xz) - radius;
+  let thread = sin(p.y * t.complexity + atan2(p.z, p.x) * t.twist) * 0.04;
+  var d = d_cyl + thread;
+  
+  let head = max(max(abs(p.x) - t.size*0.6, abs(p.z) - t.size*0.6), abs(p.y - 0.75) - 0.15);
+  if (t.hollow > 0.5) {
+    return min(d, head);
+  }
+  return d;
+}`
+  },
+  {
+    id: "industrial-gear",
+    name: "Industrial Spur Gear",
+    tags: ["mechanical", "hard-surface", "kitbash", "procedural"],
+    defaultTraits: { Size: 0.85, Complexity: 10.0, Twist: 1.5, Hollow: 1.0 },
+    description: {
+      en: "Heavy transmission pinion with variable gear teeth frequency and hollow shaft.",
+      pt: "Pinhão de transmissão pesada com frequência de dentes variável e furo axial."
+    },
+    wgsl: `/**
+ * @name Industrial Spur Gear
+ * @version 1.2.0
+ * @scion GearGraft
+ * @trait Size [0.3, 1.2, 0.85]
+ * @trait Complexity [4.0, 16.0, 10.0]
+ * @trait Twist [-5.0, 5.0, 1.5]
+ * @trait Hollow [0.0, 1.0, 1.0]
+ */
 
-export default function NodeGraftViewer() {
-  const [code, setCode] = useState(DEFAULT_WGSL);
-  const [traits, setTraits] = useState<Record<string, number>>({});
+struct Trait {
+  size: f32,
+  complexity: f32,
+  twist: f32,
+  hollow: f32,
+}
+
+fn sdf(p: vec3f, t: Trait) -> f32 {
+  let theta = atan2(p.z, p.x);
+  let tooth = sin(theta * t.complexity) * 0.08 * t.twist;
+  let radius = t.size * 0.65 + tooth;
+  let d_cyl = length(p.xz) - radius;
+  
+  let d_gear = max(d_cyl, abs(p.y) - 0.18);
+  if (t.hollow > 0.5) {
+    let d_hole = length(p.xz) - t.size * 0.22;
+    return max(d_gear, -d_hole);
+  }
+  return d_gear;
+}`
+  },
+  {
+    id: "organic-root",
+    name: "Organic Root Knot",
+    tags: ["organic", "procedural", "ornament"],
+    defaultTraits: { Size: 0.7, Complexity: 6.0, Twist: 3.0, Hollow: 0.0 },
+    description: {
+      en: "Biomorphic knotted vine structured as a twisted wave-modulated torus.",
+      pt: "Trepadeira nodosa biomórfica estruturada como um toro de onda torcida."
+    },
+    wgsl: `/**
+ * @name Organic Root Knot
+ * @version 2.0.1
+ * @scion RootGraft
+ * @trait Size [0.3, 1.2, 0.7]
+ * @trait Complexity [1.0, 12.0, 6.0]
+ * @trait Twist [-5.0, 5.0, 3.0]
+ * @trait Hollow [0.0, 1.0, 0.0]
+ */
+
+struct Trait {
+  size: f32,
+  complexity: f32,
+  twist: f32,
+  hollow: f32,
+}
+
+fn sdf(p: vec3f, t: Trait) -> f32 {
+  let theta = atan2(p.z, p.x);
+  let wave = sin(theta * t.complexity + p.y * t.twist) * 0.07;
+  let r_maj = t.size * 0.55;
+  
+  var d = length(vec2f(length(p.xz) - r_maj, p.y)) - (t.size * 0.22 + wave);
+  if (t.hollow > 0.5) {
+    d = abs(d) - 0.03;
+  }
+  return d;
+}`
+  },
+  {
+    id: "scifi-crate",
+    name: "Modular Sci-Fi Crate",
+    tags: ["structural", "hard-surface", "kitbash", "procedural"],
+    defaultTraits: { Size: 0.8, Complexity: 5.0, Twist: 1.0, Hollow: 0.0 },
+    description: {
+      en: "Heavy reinforced cargo crate with mathematical panel grooves and beveled edges.",
+      pt: "Caixa de carga reforçada com ranhuras geométricas e cantos chanfrados."
+    },
+    wgsl: `/**
+ * @name Modular Sci-Fi Crate
+ * @version 1.0.1
+ * @scion StructureGraft
+ * @trait Size [0.3, 1.2, 0.8]
+ * @trait Complexity [2.0, 10.0, 5.0]
+ * @trait Twist [-5.0, 5.0, 1.0]
+ * @trait Hollow [0.0, 1.0, 0.0]
+ */
+
+struct Trait {
+  size: f32,
+  complexity: f32,
+  twist: f32,
+  hollow: f32,
+}
+
+fn sdf(p: vec3f, t: Trait) -> f32 {
+  let d_box = max(max(abs(p.x) - t.size * 0.55, abs(p.y) - t.size * 0.55), abs(p.z) - t.size * 0.55) - (0.05 * t.twist);
+  let groove = sin(p.x * t.complexity) * sin(p.y * t.complexity) * sin(p.z * t.complexity);
+  
+  var d = d_box + max(0.0, groove) * 0.015;
+  if (t.hollow > 0.5) {
+    d = abs(d) - 0.03;
+  }
+  return d;
+}`
+  }
+];
+
+const PREDEFINED_CATEGORIES: Category[] = [
+  {
+    name: { en: "Mechanical Elements", pt: "Elementos Mecânicos" },
+    icon: "⚙️",
+    props: [PROPS_LIBRARY[1], PROPS_LIBRARY[2]] // Bolt, Gear
+  },
+  {
+    name: { en: "Structural Blocks", pt: "Elementos Estruturais" },
+    icon: "🏗️",
+    props: [PROPS_LIBRARY[4]] // Crate
+  },
+  {
+    name: { en: "Biomorphic Shapes", pt: "Formas Biomórficas" },
+    icon: "🌿",
+    props: [PROPS_LIBRARY[3]] // Root
+  },
+  {
+    name: { en: "Energetic Reactor Cores", pt: "Núcleos Energéticos" },
+    icon: "⚡",
+    props: [PROPS_LIBRARY[0]] // Gyroid Core
+  }
+];
+
+const SENSIBLE_TAGS = [
+  "hard-surface",
+  "mechanical",
+  "organic",
+  "structural",
+  "joint",
+  "procedural",
+  "kitbash",
+  "ornament",
+  "energetics"
+];
+
+interface NodeGraftViewerProps {
+  lang: "en" | "pt";
+}
+
+export default function NodeGraftViewer({ lang }: NodeGraftViewerProps) {
+  const [activePropId, setActivePropId] = useState<string>("gyroid-core");
+  const [code, setCode] = useState(PROPS_LIBRARY[0].wgsl);
+  const [traits, setTraits] = useState<Record<string, number>>(PROPS_LIBRARY[0].defaultTraits);
   const [activeTab, setActiveTab] = useState<"traits" | "editor" | "dag">("traits");
   const [activeDagNode, setActiveDagNode] = useState<string>("eval");
+
+  // Multi-prop collapsible tree state
+  const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({
+    "Mechanical Elements": true,
+    "Structural Blocks": true,
+    "Biomorphic Shapes": true,
+    "Energetic Reactor Cores": true
+  });
+
+  // User-defined tag state
+  const [selectedTagFilter, setSelectedTagFilter] = useState<string | null>(null);
+  const [customTagsMap, setCustomTagsMap] = useState<Record<string, string[]>>({});
+  const [newTagInput, setNewTagInput] = useState("");
 
   // Telemetry state
   const [fps, setFps] = useState(60);
@@ -83,15 +314,61 @@ export default function NodeGraftViewer() {
   const [renderingMode, setRenderingMode] = useState<"WebGPU" | "CPU Polyfill">("CPU Polyfill");
   const [gpuName, setGpuName] = useState<string>("Unknown Adapter");
 
-  // WebGPUAdapter and Device refs
+  // WebGPU Refs
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const animationFrameId = useRef<number | null>(null);
 
-  // Rotation angles
+  // Camera dragging rotation
   const [yaw, setYaw] = useState<number>(0.5);
   const [pitch, setPitch] = useState<number>(0.3);
   const isDragging = useRef(false);
   const prevMousePos = useRef({ x: 0, y: 0 });
+
+  // Get active prop object
+  const activeProp = useMemo(() => {
+    return PROPS_LIBRARY.find((p) => p.id === activePropId) || PROPS_LIBRARY[0];
+  }, [activePropId]);
+
+  // Combine predefined tags with user-defined custom tags for the active prop
+  const currentPropTags = useMemo(() => {
+    const predefined = activeProp.tags;
+    const custom = customTagsMap[activePropId] || [];
+    return Array.from(new Set([...predefined, ...custom]));
+  }, [activeProp, activePropId, customTagsMap]);
+
+  // Handle loading a selected prop from the tree
+  const selectProp = (prop: PropItem) => {
+    setActivePropId(prop.id);
+    setCode(prop.wgsl);
+    setTraits(prop.defaultTraits);
+  };
+
+  // Toggle category expansion
+  const toggleCategory = (catName: string) => {
+    setExpandedCategories((prev) => ({
+      ...prev,
+      [catName]: !prev[catName]
+    }));
+  };
+
+  // Add custom user tag
+  const handleAddCustomTag = (e: React.FormEvent) => {
+    e.preventDefault();
+    const cleanTag = newTagInput.trim().toLowerCase();
+    if (!cleanTag) return;
+    
+    setCustomTagsMap((prev) => {
+      const currentTags = prev[activePropId] || [];
+      if (currentTags.includes(cleanTag) || activeProp.tags.includes(cleanTag)) {
+        return prev; // Tag already exists
+      }
+      return {
+        ...prev,
+        [activePropId]: [...currentTags, cleanTag]
+      };
+    });
+    setNewTagInput("");
+  };
 
   // Parse WGSL code to get traits metadata
   const parsedTraits = useMemo(() => {
@@ -199,7 +476,7 @@ export default function NodeGraftViewer() {
         cancelAnimationFrame(animationFrameId.current);
       }
     };
-  }, [traits, yaw, pitch, code]);
+  }, [traits, yaw, pitch, code, activePropId]);
 
   // Real-time Dual Contouring Mesh Generation & Canvas 2D Draw Call
   const drawCanvas = () => {
@@ -234,37 +511,77 @@ export default function NodeGraftViewer() {
 
     const tStart = performance.now();
 
-    // SDF Evaluator
+    // SDF Evaluator mapped mathematically per propId
     const sdfEval = (x: number, y: number, z: number): number => {
       const size = traits["Size"] !== undefined ? traits["Size"] : 0.75;
       const complexity = traits["Complexity"] !== undefined ? traits["Complexity"] : 4.0;
       const twist = traits["Twist"] !== undefined ? traits["Twist"] : 1.5;
       const hollow = traits["Hollow"] !== undefined ? traits["Hollow"] : 0.0;
 
-      // Twist
-      const angle = y * twist * 0.8;
-      const s = Math.sin(angle);
-      const c = Math.cos(angle);
-      const rx = x * c - z * s;
-      const rz = x * s + z * c;
+      switch (activePropId) {
+        case "threaded-bolt": {
+          const radius = size * 0.38;
+          const d_cyl = Math.sqrt(x * x + z * z) - radius;
+          const thread = Math.sin(y * complexity + Math.atan2(z, x) * twist) * 0.04;
+          const d = d_cyl + thread;
+          const head = Math.max(
+            Math.max(Math.abs(x) - size * 0.55, Math.abs(z) - size * 0.55),
+            Math.abs(y - 0.75) - 0.15
+          );
+          return hollow > 0.5 ? Math.min(d, head) : d;
+        }
+        case "industrial-gear": {
+          const theta = Math.atan2(z, x);
+          const tooth = Math.sin(theta * complexity) * 0.08 * twist;
+          const radius = size * 0.6 + tooth;
+          const d_cyl = Math.sqrt(x * x + z * z) - radius;
+          const d_gear = Math.max(d_cyl, Math.abs(y) - 0.18);
+          if (hollow > 0.5) {
+            const d_hole = Math.sqrt(x * x + z * z) - size * 0.22;
+            return Math.max(d_gear, -d_hole);
+          }
+          return d_gear;
+        }
+        case "organic-root": {
+          const theta = Math.atan2(z, x);
+          const wave = Math.sin(theta * complexity + y * twist) * 0.07;
+          const r_maj = size * 0.55;
+          const d = Math.sqrt(Math.pow(Math.sqrt(x * x + z * z) - r_maj, 2) + y * y) - (size * 0.22 + wave);
+          return hollow > 0.5 ? Math.abs(d) - 0.03 : d;
+        }
+        case "scifi-crate": {
+          const d_box = Math.max(
+            Math.max(Math.abs(x) - size * 0.55, Math.abs(y) - size * 0.55),
+            Math.abs(z) - size * 0.55
+          ) - (0.05 * twist);
+          const groove = Math.sin(x * complexity) * Math.sin(y * complexity) * Math.sin(z * complexity);
+          const d = d_box + Math.max(0.0, groove) * 0.015;
+          return hollow > 0.5 ? Math.abs(d) - 0.03 : d;
+        }
+        case "gyroid-core":
+        default: {
+          const angle = y * twist * 0.8;
+          const s = Math.sin(angle);
+          const c = Math.cos(angle);
+          const rx = x * c - z * s;
+          const rz = x * s + z * c;
 
-      // Sphere base
-      let d = Math.sqrt(rx * rx + y * y + rz * rz) - size;
+          let d = Math.sqrt(rx * rx + y * y + rz * rz) - size;
+          if (complexity > 0) {
+            const noise =
+              Math.sin(rx * complexity) *
+              Math.sin(y * complexity) *
+              Math.sin(rz * complexity) *
+              0.12;
+            d += noise;
+          }
 
-      // Noise modulation
-      if (complexity > 0) {
-        const noise =
-          Math.sin(rx * complexity) *
-          Math.sin(y * complexity) *
-          Math.sin(rz * complexity) *
-          0.12;
-        d += noise;
+          if (hollow > 0.5) {
+            d = Math.abs(d) - 0.04;
+          }
+          return d;
+        }
       }
-
-      if (hollow > 0.5) {
-        d = Math.abs(d) - 0.04;
-      }
-      return d;
     };
 
     // Parameters for DC grid
@@ -292,7 +609,6 @@ export default function NodeGraftViewer() {
     setEvaluationsCount(sdfsComputed);
 
     // 2. Generate dual vertices per active voxel cell
-    // Each cell is defined by its lower-left-front corner (i, j, k) where 0 <= i, j, k < N-1
     const cellVertices: (Vertex3D | null)[] = new Array((N - 1) * (N - 1) * (N - 1)).fill(null);
 
     const getGridPos = (i: number, j: number, k: number): [number, number, number] => {
@@ -303,13 +619,11 @@ export default function NodeGraftViewer() {
     for (let i = 0; i < N - 1; i++) {
       for (let j = 0; j < N - 1; j++) {
         for (let k = 0; k < N - 1; k++) {
-          // Corner offsets for 8 corners of a cube
           const corners = [
             [0, 0, 0], [1, 0, 0], [0, 1, 0], [1, 1, 0],
             [0, 0, 1], [1, 0, 1], [0, 1, 1], [1, 1, 1]
           ];
 
-          // 12 edges of a cube
           const edges = [
             [0, 1], [2, 3], [4, 5], [6, 7], // along X
             [0, 2], [1, 3], [4, 6], [5, 7], // along Y
@@ -333,7 +647,6 @@ export default function NodeGraftViewer() {
             const sdfE = sdfGrid[idxE];
 
             if (sdfS * sdfE < 0) {
-              // Sign change found, calculate linear interpolation point
               const t = Math.abs(sdfS) / (Math.abs(sdfS) + Math.abs(sdfE));
               const pS = getGridPos(i + cS[0], j + cS[1], k + cS[2]);
               const pE = getGridPos(i + cE[0], j + cE[1], k + cE[2]);
@@ -346,7 +659,6 @@ export default function NodeGraftViewer() {
           }
 
           if (intersectionsCount > 0) {
-            // Dual vertex is the average of Hermite intersections (standard QEF simplification)
             cellVertices[i * (N - 1) * (N - 1) + j * (N - 1) + k] = {
               x: intersectionSumX / intersectionsCount,
               y: intersectionSumY / intersectionsCount,
@@ -371,7 +683,6 @@ export default function NodeGraftViewer() {
     setVerticesCount(activeVertices.length);
 
     // 3. Stitch Quads by checking all grid edges
-    // For every active edge, we create a quad connecting the dual vertices of the 4 cells sharing that edge.
     const quads: Quad3D[] = [];
 
     const getCellVertexIndex = (ci: number, cj: number, ck: number): number => {
@@ -410,7 +721,6 @@ export default function NodeGraftViewer() {
             const v2 = getCellVertexIndex(i, j, k);
             const v3 = getCellVertexIndex(i - 1, j, k);
             if (v0 !== -1 && v1 !== -1 && v2 !== -1 && v3 !== -1) {
-              // Swap order to maintain correct facing direction
               quads.push({ indices: [v0, v3, v2, v1], depth: 0, normal: { x: 0, y: 0, z: 0 } });
             }
           }
@@ -446,10 +756,8 @@ export default function NodeGraftViewer() {
     const sinP = Math.sin(pitch);
 
     const projectedVertices = activeVertices.map((v) => {
-      // Rotate around Y (Yaw)
       let x1 = v.x * cosY - v.z * sinY;
       let z1 = v.x * sinY + v.z * cosY;
-      // Rotate around X (Pitch)
       let y2 = v.y * cosP - z1 * sinP;
       let z2 = v.y * sinP + z1 * cosP;
 
@@ -461,13 +769,11 @@ export default function NodeGraftViewer() {
       return { sx, sy, depth: z2, xRot: x1, yRot: y2, zRot: z2 };
     });
 
-    // Compute normals and average depths for quads
     quads.forEach((q) => {
       const v0 = activeVertices[q.indices[0]];
       const v1 = activeVertices[q.indices[1]];
       const v2 = activeVertices[q.indices[2]];
 
-      // Cross product for normals: (v1 - v0) x (v2 - v0)
       const ax = v1.x - v0.x;
       const ay = v1.y - v0.y;
       const az = v1.z - v0.z;
@@ -482,7 +788,6 @@ export default function NodeGraftViewer() {
 
       q.normal = { x: nx / len, y: ny / len, z: nz / len };
 
-      // Average depth of projected vertices
       q.depth =
         (projectedVertices[q.indices[0]].depth +
           projectedVertices[q.indices[1]].depth +
@@ -491,10 +796,8 @@ export default function NodeGraftViewer() {
         4;
     });
 
-    // Sort quads from back to front (Painter's Algorithm)
     quads.sort((a, b) => b.depth - a.depth);
 
-    // Light direction (fixed relative to screen camera)
     const lightDir = { x: 0.4, y: 0.6, z: -0.7 };
     const lightLen = Math.sqrt(lightDir.x * lightDir.x + lightDir.y * lightDir.y + lightDir.z * lightDir.z);
     lightDir.x /= lightLen;
@@ -508,25 +811,22 @@ export default function NodeGraftViewer() {
       const p2 = projectedVertices[q.indices[2]];
       const p3 = projectedVertices[q.indices[3]];
 
-      // Normal rotation (same as vertices rotation)
       const n = q.normal;
       let nx1 = n.x * cosY - n.z * sinY;
       let nz1 = n.x * sinY + n.z * cosY;
       let ny2 = n.y * cosP - nz1 * sinP;
       let nz2 = n.y * sinP + nz1 * cosP;
 
-      // Dot product with screen light
       const dot = nx1 * lightDir.x + ny2 * lightDir.y + nz2 * lightDir.z;
       const intensity = Math.max(0.1, dot);
 
-      // Creative high-tech shaded fill: emerald/teal tones
       const baseAlpha = 0.55;
-      const r = Math.floor(16 + intensity * 20); // 16 -> 36
-      const g = Math.floor(185 * intensity + 30); // emerald base is 185
+      const r = Math.floor(16 + intensity * 20);
+      const g = Math.floor(185 * intensity + 30);
       const b = Math.floor(129 * intensity + 40);
 
       ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${baseAlpha})`;
-      ctx.strokeStyle = "rgba(16, 185, 129, 0.45)"; // emerald outline
+      ctx.strokeStyle = "rgba(16, 185, 129, 0.45)";
       ctx.lineWidth = 0.75;
 
       ctx.beginPath();
@@ -543,7 +843,6 @@ export default function NodeGraftViewer() {
     setGenTime(parseFloat((tEnd - tStart).toFixed(1)));
   };
 
-  // Mouse drag handlers to rotate 3D camera
   const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
     isDragging.current = true;
     prevMousePos.current = { x: e.clientX, y: e.clientY };
@@ -564,9 +863,26 @@ export default function NodeGraftViewer() {
     isDragging.current = false;
   };
 
-  // Trait control update
   const handleTraitChange = (name: string, val: number) => {
     setTraits((prev) => ({ ...prev, [name]: val }));
+  };
+
+  // Translations dictionary for UI
+  const t = {
+    explorer: lang === "pt" ? "Navegador de Props" : "Prop Explorer",
+    explorerDesc: lang === "pt" ? "Selecione frentes anatômicas da árvore hierárquica:" : "Select atomic assets from the structural tree:",
+    tags: lang === "pt" ? "Filtrar por Tags" : "Filter by Tags",
+    addTag: lang === "pt" ? "Adicionar Tag de Usuário" : "Add User Tag",
+    addTagBtn: lang === "pt" ? "Adicionar" : "Add Tag",
+    activeDevice: lang === "pt" ? "Dispositivo Ativo:" : "Active Device:",
+    rotateMsg: lang === "pt" ? "Arraste o mouse para rotacionar" : "Drag mouse to rotate",
+    note: lang === "pt" ? "As alterações atualizam o volume SDF mapeado na GPU em tempo real." : "Changes update the implicit SDF volume mapped on GPU in real-time.",
+    hotReload: lang === "pt" ? "Compilação Instantânea" : "Hot-reload Active",
+    dagTitle: lang === "pt" ? "Scaffold Computacional WebGPU. Clique em cada estágio:" : "WebGPU Procedural Scaffold Pipeline. Click stages to inspect:",
+    fpsLabel: lang === "pt" ? "Taxa de Quadros" : "Frame Rate",
+    polyLabel: lang === "pt" ? "Polígonos" : "Triangles",
+    evalLabel: lang === "pt" ? "Cálculos SDF" : "Compute SDF Calls",
+    timeLabel: lang === "pt" ? "Tempo de Geração" : "Gen Time",
   };
 
   return (
@@ -580,15 +896,122 @@ export default function NodeGraftViewer() {
           </h2>
         </div>
         <div className="flex items-center gap-1.5 text-xs bg-zinc-200 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 px-3 py-1.5 rounded-md font-mono font-semibold">
-          <span>Active Device:</span>
+          <span>{t.activeDevice}</span>
           <span className="text-emerald-600 dark:text-emerald-400">{renderingMode}</span>
         </div>
       </div>
 
-      {/* Main Grid: Left is viewport + Telemetry, Right is Sidebar Panels */}
-      <div className="grid grid-cols-1 lg:grid-cols-12">
-        {/* Left Side: Interactive 3D Canvas */}
-        <div className="col-span-1 lg:col-span-7 p-4 bg-zinc-900 flex flex-col items-center justify-center relative min-h-[400px]">
+      {/* Main Grid: Left sidebar (Categories/Tags), Center (Viewport), Right (Inspector) */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 divide-y lg:divide-y-0 lg:divide-x divide-zinc-200 dark:divide-zinc-800">
+        {/* Left Sidebar: Collapsible Library & Tags (lg:col-span-3) */}
+        <div className="col-span-1 lg:col-span-3 p-4 flex flex-col bg-zinc-50/50 dark:bg-zinc-900/10 min-h-[350px]">
+          <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-400 mb-3">{t.explorer}</h3>
+          <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mb-4">{t.explorerDesc}</p>
+
+          {/* Collapsible Tree */}
+          <div className="space-y-3 flex-1 overflow-y-auto max-h-[250px] lg:max-h-[300px] mb-4 pr-1">
+            {PREDEFINED_CATEGORIES.map((cat) => {
+              const nameStr = cat.name[lang];
+              const isExpanded = expandedCategories[cat.name.en];
+              // Filter props in this category by the selected tag (predefined or custom)
+              const filteredProps = cat.props.filter((prop) => {
+                if (!selectedTagFilter) return true;
+                const propTags = Array.from(new Set([...prop.tags, ...(customTagsMap[prop.id] || [])]));
+                return propTags.includes(selectedTagFilter);
+              });
+
+              if (filteredProps.length === 0 && selectedTagFilter) return null;
+
+              return (
+                <div key={cat.name.en} className="border border-zinc-200/60 dark:border-zinc-800/40 rounded-lg overflow-hidden bg-white dark:bg-zinc-950/20">
+                  <button
+                    onClick={() => toggleCategory(cat.name.en)}
+                    className="w-full flex items-center justify-between px-3 py-2 text-xs font-bold text-zinc-800 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-900/60 transition-colors"
+                  >
+                    <div className="flex items-center gap-1.5">
+                      <span>{cat.icon}</span>
+                      <span>{nameStr}</span>
+                    </div>
+                    <span className="text-[10px] text-zinc-400">{isExpanded ? "▲" : "▼"}</span>
+                  </button>
+                  {isExpanded && (
+                    <div className="border-t border-zinc-100 dark:border-zinc-800/30 p-1.5 space-y-1 bg-zinc-50/20 dark:bg-zinc-950/10">
+                      {filteredProps.map((prop) => (
+                        <button
+                          key={prop.id}
+                          onClick={() => selectProp(prop)}
+                          className={`w-full text-left px-2.5 py-1.5 rounded text-xs transition-colors flex flex-col gap-0.5 ${
+                            activePropId === prop.id
+                              ? "bg-emerald-500/10 dark:bg-emerald-400/5 text-emerald-600 dark:text-emerald-400 font-semibold"
+                              : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-900/30"
+                          }`}
+                        >
+                          <span>{prop.name}</span>
+                          <span className="text-[10px] text-zinc-400 font-serif line-clamp-1">
+                            {prop.description[lang]}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Tags Filtering Section */}
+          <div className="border-t border-zinc-200 dark:border-zinc-800 pt-3 space-y-3">
+            <div className="flex items-center justify-between">
+              <h4 className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">{t.tags}</h4>
+              {selectedTagFilter && (
+                <button
+                  onClick={() => setSelectedTagFilter(null)}
+                  className="text-[9px] font-bold text-red-500 hover:underline"
+                >
+                  {lang === "pt" ? "Limpar" : "Clear"}
+                </button>
+              )}
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {SENSIBLE_TAGS.map((tag) => (
+                <button
+                  key={tag}
+                  onClick={() => setSelectedTagFilter(selectedTagFilter === tag ? null : tag)}
+                  className={`text-[9px] font-mono px-2 py-0.5 rounded transition-all ${
+                    selectedTagFilter === tag
+                      ? "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 font-bold border border-emerald-500/30"
+                      : "bg-zinc-200/55 dark:bg-zinc-800/60 text-zinc-500 dark:text-zinc-400 border border-transparent hover:border-zinc-300 dark:hover:border-zinc-700"
+                  }`}
+                >
+                  #{tag}
+                </button>
+              ))}
+            </div>
+
+            {/* Custom User Tag Creator */}
+            <form onSubmit={handleAddCustomTag} className="space-y-1.5 pt-2 border-t border-zinc-200 dark:border-zinc-800/40">
+              <span className="text-[9px] font-bold text-zinc-400 block">{t.addTag}</span>
+              <div className="flex gap-1.5">
+                <input
+                  type="text"
+                  placeholder="e.g. industrial"
+                  value={newTagInput}
+                  onChange={(e) => setNewTagInput(e.target.value)}
+                  className="flex-1 px-2.5 py-1 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded text-[10px] focus:outline-none focus:ring-1 focus:ring-emerald-500/40"
+                />
+                <button
+                  type="submit"
+                  className="px-2.5 py-1 bg-emerald-600 dark:bg-emerald-500 text-white rounded text-[10px] font-bold hover:bg-emerald-700 dark:hover:bg-emerald-600"
+                >
+                  {t.addTagBtn}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        {/* Center Panel: 3D Viewport + Telemetry (lg:col-span-5) */}
+        <div className="col-span-1 lg:col-span-5 p-4 bg-zinc-900 flex flex-col items-center justify-center relative min-h-[400px]">
           <canvas
             ref={canvasRef}
             width={480}
@@ -597,15 +1020,15 @@ export default function NodeGraftViewer() {
             onMouseMove={handleMouseMove}
             onMouseUp={handleMouseUpOrLeave}
             onMouseLeave={handleMouseUpOrLeave}
-            className="cursor-grab active:cursor-grabbing w-full max-w-[480px] aspect-[1.2] rounded-lg border border-zinc-800 bg-zinc-950 shadow-inner"
+            className="cursor-grab active:cursor-grabbing w-full max-w-[480px] aspect-[1.2] rounded-lg border border-zinc-800/80 bg-zinc-950 shadow-inner"
           />
           <div className="absolute top-6 left-6 bg-zinc-950/80 border border-zinc-800/80 rounded px-3 py-1.5 text-[10px] text-zinc-400 font-mono pointer-events-none">
-            Drag mouse to rotate camera
+            {t.rotateMsg}
           </div>
         </div>
 
-        {/* Right Side: Sidebar Panels (Tabs) */}
-        <div className="col-span-1 lg:col-span-5 flex flex-col border-l border-zinc-200 dark:border-zinc-800 h-full min-h-[440px]">
+        {/* Right Panel: Inspector Tabs & Controllers (lg:col-span-4) */}
+        <div className="col-span-1 lg:col-span-4 flex flex-col h-full min-h-[440px]">
           {/* Tab Headers */}
           <div className="flex border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/60">
             <button
@@ -626,7 +1049,7 @@ export default function NodeGraftViewer() {
                   : "border-transparent text-zinc-500 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-200"
               }`}
             >
-              Code Editor (WGSL)
+              Code Editor
             </button>
             <button
               onClick={() => setActiveTab("dag")}
@@ -636,7 +1059,7 @@ export default function NodeGraftViewer() {
                   : "border-transparent text-zinc-500 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-200"
               }`}
             >
-              DAG Inspector
+              DAG Pipeline
             </button>
           </div>
 
@@ -645,8 +1068,7 @@ export default function NodeGraftViewer() {
             {activeTab === "traits" && (
               <div className="space-y-5">
                 <p className="text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed">
-                  Adjust procedural parameters parsed directly from the WGSL source frontmatter
-                  annotations:
+                  Adjust procedural parameters parsed directly from the WGSL source frontmatter:
                 </p>
                 {parsedTraits.length === 0 ? (
                   <p className="text-xs text-amber-500 font-mono italic">
@@ -670,7 +1092,7 @@ export default function NodeGraftViewer() {
                           type="range"
                           min={t.min}
                           max={t.max}
-                          step={t.name === "Complexity" ? 0.5 : 0.05}
+                          step={0.05}
                           value={traits[t.name] !== undefined ? traits[t.name] : t.value}
                           onChange={(e) => handleTraitChange(t.name, parseFloat(e.target.value))}
                           className="w-full h-1 bg-zinc-200 dark:bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-emerald-500 dark:accent-emerald-400 focus:outline-none"
@@ -699,9 +1121,21 @@ export default function NodeGraftViewer() {
                     </div>
                   ))
                 )}
+
+                {/* Display active tags on active prop */}
+                <div className="space-y-1.5 pt-2 border-t border-zinc-100 dark:border-zinc-900">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">{lang === "pt" ? "Tags Ativas no Prop:" : "Active Tags on Prop:"}</span>
+                  <div className="flex flex-wrap gap-1">
+                    {currentPropTags.map((tag) => (
+                      <span key={tag} className="text-[9px] font-mono bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-1.5 py-0.5 rounded border border-emerald-500/20">
+                        #{tag}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
                 <div className="pt-4 text-[11px] text-zinc-400 dark:text-zinc-500 font-serif leading-relaxed italic">
-                  Note: Changes to these traits update the SDF (Signed Distance Field) volume which is
-                  then contoured on-the-fly.
+                  Note: {t.note}
                 </div>
               </div>
             )}
@@ -713,13 +1147,13 @@ export default function NodeGraftViewer() {
                     Live WGSL Source
                   </span>
                   <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-mono">
-                    Hot-reload Active
+                    {t.hotReload}
                   </span>
                 </div>
                 <textarea
                   value={code}
                   onChange={(e) => setCode(e.target.value)}
-                  className="w-full flex-1 min-h-[220px] font-mono text-xs p-3.5 bg-zinc-950 text-zinc-200 border border-zinc-800 rounded-lg focus:outline-none focus:ring-1 focus:ring-emerald-500/50"
+                  className="w-full flex-1 min-h-[200px] font-mono text-xs p-3.5 bg-zinc-950 text-zinc-200 border border-zinc-800 rounded-lg focus:outline-none focus:ring-1 focus:ring-emerald-500/50"
                   spellCheck="false"
                 />
                 <div className="text-[10px] text-zinc-500 dark:text-zinc-400 font-serif">
@@ -731,7 +1165,7 @@ export default function NodeGraftViewer() {
             {activeTab === "dag" && (
               <div className="space-y-4">
                 <p className="text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed">
-                  WebGPU Procedural Scaffold Pipeline. Click a node below to inspect execution telemetry:
+                  {t.dagTitle}
                 </p>
                 <div className="flex flex-col gap-3 py-1">
                   {/* Node 1 */}
@@ -843,7 +1277,7 @@ export default function NodeGraftViewer() {
       {/* Telemetry Bar */}
       <div className="bg-zinc-900 text-zinc-100 border-t border-zinc-800 px-5 py-4 grid grid-cols-2 md:grid-cols-5 gap-4 md:gap-0 divide-y md:divide-y-0 md:divide-x divide-zinc-800 text-xs font-mono">
         <div className="flex flex-col justify-center items-start md:px-3">
-          <span className="text-zinc-500 text-[10px] uppercase">Frame Rate</span>
+          <span className="text-zinc-500 text-[10px] uppercase">{t.fpsLabel}</span>
           <span className="text-zinc-200 font-bold text-sm mt-0.5">{fps} FPS</span>
         </div>
         <div className="flex flex-col justify-center items-start pt-2 md:pt-0 md:px-3">
@@ -851,15 +1285,15 @@ export default function NodeGraftViewer() {
           <span className="text-zinc-200 font-bold text-sm mt-0.5">{verticesCount}</span>
         </div>
         <div className="flex flex-col justify-center items-start pt-2 md:pt-0 md:px-3">
-          <span className="text-zinc-500 text-[10px] uppercase">Triangles</span>
+          <span className="text-zinc-500 text-[10px] uppercase">{t.polyLabel}</span>
           <span className="text-zinc-200 font-bold text-sm mt-0.5">{trianglesCount}</span>
         </div>
         <div className="flex flex-col justify-center items-start pt-2 md:pt-0 md:px-3">
-          <span className="text-zinc-500 text-[10px] uppercase">Compute SDF Calls</span>
+          <span className="text-zinc-500 text-[10px] uppercase">{t.evalLabel}</span>
           <span className="text-zinc-200 font-bold text-sm mt-0.5">{evaluationsCount}</span>
         </div>
         <div className="flex flex-col justify-center items-start pt-2 md:pt-0 md:px-3">
-          <span className="text-zinc-500 text-[10px] uppercase">Gen Time</span>
+          <span className="text-zinc-500 text-[10px] uppercase">{t.timeLabel}</span>
           <span className="text-emerald-400 font-bold text-sm mt-0.5">{genTime} ms</span>
         </div>
       </div>
@@ -867,7 +1301,7 @@ export default function NodeGraftViewer() {
       {/* GPU Adapter Details */}
       <div className="bg-zinc-950 text-[10px] text-zinc-500 px-5 py-2 font-mono flex items-center justify-between border-t border-zinc-900">
         <span>Adapter Details: {gpuName}</span>
-        <span>Version: 1.0.4 (Git-backed)</span>
+        <span>Version: 1.1.0 (Git-backed)</span>
       </div>
     </div>
   );
