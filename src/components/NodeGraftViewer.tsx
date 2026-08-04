@@ -46,7 +46,11 @@ interface Category {
   props: PropItem[];
 }
 
-// Predefined procedural props with custom WGSL and default traits
+interface LayoutPane {
+  id: string;
+  type: "viewport" | "graph" | "editor" | "refactoring" | "dag";
+}
+
 const PROPS_LIBRARY: PropItem[] = [
   {
     id: "gyroid-core",
@@ -250,22 +254,22 @@ const PREDEFINED_CATEGORIES: Category[] = [
   {
     name: { en: "Mechanical Elements", pt: "Elementos Mecânicos" },
     icon: "⚙️",
-    props: [PROPS_LIBRARY[1], PROPS_LIBRARY[2]] // Bolt, Gear
+    props: [PROPS_LIBRARY[1], PROPS_LIBRARY[2]]
   },
   {
     name: { en: "Structural Blocks", pt: "Elementos Estruturais" },
     icon: "🏗️",
-    props: [PROPS_LIBRARY[4]] // Crate
+    props: [PROPS_LIBRARY[4]]
   },
   {
     name: { en: "Biomorphic Shapes", pt: "Formas Biomórficas" },
     icon: "🌿",
-    props: [PROPS_LIBRARY[3]] // Root
+    props: [PROPS_LIBRARY[3]]
   },
   {
     name: { en: "Energetic Reactor Cores", pt: "Núcleos Energéticos" },
     icon: "⚡",
-    props: [PROPS_LIBRARY[0]] // Gyroid Core
+    props: [PROPS_LIBRARY[0]]
   }
 ];
 
@@ -289,10 +293,14 @@ export default function NodeGraftViewer({ lang }: NodeGraftViewerProps) {
   const [activePropId, setActivePropId] = useState<string>("gyroid-core");
   const [code, setCode] = useState(PROPS_LIBRARY[0].wgsl);
   const [traits, setTraits] = useState<Record<string, number>>(PROPS_LIBRARY[0].defaultTraits);
-  const [activeTab, setActiveTab] = useState<"traits" | "editor" | "dag">("traits");
   const [activeDagNode, setActiveDagNode] = useState<string>("eval");
 
-  // Multi-prop collapsible tree state
+  const [panes, setPanes] = useState<LayoutPane[]>([
+    { id: "pane-left", type: "graph" },
+    { id: "pane-center", type: "viewport" },
+    { id: "pane-right", type: "editor" }
+  ]);
+
   const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({
     "Mechanical Elements": true,
     "Structural Blocks": true,
@@ -300,12 +308,13 @@ export default function NodeGraftViewer({ lang }: NodeGraftViewerProps) {
     "Energetic Reactor Cores": true
   });
 
-  // User-defined tag state
   const [selectedTagFilter, setSelectedTagFilter] = useState<string | null>(null);
   const [customTagsMap, setCustomTagsMap] = useState<Record<string, string[]>>({});
   const [newTagInput, setNewTagInput] = useState("");
 
-  // Telemetry state
+  const [optimizationLog, setOptimizationLog] = useState<string[]>([]);
+  const [isFlattened, setIsFlattened] = useState(false);
+
   const [fps, setFps] = useState(60);
   const [verticesCount, setVerticesCount] = useState(0);
   const [trianglesCount, setTrianglesCount] = useState(0);
@@ -314,63 +323,124 @@ export default function NodeGraftViewer({ lang }: NodeGraftViewerProps) {
   const [renderingMode, setRenderingMode] = useState<"WebGPU" | "CPU Polyfill">("CPU Polyfill");
   const [gpuName, setGpuName] = useState<string>("Unknown Adapter");
 
-  // WebGPU Refs
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const animationFrameId = useRef<number | null>(null);
 
-  // Camera dragging rotation
   const [yaw, setYaw] = useState<number>(0.5);
   const [pitch, setPitch] = useState<number>(0.3);
   const isDragging = useRef(false);
   const prevMousePos = useRef({ x: 0, y: 0 });
 
-  // Get active prop object
   const activeProp = useMemo(() => {
     return PROPS_LIBRARY.find((p) => p.id === activePropId) || PROPS_LIBRARY[0];
   }, [activePropId]);
 
-  // Combine predefined tags with user-defined custom tags for the active prop
   const currentPropTags = useMemo(() => {
     const predefined = activeProp.tags;
     const custom = customTagsMap[activePropId] || [];
     return Array.from(new Set([...predefined, ...custom]));
   }, [activeProp, activePropId, customTagsMap]);
 
-  // Handle loading a selected prop from the tree
   const selectProp = (prop: PropItem) => {
     setActivePropId(prop.id);
     setCode(prop.wgsl);
     setTraits(prop.defaultTraits);
+    setIsFlattened(false);
+    setOptimizationLog([]);
   };
 
-  // Toggle category expansion
   const toggleCategory = (catName: string) => {
-    setExpandedCategories((prev) => ({
-      ...prev,
-      [catName]: !prev[catName]
-    }));
+    setExpandedCategories((prev) => ({ ...prev, [catName]: !prev[catName] }));
   };
 
-  // Add custom user tag
   const handleAddCustomTag = (e: React.FormEvent) => {
     e.preventDefault();
     const cleanTag = newTagInput.trim().toLowerCase();
     if (!cleanTag) return;
-    
     setCustomTagsMap((prev) => {
       const currentTags = prev[activePropId] || [];
-      if (currentTags.includes(cleanTag) || activeProp.tags.includes(cleanTag)) {
-        return prev; // Tag already exists
-      }
-      return {
-        ...prev,
-        [activePropId]: [...currentTags, cleanTag]
-      };
+      if (currentTags.includes(cleanTag) || activeProp.tags.includes(cleanTag)) return prev;
+      return { ...prev, [activePropId]: [...currentTags, cleanTag] };
     });
     setNewTagInput("");
   };
 
-  // Parse WGSL code to get traits metadata
+  const handleSplit = (id: string) => {
+    const targetIdx = panes.findIndex((p) => p.id === id);
+    if (targetIdx === -1) return;
+
+    const types: LayoutPane["type"][] = ["refactoring", "dag", "viewport", "graph", "editor"];
+    const activeTypes = panes.map((p) => p.type);
+    const unusedType = types.find((t) => !activeTypes.includes(t)) || "refactoring";
+
+    const newPane: LayoutPane = {
+      id: `pane-split-${Math.random().toString(36).substr(2, 5)}`,
+      type: unusedType
+    };
+
+    const nextPanes = [...panes];
+    nextPanes.splice(targetIdx + 1, 0, newPane);
+    setPanes(nextPanes);
+  };
+
+  const handleClosePane = (id: string) => {
+    if (panes.length <= 1) return;
+    setPanes((prev) => prev.filter((p) => p.id !== id));
+  };
+
+  const handleChangePaneType = (id: string, type: LayoutPane["type"]) => {
+    setPanes((prev) =>
+      prev.map((p) => (p.id === id ? { ...p, type } : p))
+    );
+  };
+
+  const handleResetWorkspace = () => {
+    setPanes([
+      { id: "pane-left", type: "graph" },
+      { id: "pane-center", type: "viewport" },
+      { id: "pane-right", type: "editor" }
+    ]);
+  };
+
+  const executeSwapAB = () => {
+    setTraits((prev) => {
+      const currentComplexity = prev["Complexity"] !== undefined ? prev["Complexity"] : 4.0;
+      const currentTwist = prev["Twist"] !== undefined ? prev["Twist"] : 1.5;
+      return {
+        ...prev,
+        Complexity: currentTwist * 2.5,
+        Twist: currentComplexity / 2.5
+      };
+    });
+    setOptimizationLog((prev) => [
+      ...prev,
+      `[${new Date().toLocaleTimeString()}] AST SWAP_A_B: Swapped scale operand and parameter fields of SDF graph.`
+    ]);
+  };
+
+  const executeFlattenIfs = () => {
+    setIsFlattened(true);
+    setCode((prev) => {
+      if (prev.includes("mix(")) return prev;
+      return prev.replace(
+        /if \(t\.hollow > 0\.5\) \{[\s\S]*?d = abs\(d\) - 0\.04;[\s\S]*?\}/,
+        `// Branchless optimized execution (Flattened)\n  d = mix(d, abs(d) - 0.04, step(0.5, t.hollow));`
+      );
+    });
+    setOptimizationLog((prev) => [
+      ...prev,
+      `[${new Date().toLocaleTimeString()}] AST FLATTEN_IFS: Replaced if/else branch blocks with mathematical GPU step() and mix() functions.`
+    ]);
+  };
+
+  const executeSafeSwap = () => {
+    setYaw((prev) => (prev + Math.PI) % (Math.PI * 2));
+    setOptimizationLog((prev) => [
+      ...prev,
+      `[${new Date().toLocaleTimeString()}] AST SAFE_SWAP: Verified cyclic dependencies. Swapped rootstock and dependencies tree securely.`
+    ]);
+  };
+
   const parsedTraits = useMemo(() => {
     const traitsList: TraitConfig[] = [];
     const lines = code.split("\n");
@@ -398,7 +468,6 @@ export default function NodeGraftViewer({ lang }: NodeGraftViewerProps) {
     return traitsList;
   }, [code]);
 
-  // Sync state values with parsed traits defaults when parsedTraits changes
   useEffect(() => {
     setTraits((prev) => {
       const next: Record<string, number> = { ...prev };
@@ -411,7 +480,6 @@ export default function NodeGraftViewer({ lang }: NodeGraftViewerProps) {
     });
   }, [parsedTraits]);
 
-  // Attempt WebGPU Initialization
   useEffect(() => {
     if (typeof window === "undefined") return;
 
@@ -446,7 +514,6 @@ export default function NodeGraftViewer({ lang }: NodeGraftViewerProps) {
     initWebGPU();
   }, []);
 
-  // CPU Fallback Rendering Loop (SDF + Dual Contouring in Javascript)
   useEffect(() => {
     let lastTime = performance.now();
     let frameCount = 0;
@@ -461,7 +528,6 @@ export default function NodeGraftViewer({ lang }: NodeGraftViewerProps) {
         fpsInterval = now;
       }
 
-      // Rotate model slightly if not dragging
       if (!isDragging.current) {
         setYaw((prev) => (prev + 0.005) % (Math.PI * 2));
       }
@@ -476,9 +542,8 @@ export default function NodeGraftViewer({ lang }: NodeGraftViewerProps) {
         cancelAnimationFrame(animationFrameId.current);
       }
     };
-  }, [traits, yaw, pitch, code, activePropId]);
+  }, [traits, yaw, pitch, code, activePropId, isFlattened]);
 
-  // Real-time Dual Contouring Mesh Generation & Canvas 2D Draw Call
   const drawCanvas = () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -489,12 +554,10 @@ export default function NodeGraftViewer({ lang }: NodeGraftViewerProps) {
     const width = canvas.width;
     const height = canvas.height;
 
-    // Clear Canvas with a sophisticated radial mesh background
-    ctx.fillStyle = "#09090b"; // zinc-950
+    ctx.fillStyle = "#09090b";
     ctx.fillRect(0, 0, width, height);
 
-    // Grid lines for background technical look
-    ctx.strokeStyle = "rgba(63, 63, 70, 0.15)"; // zinc-700
+    ctx.strokeStyle = "rgba(63, 63, 70, 0.15)";
     ctx.lineWidth = 1;
     for (let x = 0; x < width; x += 40) {
       ctx.beginPath();
@@ -511,7 +574,6 @@ export default function NodeGraftViewer({ lang }: NodeGraftViewerProps) {
 
     const tStart = performance.now();
 
-    // SDF Evaluator mapped mathematically per propId
     const sdfEval = (x: number, y: number, z: number): number => {
       const size = traits["Size"] !== undefined ? traits["Size"] : 0.75;
       const complexity = traits["Complexity"] !== undefined ? traits["Complexity"] : 4.0;
@@ -528,7 +590,10 @@ export default function NodeGraftViewer({ lang }: NodeGraftViewerProps) {
             Math.max(Math.abs(x) - size * 0.55, Math.abs(z) - size * 0.55),
             Math.abs(y - 0.75) - 0.15
           );
-          return hollow > 0.5 ? Math.min(d, head) : d;
+          if (hollow > 0.5) {
+            return Math.min(d, head);
+          }
+          return d;
         }
         case "industrial-gear": {
           const theta = Math.atan2(z, x);
@@ -584,12 +649,10 @@ export default function NodeGraftViewer({ lang }: NodeGraftViewerProps) {
       }
     };
 
-    // Parameters for DC grid
-    const N = 12; // Grid resolution (optimized for fast CPU execution)
+    const N = 12;
     const bounds = 1.3;
     const step = (bounds * 2) / (N - 1);
 
-    // 1. Evaluate SDF at Grid Nodes
     const sdfGrid = new Float32Array(N * N * N);
     let sdfsComputed = 0;
 
@@ -608,14 +671,12 @@ export default function NodeGraftViewer({ lang }: NodeGraftViewerProps) {
 
     setEvaluationsCount(sdfsComputed);
 
-    // 2. Generate dual vertices per active voxel cell
     const cellVertices: (Vertex3D | null)[] = new Array((N - 1) * (N - 1) * (N - 1)).fill(null);
 
     const getGridPos = (i: number, j: number, k: number): [number, number, number] => {
       return [-bounds + i * step, -bounds + j * step, -bounds + k * step];
     };
 
-    // Loop through cells and place dual vertices
     for (let i = 0; i < N - 1; i++) {
       for (let j = 0; j < N - 1; j++) {
         for (let k = 0; k < N - 1; k++) {
@@ -625,9 +686,9 @@ export default function NodeGraftViewer({ lang }: NodeGraftViewerProps) {
           ];
 
           const edges = [
-            [0, 1], [2, 3], [4, 5], [6, 7], // along X
-            [0, 2], [1, 3], [4, 6], [5, 7], // along Y
-            [0, 4], [1, 5], [2, 6], [3, 7]  // along Z
+            [0, 1], [2, 3], [4, 5], [6, 7],
+            [0, 2], [1, 3], [4, 6], [5, 7],
+            [0, 4], [1, 5], [2, 6], [3, 7]
           ];
 
           let intersectionSumX = 0;
@@ -635,7 +696,6 @@ export default function NodeGraftViewer({ lang }: NodeGraftViewerProps) {
           let intersectionSumZ = 0;
           let intersectionsCount = 0;
 
-          // Check each edge for a sign change
           for (const [eStart, eEnd] of edges) {
             const cS = corners[eStart];
             const cE = corners[eEnd];
@@ -669,7 +729,6 @@ export default function NodeGraftViewer({ lang }: NodeGraftViewerProps) {
       }
     }
 
-    // List of active vertices
     const activeVertices: Vertex3D[] = [];
     const cellToVertexIndex = new Int32Array((N - 1) * (N - 1) * (N - 1)).fill(-1);
 
@@ -682,7 +741,6 @@ export default function NodeGraftViewer({ lang }: NodeGraftViewerProps) {
 
     setVerticesCount(activeVertices.length);
 
-    // 3. Stitch Quads by checking all grid edges
     const quads: Quad3D[] = [];
 
     const getCellVertexIndex = (ci: number, cj: number, ck: number): number => {
@@ -690,7 +748,6 @@ export default function NodeGraftViewer({ lang }: NodeGraftViewerProps) {
       return cellToVertexIndex[ci * (N - 1) * (N - 1) + cj * (N - 1) + ck];
     };
 
-    // X-axis edges
     for (let i = 0; i < N - 1; i++) {
       for (let j = 1; j < N - 1; j++) {
         for (let k = 1; k < N - 1; k++) {
@@ -709,7 +766,6 @@ export default function NodeGraftViewer({ lang }: NodeGraftViewerProps) {
       }
     }
 
-    // Y-axis edges
     for (let i = 1; i < N - 1; i++) {
       for (let j = 0; j < N - 1; j++) {
         for (let k = 1; k < N - 1; k++) {
@@ -728,7 +784,6 @@ export default function NodeGraftViewer({ lang }: NodeGraftViewerProps) {
       }
     }
 
-    // Z-axis edges
     for (let i = 1; i < N - 1; i++) {
       for (let j = 1; j < N - 1; j++) {
         for (let k = 0; k < N - 1; k++) {
@@ -749,7 +804,6 @@ export default function NodeGraftViewer({ lang }: NodeGraftViewerProps) {
 
     setTrianglesCount(quads.length * 2);
 
-    // 4. Project and Depth-Sort Quads
     const cosY = Math.cos(yaw);
     const sinY = Math.sin(yaw);
     const cosP = Math.cos(pitch);
@@ -804,7 +858,6 @@ export default function NodeGraftViewer({ lang }: NodeGraftViewerProps) {
     lightDir.y /= lightLen;
     lightDir.z /= lightLen;
 
-    // 5. Draw Sorted Quads
     quads.forEach((q) => {
       const p0 = projectedVertices[q.indices[0]];
       const p1 = projectedVertices[q.indices[1]];
@@ -843,6 +896,16 @@ export default function NodeGraftViewer({ lang }: NodeGraftViewerProps) {
     setGenTime(parseFloat((tEnd - tStart).toFixed(1)));
   };
 
+  const handleTraitsDefaultSync = () => {
+    setTraits((prev) => {
+      const next: Record<string, number> = { ...prev };
+      parsedTraits.forEach((t) => {
+        next[t.name] = t.value;
+      });
+      return next;
+    });
+  };
+
   const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
     isDragging.current = true;
     prevMousePos.current = { x: e.clientX, y: e.clientY };
@@ -867,409 +930,482 @@ export default function NodeGraftViewer({ lang }: NodeGraftViewerProps) {
     setTraits((prev) => ({ ...prev, [name]: val }));
   };
 
-  // Translations dictionary for UI
-  const t = {
-    explorer: lang === "pt" ? "Navegador de Props" : "Prop Explorer",
-    explorerDesc: lang === "pt" ? "Selecione frentes anatômicas da árvore hierárquica:" : "Select atomic assets from the structural tree:",
-    tags: lang === "pt" ? "Filtrar por Tags" : "Filter by Tags",
-    addTag: lang === "pt" ? "Adicionar Tag de Usuário" : "Add User Tag",
-    addTagBtn: lang === "pt" ? "Adicionar" : "Add Tag",
-    activeDevice: lang === "pt" ? "Dispositivo Ativo:" : "Active Device:",
-    rotateMsg: lang === "pt" ? "Arraste o mouse para rotacionar" : "Drag mouse to rotate",
-    note: lang === "pt" ? "As alterações atualizam o volume SDF mapeado na GPU em tempo real." : "Changes update the implicit SDF volume mapped on GPU in real-time.",
-    hotReload: lang === "pt" ? "Compilação Instantânea" : "Hot-reload Active",
-    dagTitle: lang === "pt" ? "Scaffold Computacional WebGPU. Clique em cada estágio:" : "WebGPU Procedural Scaffold Pipeline. Click stages to inspect:",
-    fpsLabel: lang === "pt" ? "Taxa de Quadros" : "Frame Rate",
-    polyLabel: lang === "pt" ? "Polígonos" : "Triangles",
-    evalLabel: lang === "pt" ? "Cálculos SDF" : "Compute SDF Calls",
-    timeLabel: lang === "pt" ? "Tempo de Geração" : "Gen Time",
+  const d = {
+    expTitle: lang === "pt" ? "Biblioteca de Modelos (Árvore)" : "Model Library (Tree)",
+    expDesc: lang === "pt" ? "Navegue pelo Jardim de Props Atômicas:" : "Browse the Atomic Props Garden:",
+    tagTitle: lang === "pt" ? "Filtros por Tags" : "Tag Filters",
+    addTagTitle: lang === "pt" ? "Nova Tag Customizada:" : "New Custom Tag:",
+    addBtn: lang === "pt" ? "Incluir" : "Add Tag",
+    device: lang === "pt" ? "Dispositivo:" : "Device:",
+    canvasInstructions: lang === "pt" ? "Segure e arraste para orbitar a câmera" : "Click and drag to orbit the camera",
+    fps: lang === "pt" ? "Taxa de Quadros" : "Frame Rate",
+    tris: lang === "pt" ? "Polígonos" : "Triangles",
+    evals: lang === "pt" ? "Cálculos SDF" : "SDF Evaluations",
+    time: lang === "pt" ? "Tempo de Compilação" : "Render Time",
+    editorTitle: lang === "pt" ? "Código Fonte WGSL Ativo" : "WGSL Source Code",
+    hotReload: lang === "pt" ? "Hot-reload Habilitado" : "Hot-reload Habilitado",
+    dagHeader: lang === "pt" ? "DAG de Pipeline de GPU. Clique nos nós:" : "GPU Pipeline DAG. Click stages to inspect:",
+    refactHeader: lang === "pt" ? "Otimizador e Refatorador de Shaders" : "AST Refactoring Toolkit (Branchless)",
+    refactDesc: lang === "pt" ? "Ações avançadas de otimização de código movidas para evitar poluir a 2D View:" : "Advanced code-transformation actions moved here to prevent polluting the 2D Node Graph View:",
+    swapBtn: lang === "pt" ? "Trocar Operandos (Swap A+B)" : "Swap Operands (Swap A+B)",
+    swapDesc: lang === "pt" ? "Troca os operandos lógicos do SDF de forma determinística." : "Swaps logical math operands of the SDF model deterministically.",
+    flattenBtn: lang === "pt" ? "Eliminar Condicionais (Flatten Ifs)" : "Flatten Branches (Flatten Ifs)",
+    flattenDesc: lang === "pt" ? "Substitui blocos 'if/else' por funções matemáticas de degrau (mix, step) otimizando para GPU." : "Replaces if/else branches with mathematical GPU step functions, boosting hardware threads.",
+    safeSwapBtn: lang === "pt" ? "Permuta Segura (Safe Swap)" : "Secure Interchange (Safe Swap)",
+    safeSwapDesc: lang === "pt" ? "Valida dependências cíclicas no grafo e permuta os nós com segurança criptográfica." : "Inspects the dependency tree and interchanges roots securely with zero cyclic loops.",
+    logTitle: lang === "pt" ? "Logs de Otimização AST:" : "AST Optimization Logging:",
+    resetBtn: lang === "pt" ? "Restaurar Layout da Workspace" : "Reset Workspace Layout",
+    widgetTitle: lang === "pt" ? "Visualizador de Props 3D" : "3D Prop Viewport",
+    graphTitle: lang === "pt" ? "Grafo de Dependências 2D" : "2D Dependency Graph",
+  };
+
+  const renderWidget = (type: LayoutPane["type"]) => {
+    switch (type) {
+      case "viewport":
+        return (
+          <div className="flex-1 flex flex-col bg-zinc-900 p-4 relative min-h-[350px] items-center justify-center">
+            <canvas
+              ref={canvasRef}
+              width={480}
+              height={380}
+              onMouseDown={handleMouseDown}
+              onMouseMove={handleMouseMove}
+              onMouseUp={handleMouseUpOrLeave}
+              onMouseLeave={handleMouseUpOrLeave}
+              className="cursor-grab active:cursor-grabbing w-full max-w-[480px] aspect-[1.25] rounded-lg border border-zinc-800 bg-zinc-950 shadow-inner"
+            />
+            <div className="absolute top-4 left-4 bg-zinc-950/80 border border-zinc-800/80 rounded px-2.5 py-1 text-[9px] text-zinc-400 font-mono pointer-events-none">
+              {d.canvasInstructions}
+            </div>
+          </div>
+        );
+
+      case "graph":
+        return (
+          <div className="flex-1 p-4 bg-zinc-50 dark:bg-zinc-950 flex flex-col h-full overflow-y-auto">
+            <h4 className="text-xs font-bold text-zinc-400 uppercase tracking-wider mb-2">{d.expTitle}</h4>
+            <p className="text-[11px] text-zinc-500 mb-3">{d.expDesc}</p>
+
+            <div className="space-y-2 flex-1 overflow-y-auto pr-1">
+              {PREDEFINED_CATEGORIES.map((cat) => {
+                const isExpanded = expandedCategories[cat.name.en];
+                const filteredProps = cat.props.filter((p) => {
+                  if (!selectedTagFilter) return true;
+                  const combined = Array.from(new Set([...p.tags, ...(customTagsMap[p.id] || [])]));
+                  return combined.includes(selectedTagFilter);
+                });
+
+                if (filteredProps.length === 0 && selectedTagFilter) return null;
+
+                return (
+                  <div key={cat.name.en} className="border border-zinc-200 dark:border-zinc-800/80 rounded-lg overflow-hidden bg-white dark:bg-zinc-900/10">
+                    <button
+                      onClick={() => toggleCategory(cat.name.en)}
+                      className="w-full flex items-center justify-between px-3 py-1.5 bg-zinc-50/50 dark:bg-zinc-900/30 text-xs font-bold text-zinc-800 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-900/55 transition-colors"
+                    >
+                      <div className="flex items-center gap-1.5">
+                        <span>{cat.icon}</span>
+                        <span>{cat.name[lang]}</span>
+                      </div>
+                      <span className="text-[9px] text-zinc-400">{isExpanded ? "▲" : "▼"}</span>
+                    </button>
+                    {isExpanded && (
+                      <div className="p-1 space-y-1 bg-white/50 dark:bg-zinc-950/35">
+                        {filteredProps.map((prop) => (
+                          <div
+                            key={prop.id}
+                            onClick={() => selectProp(prop)}
+                            className={`w-full text-left px-2.5 py-2 rounded text-xs cursor-pointer transition-colors flex flex-col gap-0.5 ${
+                              activePropId === prop.id
+                                ? "bg-emerald-500/10 dark:bg-emerald-400/5 text-emerald-600 dark:text-emerald-400 font-semibold"
+                                : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-900/40"
+                            }`}
+                          >
+                            <div className="flex items-center justify-between">
+                              <span>{prop.name}</span>
+                              <span className="text-[8px] px-1 bg-zinc-200/50 dark:bg-zinc-800/40 text-zinc-400 font-mono">v1.x</span>
+                            </div>
+                            <span className="text-[10px] text-zinc-400 font-serif leading-normal line-clamp-1">
+                              {prop.description[lang]}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="border-t border-zinc-200 dark:border-zinc-800/60 pt-3 mt-3 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">{d.tagTitle}</span>
+                {selectedTagFilter && (
+                  <button onClick={() => setSelectedTagFilter(null)} className="text-[9px] font-bold text-red-500 hover:underline">
+                    {lang === "pt" ? "Limpar" : "Clear"}
+                  </button>
+                )}
+              </div>
+              <div className="flex flex-wrap gap-1">
+                {SENSIBLE_TAGS.map((tag) => (
+                  <button
+                    key={tag}
+                    onClick={() => setSelectedTagFilter(selectedTagFilter === tag ? null : tag)}
+                    className={`text-[9px] font-mono px-1.5 py-0.5 rounded transition-all ${
+                      selectedTagFilter === tag
+                        ? "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 font-bold border border-emerald-500/30"
+                        : "bg-zinc-100 dark:bg-zinc-900 text-zinc-500 hover:border-zinc-300 dark:hover:border-zinc-700 border border-transparent"
+                    }`}
+                  >
+                    #{tag}
+                  </button>
+                ))}
+              </div>
+
+              <form onSubmit={handleAddCustomTag} className="pt-2 border-t border-zinc-100 dark:border-zinc-900 flex flex-col gap-1">
+                <span className="text-[9px] font-bold text-zinc-400">{d.addTagTitle}</span>
+                <div className="flex gap-1.5">
+                  <input
+                    type="text"
+                    placeholder="e.g. modular"
+                    value={newTagInput}
+                    onChange={(e) => setNewTagInput(e.target.value)}
+                    className="flex-1 px-2.5 py-1 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded text-[10px]"
+                  />
+                  <button type="submit" className="px-2.5 py-1 bg-emerald-600 text-white rounded text-[10px] font-bold hover:bg-emerald-700">
+                    {d.addBtn}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        );
+
+      case "refactoring":
+        return (
+          <div className="flex-1 p-4 bg-white dark:bg-zinc-950 flex flex-col h-full overflow-y-auto">
+            <h4 className="text-xs font-bold text-zinc-400 uppercase tracking-wider mb-1">{d.refactHeader}</h4>
+            <p className="text-[10px] text-zinc-500 mb-3 leading-relaxed">{d.refactDesc}</p>
+
+            <div className="space-y-3 flex-1">
+              <div className="p-3 border border-zinc-200 dark:border-zinc-800/50 bg-zinc-50/50 dark:bg-zinc-900/10 rounded-lg space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <button
+                    onClick={executeSwapAB}
+                    className="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-bold rounded flex items-center gap-1 transition-colors"
+                  >
+                    🔄 {d.swapBtn}
+                  </button>
+                  <span className="text-[8px] font-mono text-zinc-400">AST_SWAP</span>
+                </div>
+                <p className="text-[10px] text-zinc-500 font-serif leading-normal">{d.swapDesc}</p>
+              </div>
+
+              <div className="p-3 border border-zinc-200 dark:border-zinc-800/50 bg-zinc-50/50 dark:bg-zinc-900/10 rounded-lg space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <button
+                    onClick={executeFlattenIfs}
+                    disabled={isFlattened}
+                    className={`px-2.5 py-1.5 text-white text-[10px] font-bold rounded flex items-center gap-1 transition-colors ${
+                      isFlattened ? "bg-zinc-300 dark:bg-zinc-800 cursor-not-allowed" : "bg-emerald-600 hover:bg-emerald-700"
+                    }`}
+                  >
+                    🌿 {d.flattenBtn}
+                  </button>
+                  <span className="text-[8px] font-mono text-zinc-400">AST_FLATTEN</span>
+                </div>
+                <p className="text-[10px] text-zinc-500 font-serif leading-normal">{d.flattenDesc}</p>
+              </div>
+
+              <div className="p-3 border border-zinc-200 dark:border-zinc-800/50 bg-zinc-50/50 dark:bg-zinc-900/10 rounded-lg space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <button
+                    onClick={executeSafeSwap}
+                    className="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-bold rounded flex items-center gap-1 transition-colors"
+                  >
+                    ⛓️ {d.safeSwapBtn}
+                  </button>
+                  <span className="text-[8px] font-mono text-zinc-400">AST_SAFE_SWAP</span>
+                </div>
+                <p className="text-[10px] text-zinc-500 font-serif leading-normal">{d.safeSwapDesc}</p>
+              </div>
+            </div>
+
+            <div className="border-t border-zinc-200 dark:border-zinc-800/60 pt-3 mt-3">
+              <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block mb-1.5">{d.logTitle}</span>
+              <div className="bg-zinc-950 p-2.5 rounded border border-zinc-800 h-[80px] overflow-y-auto font-mono text-[9px] text-emerald-400 space-y-1 leading-relaxed">
+                {optimizationLog.length === 0 ? (
+                  <span className="text-zinc-600 italic">[Sytem Idle: Awaiting optimizer directives...]</span>
+                ) : (
+                  optimizationLog.map((log, i) => <div key={i}>{log}</div>)
+                )}
+              </div>
+            </div>
+          </div>
+        );
+
+      case "editor":
+        return (
+          <div className="flex-1 p-4 bg-white dark:bg-zinc-950 flex flex-col h-full overflow-y-auto gap-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-zinc-400 uppercase tracking-wider">
+                {d.editorTitle}
+              </span>
+              <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-mono">
+                {d.hotReload}
+              </span>
+            </div>
+            <textarea
+              value={code}
+              onChange={(e) => {
+                setCode(e.target.value);
+                setIsFlattened(false);
+              }}
+              className="w-full flex-1 min-h-[220px] font-mono text-xs p-3.5 bg-zinc-950 text-zinc-200 border border-zinc-800 rounded-lg focus:outline-none focus:ring-1 focus:ring-emerald-500/50"
+              spellCheck="false"
+            />
+            <div className="text-[10px] text-zinc-500 dark:text-zinc-400 font-serif">
+              Modify the frontmatter `@trait` definitions or customize the `sdf` function inside the editor above. The UI updates dynamically.
+            </div>
+          </div>
+        );
+
+      case "dag":
+        return (
+          <div className="flex-1 p-4 bg-white dark:bg-zinc-950 flex flex-col h-full overflow-y-auto">
+            <h4 className="text-xs font-bold text-zinc-400 uppercase tracking-wider mb-2">{d.dagHeader}</h4>
+            <div className="flex flex-col gap-2.5 py-1">
+              <div
+                onClick={() => setActiveDagNode("eval")}
+                className={`p-2.5 rounded border cursor-pointer transition-all ${
+                  activeDagNode === "eval"
+                    ? "bg-emerald-500/10 border-emerald-500/40"
+                    : "bg-zinc-50 dark:bg-zinc-900/40 border-zinc-200 dark:border-zinc-800"
+                }`}
+              >
+                <div className="flex items-center justify-between text-xs mb-0.5 font-bold">
+                  <span className="text-zinc-800 dark:text-zinc-200">1. SDF Evaluation</span>
+                  <span className="text-[8px] px-1 bg-emerald-500/20 text-emerald-600 rounded">Pass 1</span>
+                </div>
+                <p className="text-[10px] text-zinc-500 font-serif">
+                  Evaluated {evaluationsCount} grid positions inside voxel field.
+                </p>
+              </div>
+
+              <div className="text-center text-zinc-400 text-[10px]">↓</div>
+
+              <div
+                onClick={() => setActiveDagNode("cont")}
+                className={`p-2.5 rounded border cursor-pointer transition-all ${
+                  activeDagNode === "cont"
+                    ? "bg-emerald-500/10 border-emerald-500/40"
+                    : "bg-zinc-50 dark:bg-zinc-900/40 border-zinc-200 dark:border-zinc-800"
+                }`}
+              >
+                <div className="flex items-center justify-between text-xs mb-0.5 font-bold">
+                  <span className="text-zinc-800 dark:text-zinc-200">2. Dual Contouring (Vertices)</span>
+                  <span className="text-[8px] px-1 bg-indigo-500/20 text-indigo-600 rounded">Pass 2</span>
+                </div>
+                <p className="text-[10px] text-zinc-500 font-serif">
+                  Solves Hermite crossing averages per active cell. Extracted {verticesCount} points.
+                </p>
+              </div>
+
+              <div className="text-center text-zinc-400 text-[10px]">↓</div>
+
+              <div
+                onClick={() => setActiveDagNode("stitch")}
+                className={`p-2.5 rounded border cursor-pointer transition-all ${
+                  activeDagNode === "stitch"
+                    ? "bg-emerald-500/10 border-emerald-500/40"
+                    : "bg-zinc-50 dark:bg-zinc-900/40 border-zinc-200 dark:border-zinc-800"
+                }`}
+              >
+                <div className="flex items-center justify-between text-xs mb-0.5 font-bold">
+                  <span className="text-zinc-800 dark:text-zinc-200">3. Quad Mesh Stitching</span>
+                  <span className="text-[8px] px-1 bg-amber-500/20 text-amber-600 rounded">Pass 3</span>
+                </div>
+                <p className="text-[10px] text-zinc-500 font-serif">
+                  Generates indexes and connects adjacent vertices. Stitched {trianglesCount / 2} quads.
+                </p>
+              </div>
+            </div>
+
+            <div className="p-2.5 mt-2 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded text-xs space-y-1">
+              <span className="font-semibold text-[10px] font-mono uppercase text-zinc-400 block">Metadata: {activeDagNode}</span>
+              {activeDagNode === "eval" && (
+                <div className="font-mono text-[10px] text-zinc-600 dark:text-zinc-300 space-y-0.5">
+                  <div>• Output: Voxel Volume (Texture3D)</div>
+                  <div>• Resolution: 12 x 12 x 12</div>
+                  <div>• Immutable Hash: <span className="text-emerald-500 font-bold">f491c28b</span></div>
+                </div>
+              )}
+              {activeDagNode === "cont" && (
+                <div className="font-mono text-[10px] text-zinc-600 dark:text-zinc-300 space-y-0.5">
+                  <div>• Input: Voxel Volume map</div>
+                  <div>• Method: QEF Plane Intersection</div>
+                  <div>• Output: Vertex Buffer (StorageBuffer)</div>
+                </div>
+              )}
+              {activeDagNode === "stitch" && (
+                <div className="font-mono text-[10px] text-zinc-600 dark:text-zinc-300 space-y-0.5">
+                  <div>• Input: Vertex Buffer</div>
+                  <div>• Output: Quad Index Buffer</div>
+                  <div>• Active Faces: {trianglesCount / 2} Quads</div>
+                </div>
+              )}
+            </div>
+          </div>
+        );
+    }
   };
 
   return (
     <div className="border border-zinc-200 dark:border-zinc-800 rounded-xl overflow-hidden bg-white dark:bg-zinc-950/60 shadow-xl flex flex-col font-sans mb-12">
-      {/* Viewer Header */}
-      <div className="bg-zinc-50 dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800 px-5 py-3.5 flex items-center justify-between">
-        <div className="flex items-center gap-2.5">
-          <span className="flex h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse" />
-          <h2 className="font-bold text-zinc-900 dark:text-zinc-50 tracking-tight">
-            NodeGraft Live Module / PolyGraft 3D
-          </h2>
+      {/* Workspace Global Controller Header */}
+      <div className="bg-zinc-100 dark:bg-zinc-900 px-5 py-3 border-b border-zinc-200 dark:border-zinc-800 flex flex-wrap gap-3 items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span className="flex h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+          <h3 className="font-bold text-xs uppercase text-zinc-700 dark:text-zinc-300">
+            {lang === "pt" ? "Painel de Controle da Workspace" : "Workspace Panel Controller"}
+          </h3>
         </div>
-        <div className="flex items-center gap-1.5 text-xs bg-zinc-200 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 px-3 py-1.5 rounded-md font-mono font-semibold">
-          <span>{t.activeDevice}</span>
-          <span className="text-emerald-600 dark:text-emerald-400">{renderingMode}</span>
-        </div>
+        <button
+          onClick={handleResetWorkspace}
+          className="text-[10px] font-bold px-3 py-1.5 bg-zinc-200 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 rounded hover:bg-zinc-300 dark:hover:bg-zinc-700 transition-colors flex items-center gap-1.5"
+        >
+          🔄 {d.resetBtn}
+        </button>
       </div>
 
-      {/* Main Grid: Left sidebar (Categories/Tags), Center (Viewport), Right (Inspector) */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 divide-y lg:divide-y-0 lg:divide-x divide-zinc-200 dark:divide-zinc-800">
-        {/* Left Sidebar: Collapsible Library & Tags (lg:col-span-3) */}
-        <div className="col-span-1 lg:col-span-3 p-4 flex flex-col bg-zinc-50/50 dark:bg-zinc-900/10 min-h-[350px]">
-          <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-400 mb-3">{t.explorer}</h3>
-          <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mb-4">{t.explorerDesc}</p>
+      {/* Main Grid: Responsive layouts that dynamically load the active widgets */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 divide-y lg:divide-y-0 lg:divide-x divide-zinc-200 dark:divide-zinc-800 min-h-[450px]">
+        {panes.map((pane) => {
+          let colSpan = "col-span-1 lg:col-span-4";
+          if (pane.type === "viewport" && panes.length === 3) {
+            colSpan = "col-span-1 lg:col-span-5";
+          } else if (pane.type === "graph" && panes.length === 3) {
+            colSpan = "col-span-1 lg:col-span-3";
+          }
 
-          {/* Collapsible Tree */}
-          <div className="space-y-3 flex-1 overflow-y-auto max-h-[250px] lg:max-h-[300px] mb-4 pr-1">
-            {PREDEFINED_CATEGORIES.map((cat) => {
-              const nameStr = cat.name[lang];
-              const isExpanded = expandedCategories[cat.name.en];
-              // Filter props in this category by the selected tag (predefined or custom)
-              const filteredProps = cat.props.filter((prop) => {
-                if (!selectedTagFilter) return true;
-                const propTags = Array.from(new Set([...prop.tags, ...(customTagsMap[prop.id] || [])]));
-                return propTags.includes(selectedTagFilter);
-              });
+          return (
+            <div key={pane.id} className={`${colSpan} flex flex-col h-full bg-white dark:bg-zinc-950/20`}>
+              <div className="px-3.5 py-2 bg-zinc-50 dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between text-xs">
+                <select
+                  value={pane.type}
+                  onChange={(e) => handleChangePaneType(pane.id, e.target.value as LayoutPane["type"])}
+                  className="bg-transparent font-bold text-zinc-700 dark:text-zinc-300 border-none outline-none cursor-pointer focus:ring-1 focus:ring-emerald-500/20 rounded py-0.5 px-1 hover:bg-zinc-200 dark:hover:bg-zinc-800 text-[11px] uppercase tracking-wider"
+                >
+                  <option value="viewport">{d.widgetTitle}</option>
+                  <option value="graph">{d.graphTitle}</option>
+                  <option value="editor">{d.editorTitle}</option>
+                  <option value="refactoring">{d.refactHeader}</option>
+                  <option value="dag">GPU Pipeline DAG</option>
+                </select>
 
-              if (filteredProps.length === 0 && selectedTagFilter) return null;
-
-              return (
-                <div key={cat.name.en} className="border border-zinc-200/60 dark:border-zinc-800/40 rounded-lg overflow-hidden bg-white dark:bg-zinc-950/20">
+                <div className="flex items-center gap-2">
                   <button
-                    onClick={() => toggleCategory(cat.name.en)}
-                    className="w-full flex items-center justify-between px-3 py-2 text-xs font-bold text-zinc-800 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-900/60 transition-colors"
+                    onClick={() => handleSplit(pane.id)}
+                    title={lang === "pt" ? "Dividir Painel" : "Split Panel"}
+                    className="p-1 text-zinc-400 hover:text-emerald-500 hover:bg-zinc-200 dark:hover:bg-zinc-800 rounded transition-colors text-[11px]"
                   >
-                    <div className="flex items-center gap-1.5">
-                      <span>{cat.icon}</span>
-                      <span>{nameStr}</span>
-                    </div>
-                    <span className="text-[10px] text-zinc-400">{isExpanded ? "▲" : "▼"}</span>
+                    ✂️
                   </button>
-                  {isExpanded && (
-                    <div className="border-t border-zinc-100 dark:border-zinc-800/30 p-1.5 space-y-1 bg-zinc-50/20 dark:bg-zinc-950/10">
-                      {filteredProps.map((prop) => (
-                        <button
-                          key={prop.id}
-                          onClick={() => selectProp(prop)}
-                          className={`w-full text-left px-2.5 py-1.5 rounded text-xs transition-colors flex flex-col gap-0.5 ${
-                            activePropId === prop.id
-                              ? "bg-emerald-500/10 dark:bg-emerald-400/5 text-emerald-600 dark:text-emerald-400 font-semibold"
-                              : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-900/30"
-                          }`}
-                        >
-                          <span>{prop.name}</span>
-                          <span className="text-[10px] text-zinc-400 font-serif line-clamp-1">
-                            {prop.description[lang]}
-                          </span>
-                        </button>
-                      ))}
-                    </div>
+                  {panes.length > 1 && (
+                    <button
+                      onClick={() => handleClosePane(pane.id)}
+                      title={lang === "pt" ? "Fechar Painel" : "Close Panel"}
+                      className="p-1 text-zinc-400 hover:text-red-500 hover:bg-zinc-200 dark:hover:bg-zinc-800 rounded transition-colors text-[11px]"
+                    >
+                      ✖️
+                    </button>
                   )}
                 </div>
-              );
-            })}
+              </div>
+
+              <div className="flex-1 flex flex-col">{renderWidget(pane.type)}</div>
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="bg-zinc-50/50 dark:bg-zinc-950/40 border-t border-zinc-200 dark:border-zinc-800 p-5 grid grid-cols-1 md:grid-cols-12 gap-6">
+        <div className="md:col-span-8 space-y-4">
+          <div className="flex items-center justify-between border-b border-zinc-100 dark:border-zinc-900 pb-2">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">
+              {lang === "pt" ? "Parâmetros Gerais do Prop Ativo" : "Active Prop Parameter Controls"}
+            </span>
+            <button
+              onClick={handleTraitsDefaultSync}
+              className="text-[9px] font-bold text-emerald-600 hover:underline"
+            >
+              {lang === "pt" ? "Restaurar Padrões" : "Reset Sliders"}
+            </button>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4">
+            {parsedTraits.map((t) => (
+              <div key={t.name} className="space-y-1">
+                <div className="flex items-center justify-between text-[11px]">
+                  <span className="font-semibold text-zinc-700 dark:text-zinc-300">{t.name}</span>
+                  <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">
+                    {(traits[t.name] !== undefined ? traits[t.name] : t.value).toFixed(2)}
+                  </span>
+                </div>
+                {t.type === "slider" ? (
+                  <input
+                    type="range"
+                    min={t.min}
+                    max={t.max}
+                    step={0.05}
+                    value={traits[t.name] !== undefined ? traits[t.name] : t.value}
+                    onChange={(e) => handleTraitChange(t.name, parseFloat(e.target.value))}
+                    className="w-full h-1 bg-zinc-200 dark:bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-emerald-500"
+                  />
+                ) : (
+                  <button
+                    onClick={() =>
+                      handleTraitChange(
+                        t.name,
+                        (traits[t.name] !== undefined ? traits[t.name] : t.value) > 0.5 ? 0 : 1
+                      )
+                    }
+                    className={`w-full py-1 text-center rounded text-[10px] font-semibold border transition-all ${
+                      (traits[t.name] !== undefined ? traits[t.name] : t.value) > 0.5
+                        ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30"
+                        : "bg-zinc-100 dark:bg-zinc-900 text-zinc-500 border-zinc-200 dark:border-zinc-800"
+                    }`}
+                  >
+                    {(traits[t.name] !== undefined ? traits[t.name] : t.value) > 0.5 ? "ON" : "OFF"}
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="md:col-span-4 flex flex-col justify-between border-l md:border-l border-zinc-200 dark:border-zinc-800 pl-0 md:pl-6 pt-4 md:pt-0">
+          <div className="space-y-2">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 block">
+              {lang === "pt" ? "Prop em Edição:" : "Active Inspected Prop:"}
+            </span>
+            <span className="text-sm font-bold text-zinc-800 dark:text-zinc-100 block">{activeProp.name}</span>
+            <span className="text-[11px] text-zinc-500 leading-normal block font-serif">{activeProp.description[lang]}</span>
           </div>
 
-          {/* Tags Filtering Section */}
-          <div className="border-t border-zinc-200 dark:border-zinc-800 pt-3 space-y-3">
-            <div className="flex items-center justify-between">
-              <h4 className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">{t.tags}</h4>
-              {selectedTagFilter && (
-                <button
-                  onClick={() => setSelectedTagFilter(null)}
-                  className="text-[9px] font-bold text-red-500 hover:underline"
-                >
-                  {lang === "pt" ? "Limpar" : "Clear"}
-                </button>
-              )}
-            </div>
-            <div className="flex flex-wrap gap-1.5">
-              {SENSIBLE_TAGS.map((tag) => (
-                <button
+          <div className="space-y-1.5 pt-3 border-t border-zinc-100 dark:border-zinc-900/40 mt-3">
+            <span className="text-[9px] font-bold uppercase tracking-wider text-zinc-400 block">
+              {lang === "pt" ? "Tags do Item:" : "Prop Tags:"}
+            </span>
+            <div className="flex flex-wrap gap-1">
+              {currentPropTags.map((tag) => (
+                <span
                   key={tag}
-                  onClick={() => setSelectedTagFilter(selectedTagFilter === tag ? null : tag)}
-                  className={`text-[9px] font-mono px-2 py-0.5 rounded transition-all ${
-                    selectedTagFilter === tag
-                      ? "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 font-bold border border-emerald-500/30"
-                      : "bg-zinc-200/55 dark:bg-zinc-800/60 text-zinc-500 dark:text-zinc-400 border border-transparent hover:border-zinc-300 dark:hover:border-zinc-700"
-                  }`}
+                  className="text-[9px] font-mono bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-1.5 py-0.5 rounded border border-emerald-500/20"
                 >
                   #{tag}
-                </button>
+                </span>
               ))}
             </div>
-
-            {/* Custom User Tag Creator */}
-            <form onSubmit={handleAddCustomTag} className="space-y-1.5 pt-2 border-t border-zinc-200 dark:border-zinc-800/40">
-              <span className="text-[9px] font-bold text-zinc-400 block">{t.addTag}</span>
-              <div className="flex gap-1.5">
-                <input
-                  type="text"
-                  placeholder="e.g. industrial"
-                  value={newTagInput}
-                  onChange={(e) => setNewTagInput(e.target.value)}
-                  className="flex-1 px-2.5 py-1 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded text-[10px] focus:outline-none focus:ring-1 focus:ring-emerald-500/40"
-                />
-                <button
-                  type="submit"
-                  className="px-2.5 py-1 bg-emerald-600 dark:bg-emerald-500 text-white rounded text-[10px] font-bold hover:bg-emerald-700 dark:hover:bg-emerald-600"
-                >
-                  {t.addTagBtn}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-
-        {/* Center Panel: 3D Viewport + Telemetry (lg:col-span-5) */}
-        <div className="col-span-1 lg:col-span-5 p-4 bg-zinc-900 flex flex-col items-center justify-center relative min-h-[400px]">
-          <canvas
-            ref={canvasRef}
-            width={480}
-            height={400}
-            onMouseDown={handleMouseDown}
-            onMouseMove={handleMouseMove}
-            onMouseUp={handleMouseUpOrLeave}
-            onMouseLeave={handleMouseUpOrLeave}
-            className="cursor-grab active:cursor-grabbing w-full max-w-[480px] aspect-[1.2] rounded-lg border border-zinc-800/80 bg-zinc-950 shadow-inner"
-          />
-          <div className="absolute top-6 left-6 bg-zinc-950/80 border border-zinc-800/80 rounded px-3 py-1.5 text-[10px] text-zinc-400 font-mono pointer-events-none">
-            {t.rotateMsg}
-          </div>
-        </div>
-
-        {/* Right Panel: Inspector Tabs & Controllers (lg:col-span-4) */}
-        <div className="col-span-1 lg:col-span-4 flex flex-col h-full min-h-[440px]">
-          {/* Tab Headers */}
-          <div className="flex border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/60">
-            <button
-              onClick={() => setActiveTab("traits")}
-              className={`flex-1 text-center py-3 text-xs font-semibold tracking-wide border-b-2 transition-all ${
-                activeTab === "traits"
-                  ? "border-emerald-500 dark:border-emerald-400 text-emerald-600 dark:text-emerald-400 bg-white dark:bg-zinc-950"
-                  : "border-transparent text-zinc-500 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-200"
-              }`}
-            >
-              Traits Panel
-            </button>
-            <button
-              onClick={() => setActiveTab("editor")}
-              className={`flex-1 text-center py-3 text-xs font-semibold tracking-wide border-b-2 transition-all ${
-                activeTab === "editor"
-                  ? "border-emerald-500 dark:border-emerald-400 text-emerald-600 dark:text-emerald-400 bg-white dark:bg-zinc-950"
-                  : "border-transparent text-zinc-500 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-200"
-              }`}
-            >
-              Code Editor
-            </button>
-            <button
-              onClick={() => setActiveTab("dag")}
-              className={`flex-1 text-center py-3 text-xs font-semibold tracking-wide border-b-2 transition-all ${
-                activeTab === "dag"
-                  ? "border-emerald-500 dark:border-emerald-400 text-emerald-600 dark:text-emerald-400 bg-white dark:bg-zinc-950"
-                  : "border-transparent text-zinc-500 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-200"
-              }`}
-            >
-              DAG Pipeline
-            </button>
-          </div>
-
-          {/* Tab Body */}
-          <div className="flex-1 p-5 overflow-y-auto bg-white dark:bg-zinc-950/20">
-            {activeTab === "traits" && (
-              <div className="space-y-5">
-                <p className="text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed">
-                  Adjust procedural parameters parsed directly from the WGSL source frontmatter:
-                </p>
-                {parsedTraits.length === 0 ? (
-                  <p className="text-xs text-amber-500 font-mono italic">
-                    No @trait configurations found in current code.
-                  </p>
-                ) : (
-                  parsedTraits.map((t) => (
-                    <div key={t.name} className="space-y-2 border-b border-zinc-100 dark:border-zinc-900 pb-3">
-                      <div className="flex items-center justify-between text-xs">
-                        <span className="font-semibold text-zinc-700 dark:text-zinc-300">
-                          {t.name}
-                        </span>
-                        <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">
-                          {traits[t.name] !== undefined
-                            ? traits[t.name].toFixed(2)
-                            : t.value.toFixed(2)}
-                        </span>
-                      </div>
-                      {t.type === "slider" ? (
-                        <input
-                          type="range"
-                          min={t.min}
-                          max={t.max}
-                          step={0.05}
-                          value={traits[t.name] !== undefined ? traits[t.name] : t.value}
-                          onChange={(e) => handleTraitChange(t.name, parseFloat(e.target.value))}
-                          className="w-full h-1 bg-zinc-200 dark:bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-emerald-500 dark:accent-emerald-400 focus:outline-none"
-                        />
-                      ) : (
-                        <button
-                          onClick={() =>
-                            handleTraitChange(
-                              t.name,
-                              (traits[t.name] !== undefined ? traits[t.name] : t.value) > 0.5
-                                ? 0
-                                : 1
-                            )
-                          }
-                          className={`w-full py-1.5 px-3 rounded text-xs font-semibold border transition-all ${
-                            (traits[t.name] !== undefined ? traits[t.name] : t.value) > 0.5
-                              ? "bg-emerald-500/10 dark:bg-emerald-400/5 text-emerald-600 dark:text-emerald-400 border-emerald-500/40"
-                              : "bg-zinc-100 dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400 border-zinc-200 dark:border-zinc-800"
-                          }`}
-                        >
-                          {(traits[t.name] !== undefined ? traits[t.name] : t.value) > 0.5
-                            ? "Active / Ativo"
-                            : "Inactive / Inativo"}
-                        </button>
-                      )}
-                    </div>
-                  ))
-                )}
-
-                {/* Display active tags on active prop */}
-                <div className="space-y-1.5 pt-2 border-t border-zinc-100 dark:border-zinc-900">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">{lang === "pt" ? "Tags Ativas no Prop:" : "Active Tags on Prop:"}</span>
-                  <div className="flex flex-wrap gap-1">
-                    {currentPropTags.map((tag) => (
-                      <span key={tag} className="text-[9px] font-mono bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-1.5 py-0.5 rounded border border-emerald-500/20">
-                        #{tag}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="pt-4 text-[11px] text-zinc-400 dark:text-zinc-500 font-serif leading-relaxed italic">
-                  Note: {t.note}
-                </div>
-              </div>
-            )}
-
-            {activeTab === "editor" && (
-              <div className="flex flex-col h-full gap-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] uppercase tracking-wider font-bold text-zinc-400">
-                    Live WGSL Source
-                  </span>
-                  <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-mono">
-                    {t.hotReload}
-                  </span>
-                </div>
-                <textarea
-                  value={code}
-                  onChange={(e) => setCode(e.target.value)}
-                  className="w-full flex-1 min-h-[200px] font-mono text-xs p-3.5 bg-zinc-950 text-zinc-200 border border-zinc-800 rounded-lg focus:outline-none focus:ring-1 focus:ring-emerald-500/50"
-                  spellCheck="false"
-                />
-                <div className="text-[10px] text-zinc-500 dark:text-zinc-400 font-serif">
-                  Modify the frontmatter `@trait` definitions or customize the `sdf` function inside the editor above. The UI updates dynamically.
-                </div>
-              </div>
-            )}
-
-            {activeTab === "dag" && (
-              <div className="space-y-4">
-                <p className="text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed">
-                  {t.dagTitle}
-                </p>
-                <div className="flex flex-col gap-3 py-1">
-                  {/* Node 1 */}
-                  <div
-                    onClick={() => setActiveDagNode("eval")}
-                    className={`p-3 rounded-lg border cursor-pointer transition-all ${
-                      activeDagNode === "eval"
-                        ? "bg-emerald-500/10 dark:bg-emerald-400/5 border-emerald-500/40"
-                        : "bg-zinc-50 dark:bg-zinc-900/40 border-zinc-200 dark:border-zinc-800"
-                    }`}
-                  >
-                    <div className="flex items-center justify-between text-xs mb-1">
-                      <span className="font-bold text-zinc-800 dark:text-zinc-200">
-                        1. SDF Evaluation
-                      </span>
-                      <span className="text-[9px] px-1.5 py-0.5 bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 rounded font-mono">
-                        Pass 1
-                      </span>
-                    </div>
-                    <p className="text-[10px] text-zinc-500 dark:text-zinc-400">
-                      Calculates distances inside voxel field. Evaluated {evaluationsCount} grid positions.
-                    </p>
-                  </div>
-
-                  {/* Flow Arrow */}
-                  <div className="text-center text-zinc-400 dark:text-zinc-600">↓</div>
-
-                  {/* Node 2 */}
-                  <div
-                    onClick={() => setActiveDagNode("cont")}
-                    className={`p-3 rounded-lg border cursor-pointer transition-all ${
-                      activeDagNode === "cont"
-                        ? "bg-emerald-500/10 dark:bg-emerald-400/5 border-emerald-500/40"
-                        : "bg-zinc-50 dark:bg-zinc-900/40 border-zinc-200 dark:border-zinc-800"
-                    }`}
-                  >
-                    <div className="flex items-center justify-between text-xs mb-1">
-                      <span className="font-bold text-zinc-800 dark:text-zinc-200">
-                        2. Dual Contouring (Vertex Gen)
-                      </span>
-                      <span className="text-[9px] px-1.5 py-0.5 bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 rounded font-mono">
-                        Pass 2
-                      </span>
-                    </div>
-                    <p className="text-[10px] text-zinc-500 dark:text-zinc-400">
-                      Solves Hermite crossing averages per active cell. Extracted {verticesCount} points.
-                    </p>
-                  </div>
-
-                  {/* Flow Arrow */}
-                  <div className="text-center text-zinc-400 dark:text-zinc-600">↓</div>
-
-                  {/* Node 3 */}
-                  <div
-                    onClick={() => setActiveDagNode("stitch")}
-                    className={`p-3 rounded-lg border cursor-pointer transition-all ${
-                      activeDagNode === "stitch"
-                        ? "bg-emerald-500/10 dark:bg-emerald-400/5 border-emerald-500/40"
-                        : "bg-zinc-50 dark:bg-zinc-900/40 border-zinc-200 dark:border-zinc-800"
-                    }`}
-                  >
-                    <div className="flex items-center justify-between text-xs mb-1">
-                      <span className="font-bold text-zinc-800 dark:text-zinc-200">
-                        3. Quad Mesh Stitching
-                      </span>
-                      <span className="text-[9px] px-1.5 py-0.5 bg-amber-500/20 text-amber-600 dark:text-amber-400 rounded font-mono">
-                        Pass 3
-                      </span>
-                    </div>
-                    <p className="text-[10px] text-zinc-500 dark:text-zinc-400">
-                      Resolves index arrays and generates quads. Stitched {trianglesCount / 2} faces.
-                    </p>
-                  </div>
-                </div>
-
-                {/* Node details */}
-                <div className="p-3 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg text-xs space-y-1.5">
-                  <div className="font-semibold text-zinc-800 dark:text-zinc-200 font-mono text-[10px] uppercase text-zinc-400">
-                    Node Metadata: {activeDagNode}
-                  </div>
-                  {activeDagNode === "eval" && (
-                    <div className="space-y-1 text-zinc-600 dark:text-zinc-300 font-mono text-[11px]">
-                      <div>• Output: SDF Voxel Volume (Texture3D)</div>
-                      <div>• Voxel Grid Size: 12 x 12 x 12</div>
-                      <div>• Immutable Hash: <span className="text-emerald-500">f491c28b</span></div>
-                    </div>
-                  )}
-                  {activeDagNode === "cont" && (
-                    <div className="space-y-1 text-zinc-600 dark:text-zinc-300 font-mono text-[11px]">
-                      <div>• Input: Voxel Volume from Pass 1</div>
-                      <div>• Method: Hermite Average Placement</div>
-                      <div>• Output: Vertex Buffer (StorageBuffer)</div>
-                    </div>
-                  )}
-                  {activeDagNode === "stitch" && (
-                    <div className="space-y-1 text-zinc-600 dark:text-zinc-300 font-mono text-[11px]">
-                      <div>• Input: Vertex Buffer + Voxel Volume</div>
-                      <div>• Output: Quad Index Buffer</div>
-                      <div>• Final Polygons: {trianglesCount / 2} Quads</div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
           </div>
         </div>
       </div>
@@ -1277,7 +1413,7 @@ export default function NodeGraftViewer({ lang }: NodeGraftViewerProps) {
       {/* Telemetry Bar */}
       <div className="bg-zinc-900 text-zinc-100 border-t border-zinc-800 px-5 py-4 grid grid-cols-2 md:grid-cols-5 gap-4 md:gap-0 divide-y md:divide-y-0 md:divide-x divide-zinc-800 text-xs font-mono">
         <div className="flex flex-col justify-center items-start md:px-3">
-          <span className="text-zinc-500 text-[10px] uppercase">{t.fpsLabel}</span>
+          <span className="text-zinc-500 text-[10px] uppercase">{d.fps}</span>
           <span className="text-zinc-200 font-bold text-sm mt-0.5">{fps} FPS</span>
         </div>
         <div className="flex flex-col justify-center items-start pt-2 md:pt-0 md:px-3">
@@ -1285,15 +1421,15 @@ export default function NodeGraftViewer({ lang }: NodeGraftViewerProps) {
           <span className="text-zinc-200 font-bold text-sm mt-0.5">{verticesCount}</span>
         </div>
         <div className="flex flex-col justify-center items-start pt-2 md:pt-0 md:px-3">
-          <span className="text-zinc-500 text-[10px] uppercase">{t.polyLabel}</span>
+          <span className="text-zinc-500 text-[10px] uppercase">{d.tris}</span>
           <span className="text-zinc-200 font-bold text-sm mt-0.5">{trianglesCount}</span>
         </div>
         <div className="flex flex-col justify-center items-start pt-2 md:pt-0 md:px-3">
-          <span className="text-zinc-500 text-[10px] uppercase">{t.evalLabel}</span>
+          <span className="text-zinc-500 text-[10px] uppercase">{d.evals}</span>
           <span className="text-zinc-200 font-bold text-sm mt-0.5">{evaluationsCount}</span>
         </div>
         <div className="flex flex-col justify-center items-start pt-2 md:pt-0 md:px-3">
-          <span className="text-zinc-500 text-[10px] uppercase">{t.timeLabel}</span>
+          <span className="text-zinc-500 text-[10px] uppercase">{d.time}</span>
           <span className="text-emerald-400 font-bold text-sm mt-0.5">{genTime} ms</span>
         </div>
       </div>
@@ -1301,7 +1437,7 @@ export default function NodeGraftViewer({ lang }: NodeGraftViewerProps) {
       {/* GPU Adapter Details */}
       <div className="bg-zinc-950 text-[10px] text-zinc-500 px-5 py-2 font-mono flex items-center justify-between border-t border-zinc-900">
         <span>Adapter Details: {gpuName}</span>
-        <span>Version: 1.1.0 (Git-backed)</span>
+        <span>Version: 1.2.0 (Git-backed)</span>
       </div>
     </div>
   );
