@@ -7,5 +7,9 @@ interface PageProps {
 
 export default async function NowPage({ params }: PageProps) {
   const { lang } = await params;
-  return lang === "pt" ? <NowPt /> : <NowEn />;
+  return (
+    <article className="prose dark:prose-invert prose-emerald max-w-4xl mx-auto">
+      {lang === "pt" ? <NowPt /> : <NowEn />}
+    </article>
+  );
 }

@@ -16,7 +16,7 @@ export default async function FinanceExplorationsPage({ params }: PageProps) {
   const isPt = lang === "pt";
 
   return (
-    <div className="space-y-16">
+    <div className="max-w-5xl mx-auto space-y-16">
       {/* Intro to the Finance Tab */}
       <div className="border-b border-zinc-200 dark:border-zinc-800 pb-6 mb-4">
         <h1 className="text-3xl font-extrabold tracking-tight text-zinc-900 dark:text-zinc-50 mb-4">

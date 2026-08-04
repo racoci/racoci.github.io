@@ -7,5 +7,9 @@ interface PageProps {
 
 export default async function AboutPage({ params }: PageProps) {
   const { lang } = await params;
-  return lang === "pt" ? <AboutPt /> : <AboutEn />;
+  return (
+    <article className="prose dark:prose-invert prose-emerald max-w-4xl mx-auto">
+      {lang === "pt" ? <AboutPt /> : <AboutEn />}
+    </article>
+  );
 }

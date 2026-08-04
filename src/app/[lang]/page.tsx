@@ -72,7 +72,7 @@ export default async function Home({ params }: PageProps) {
   const t = isPt ? dict.pt : dict.en;
 
   return (
-    <div className="space-y-8 font-sans">
+    <div className="max-w-4xl mx-auto space-y-8 font-sans">
       <div className="border-b border-zinc-200 dark:border-zinc-800 pb-6">
         <h1 className="text-4xl font-extrabold tracking-tight text-zinc-900 dark:text-zinc-50 mb-4">
           {t.title}

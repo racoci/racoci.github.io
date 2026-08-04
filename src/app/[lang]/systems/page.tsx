@@ -7,5 +7,9 @@ interface PageProps {
 
 export default async function SystemsPage({ params }: PageProps) {
   const { lang } = await params;
-  return lang === "pt" ? <SystemsPt /> : <SystemsEn />;
+  return (
+    <article className="prose dark:prose-invert prose-emerald max-w-4xl mx-auto">
+      {lang === "pt" ? <SystemsPt /> : <SystemsEn />}
+    </article>
+  );
 }
