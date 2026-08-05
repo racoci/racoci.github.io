@@ -48,7 +48,7 @@ interface Category {
 
 interface LayoutPane {
   id: string;
-  type: "viewport" | "graph" | "editor" | "refactoring" | "dag";
+  type: "viewport" | "graph" | "editor" | "refactoring" | "dag" | "traits";
 }
 
 const PROPS_LIBRARY: PropItem[] = [
@@ -56,7 +56,7 @@ const PROPS_LIBRARY: PropItem[] = [
     id: "gyroid-core",
     name: "Gyroid Reactor Core",
     tags: ["procedural", "organic", "ornament", "energetics"],
-    defaultTraits: { Size: 0.75, Complexity: 4.0, Twist: 1.5, Hollow: 0.0, Texture: 0.0 },
+    defaultTraits: { Size: 0.75, Complexity: 4.0, Twist: 1.5, Hollow: 0.0, Texture: 3.0, Wireframe: 0.0 },
     description: {
       en: "Procedural reactor core modulated by high-frequency trigonometric noise fields.",
       pt: "Núcleo de reator procedural modulado por campos de ruído trigonométrico senoidal."
@@ -69,7 +69,8 @@ const PROPS_LIBRARY: PropItem[] = [
  * @trait Complexity [1.0, 10.0, 4.0]
  * @trait Twist [-5.0, 5.0, 1.5]
  * @trait Hollow [0.0, 1.0, 0.0]
- * @trait Texture [0.0, 3.0, 0.0]
+ * @trait Texture [0.0, 3.0, 3.0]
+ * @trait Wireframe [0.0, 1.0, 0.0]
  */
 
 struct Trait {
@@ -78,6 +79,7 @@ struct Trait {
   twist: f32,
   hollow: f32,
   texture: f32,
+  wireframe: f32,
 }
 
 fn sdf(p: vec3f, t: Trait) -> f32 {
@@ -100,7 +102,7 @@ fn sdf(p: vec3f, t: Trait) -> f32 {
     id: "threaded-bolt",
     name: "Threaded Mechanical Bolt",
     tags: ["mechanical", "hard-surface", "kitbash", "joint"],
-    defaultTraits: { Size: 0.8, Complexity: 8.0, Twist: 2.0, Hollow: 0.0, Texture: 0.0 },
+    defaultTraits: { Size: 0.8, Complexity: 8.0, Twist: 2.0, Hollow: 0.0, Texture: 1.0, Wireframe: 0.0 },
     description: {
       en: "Hexagonal head structural bolt featuring helical thread pitch modulation.",
       pt: "Parafuso estrutural de cabeça hexagonal com passo de rosca helicoidal regulável."
@@ -113,7 +115,8 @@ fn sdf(p: vec3f, t: Trait) -> f32 {
  * @trait Complexity [1.0, 20.0, 8.0]
  * @trait Twist [-5.0, 5.0, 2.0]
  * @trait Hollow [0.0, 1.0, 0.0]
- * @trait Texture [0.0, 3.0, 0.0]
+ * @trait Texture [0.0, 3.0, 1.0]
+ * @trait Wireframe [0.0, 1.0, 0.0]
  */
 
 struct Trait {
@@ -122,6 +125,7 @@ struct Trait {
   twist: f32,
   hollow: f32,
   texture: f32,
+  wireframe: f32,
 }
 
 fn sdf(p: vec3f, t: Trait) -> f32 {
@@ -141,7 +145,7 @@ fn sdf(p: vec3f, t: Trait) -> f32 {
     id: "industrial-gear",
     name: "Industrial Spur Gear",
     tags: ["mechanical", "hard-surface", "kitbash", "procedural"],
-    defaultTraits: { Size: 0.85, Complexity: 10.0, Twist: 1.5, Hollow: 1.0, Texture: 0.0 },
+    defaultTraits: { Size: 0.85, Complexity: 10.0, Twist: 1.5, Hollow: 1.0, Texture: 0.0, Wireframe: 0.0 },
     description: {
       en: "Heavy transmission pinion with variable gear teeth frequency and hollow shaft.",
       pt: "Pinhão de transmissão pesada com frequência de dentes variável e furo axial."
@@ -155,6 +159,7 @@ fn sdf(p: vec3f, t: Trait) -> f32 {
  * @trait Twist [-5.0, 5.0, 1.5]
  * @trait Hollow [0.0, 1.0, 1.0]
  * @trait Texture [0.0, 3.0, 0.0]
+ * @trait Wireframe [0.0, 1.0, 0.0]
  */
 
 struct Trait {
@@ -163,6 +168,7 @@ struct Trait {
   twist: f32,
   hollow: f32,
   texture: f32,
+  wireframe: f32,
 }
 
 fn sdf(p: vec3f, t: Trait) -> f32 {
@@ -183,7 +189,7 @@ fn sdf(p: vec3f, t: Trait) -> f32 {
     id: "organic-root",
     name: "Organic Root Knot",
     tags: ["organic", "procedural", "ornament"],
-    defaultTraits: { Size: 0.7, Complexity: 6.0, Twist: 3.0, Hollow: 0.0, Texture: 0.0 },
+    defaultTraits: { Size: 0.7, Complexity: 6.0, Twist: 3.0, Hollow: 0.0, Texture: 3.0, Wireframe: 0.0 },
     description: {
       en: "Biomorphic knotted vine structured as a twisted wave-modulated torus.",
       pt: "Trepadeira nodosa biomórfica estruturada como um toro de onda torcida."
@@ -196,7 +202,8 @@ fn sdf(p: vec3f, t: Trait) -> f32 {
  * @trait Complexity [1.0, 12.0, 6.0]
  * @trait Twist [-5.0, 5.0, 3.0]
  * @trait Hollow [0.0, 1.0, 0.0]
- * @trait Texture [0.0, 3.0, 0.0]
+ * @trait Texture [0.0, 3.0, 3.0]
+ * @trait Wireframe [0.0, 1.0, 0.0]
  */
 
 struct Trait {
@@ -205,6 +212,7 @@ struct Trait {
   twist: f32,
   hollow: f32,
   texture: f32,
+  wireframe: f32,
 }
 
 fn sdf(p: vec3f, t: Trait) -> f32 {
@@ -223,7 +231,7 @@ fn sdf(p: vec3f, t: Trait) -> f32 {
     id: "scifi-crate",
     name: "Modular Sci-Fi Crate",
     tags: ["structural", "hard-surface", "kitbash", "procedural"],
-    defaultTraits: { Size: 0.8, Complexity: 5.0, Twist: 1.0, Hollow: 0.0, Texture: 0.0 },
+    defaultTraits: { Size: 0.8, Complexity: 5.0, Twist: 1.0, Hollow: 0.0, Texture: 2.0, Wireframe: 0.0 },
     description: {
       en: "Heavy reinforced cargo crate with mathematical panel grooves and beveled edges.",
       pt: "Caixa de carga reforçada com ranhuras geométricas e cantos chanfrados."
@@ -236,7 +244,8 @@ fn sdf(p: vec3f, t: Trait) -> f32 {
  * @trait Complexity [2.0, 10.0, 5.0]
  * @trait Twist [-5.0, 5.0, 1.0]
  * @trait Hollow [0.0, 1.0, 0.0]
- * @trait Texture [0.0, 3.0, 0.0]
+ * @trait Texture [0.0, 3.0, 2.0]
+ * @trait Wireframe [0.0, 1.0, 0.0]
  */
 
 struct Trait {
@@ -245,6 +254,7 @@ struct Trait {
   twist: f32,
   hollow: f32,
   texture: f32,
+  wireframe: f32,
 }
 
 fn sdf(p: vec3f, t: Trait) -> f32 {
@@ -305,10 +315,11 @@ export default function NodeGraftViewer({ lang }: NodeGraftViewerProps) {
   const [traits, setTraits] = useState<Record<string, number>>(PROPS_LIBRARY[0].defaultTraits);
   const [activeDagNode, setActiveDagNode] = useState<string>("eval");
 
+  // Multi-window split/close panes (Defaulting to Graph, Viewport, and Traits panel for maximum accessibility!)
   const [panes, setPanes] = useState<LayoutPane[]>([
     { id: "pane-left", type: "graph" },
     { id: "pane-center", type: "viewport" },
-    { id: "pane-right", type: "editor" }
+    { id: "pane-right", type: "traits" }
   ]);
 
   const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({
@@ -379,7 +390,7 @@ export default function NodeGraftViewer({ lang }: NodeGraftViewerProps) {
     const targetIdx = panes.findIndex((p) => p.id === id);
     if (targetIdx === -1) return;
 
-    const types: LayoutPane["type"][] = ["refactoring", "dag", "viewport", "graph", "editor"];
+    const types: LayoutPane["type"][] = ["refactoring", "dag", "viewport", "graph", "editor", "traits"];
     const activeTypes = panes.map((p) => p.type);
     const unusedType = types.find((t) => !activeTypes.includes(t)) || "refactoring";
 
@@ -408,7 +419,7 @@ export default function NodeGraftViewer({ lang }: NodeGraftViewerProps) {
     setPanes([
       { id: "pane-left", type: "graph" },
       { id: "pane-center", type: "viewport" },
-      { id: "pane-right", type: "editor" }
+      { id: "pane-right", type: "traits" }
     ]);
   };
 
@@ -866,14 +877,22 @@ export default function NodeGraftViewer({ lang }: NodeGraftViewerProps) {
 
     quads.sort((a, b) => b.depth - a.depth);
 
-    const lightDir = { x: 0.4, y: 0.6, z: -0.7 };
+    const lightDir = { x: 0.5, y: 0.8, z: -0.5 };
     const lightLen = Math.sqrt(lightDir.x * lightDir.x + lightDir.y * lightDir.y + lightDir.z * lightDir.z);
     lightDir.x /= lightLen;
     lightDir.y /= lightLen;
     lightDir.z /= lightLen;
 
-    // Detect the selected texture mode from the "Texture" trait slider
     const textureMode = traits["Texture"] !== undefined ? Math.floor(traits["Texture"]) : 0;
+    const wireframeMode = traits["Wireframe"] !== undefined ? traits["Wireframe"] : 0.0;
+
+    const hx = lightDir.x;
+    const hy = lightDir.y;
+    const hz = lightDir.z - 1.0;
+    const hLen = Math.sqrt(hx * hx + hy * hy + hz * hz);
+    const hx_n = hx / hLen;
+    const hy_n = hy / hLen;
+    const hz_n = hz / hLen;
 
     quads.forEach((q) => {
       const p0 = projectedVertices[q.indices[0]];
@@ -881,7 +900,6 @@ export default function NodeGraftViewer({ lang }: NodeGraftViewerProps) {
       const p2 = projectedVertices[q.indices[2]];
       const p3 = projectedVertices[q.indices[3]];
 
-      // Calculate model space coordinates for procedural textures
       const avgX = (p0.rawX + p1.rawX + p2.rawX + p3.rawX) / 4;
       const avgY = (p0.rawY + p1.rawY + p2.rawY + p3.rawY) / 4;
       const avgZ = (p0.rawZ + p1.rawZ + p2.rawZ + p3.rawZ) / 4;
@@ -893,50 +911,97 @@ export default function NodeGraftViewer({ lang }: NodeGraftViewerProps) {
       let nz2 = n.y * sinP + nz1 * cosP;
 
       const dot = nx1 * lightDir.x + ny2 * lightDir.y + nz2 * lightDir.z;
-      const intensity = Math.max(0.1, dot);
+      const diff = Math.max(0.0, dot);
 
-      let r = Math.floor(16 + intensity * 20);
-      let g = Math.floor(185 * intensity + 30);
-      let b = Math.floor(129 * intensity + 40);
-      let baseAlpha = 0.55;
-      let strokeColor = "rgba(16, 185, 129, 0.45)";
-      let strokeWidth = 0.75;
+      const nDotH = nx1 * hx_n + ny2 * hy_n + nz2 * hz_n;
+      
+      let baseR = 140, baseG = 145, baseB = 155;
+      let specPower = 16.0, specIntensity = 0.5;
+      let alpha = 1.0;
 
-      // Apply procedural texture modulations based on trait value
-      if (textureMode === 1) {
-        // Mode 1: Technical Grid / Checkboard
-        const checker = (Math.floor(avgX * 9.0) + Math.floor(avgY * 9.0) + Math.floor(avgZ * 9.0)) % 2;
-        if (checker === 0) {
-          r = Math.floor(r * 0.5);
-          g = Math.floor(g * 0.5);
-          b = Math.floor(b * 0.5);
+      if (textureMode === 0) {
+        baseR = 190; baseG = 195; baseB = 210;
+        specPower = 32.0; specIntensity = 1.1;
+        const brushed = Math.sin(Math.sqrt(avgX * avgX + avgY * avgY + avgZ * avgZ) * 90.0) * 0.06;
+        baseR = Math.max(0, Math.min(255, baseR + Math.floor(brushed * 255)));
+        baseG = Math.max(0, Math.min(255, baseG + Math.floor(brushed * 255)));
+        baseB = Math.max(0, Math.min(255, baseB + Math.floor(brushed * 255)));
+      } else if (textureMode === 1) {
+        const rustField = Math.sin(avgX * 14.0) * Math.sin(avgY * 16.0) + Math.cos(avgZ * 12.0) * 0.5;
+        if (rustField > 0.3) {
+          baseR = 105; baseG = 50; baseB = 35;
+          specPower = 4.0; specIntensity = 0.15;
+        } else if (rustField < -0.3) {
+          baseR = 45; baseG = 145; baseB = 120;
+          specPower = 8.0; specIntensity = 0.2;
+        } else {
+          baseR = 185; baseG = 105; baseB = 55;
+          specPower = 20.0; specIntensity = 0.7;
         }
       } else if (textureMode === 2) {
-        // Mode 2: Carbon Fiber Stripes
-        const stripes = Math.abs(Math.sin(avgY * 22.0 + avgX * 11.0)) > 0.55 ? 1 : 0;
-        if (stripes === 1) {
-          // Dark charcoal Carbon Fiber look
-          r = Math.floor(30 * intensity + 10);
-          g = Math.floor(30 * intensity + 15);
-          b = Math.floor(35 * intensity + 15);
-          strokeColor = "rgba(63, 63, 70, 0.3)";
+        baseR = 40; baseG = 45; baseB = 55;
+        specPower = 24.0; specIntensity = 0.8;
+        
+        const onPlateRegion = Math.abs(avgX) > 0.35 || avgY > 0.4 || avgZ < -0.3;
+        const hazardStripe = Math.floor((avgX + avgY) * 7.5) % 2;
+        
+        if (onPlateRegion && hazardStripe === 0) {
+          baseR = 215; baseG = 165; baseB = 10;
+          specPower = 12.0; specIntensity = 0.4;
+        } else if (onPlateRegion) {
+          baseR = 25; baseG = 25; baseB = 25;
+        } else {
+          const weaveX = Math.floor(avgX * 180) % 2;
+          const weaveY = Math.floor(avgY * 180) % 2;
+          const weave = weaveX ^ weaveY;
+          if (weave === 0) {
+            baseR = Math.floor(baseR * 0.75);
+            baseG = Math.floor(baseG * 0.75);
+            baseB = Math.floor(baseB * 0.75);
+          }
         }
       } else if (textureMode === 3) {
-        // Mode 3: Bioluminescent Veins / Glowing Pulse lines
-        const time = performance.now() * 0.003;
-        const pulse = Math.sin(avgX * 7.0 + time) * Math.cos(avgY * 7.0) * Math.sin(avgZ * 7.0) * 0.5 + 0.5;
-        if (pulse > 0.73) {
-          // Neon glow!
-          r = 52;
-          g = 211;
-          b = 153;
-          baseAlpha = 0.95;
-          strokeColor = "rgba(52, 211, 153, 0.9)";
-          strokeWidth = 1.5;
+        const grain = Math.sin(Math.sqrt(avgX * avgX + avgZ * avgZ) * 55.0) * 0.15;
+        baseR = Math.max(0, Math.min(255, 120 + Math.floor(grain * 45)));
+        baseG = Math.max(0, Math.min(255, 80 + Math.floor(grain * 35)));
+        baseB = Math.max(0, Math.min(255, 50 + Math.floor(grain * 25)));
+        specPower = 2.0; specIntensity = 0.05;
+
+        const mossNoise = Math.sin(avgX * 12.0) * Math.cos(avgZ * 12.0) * 0.5 + 0.5;
+        if (ny2 > 0.35 && mossNoise > 0.3) {
+          baseR = 35; baseG = 115; baseB = 55;
+          specPower = 1.0; specIntensity = 0.0;
         }
       }
 
-      ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${baseAlpha})`;
+      let r = Math.floor(baseR * (0.15 + diff * 0.85));
+      let g = Math.floor(baseG * (0.15 + diff * 0.85));
+      let b = Math.floor(baseB * (0.15 + diff * 0.85));
+
+      if (diff > 0.0 && specIntensity > 0.0) {
+        const specVal = Math.pow(Math.max(0.0, nDotH), specPower) * specIntensity;
+        r = Math.min(255, r + Math.floor(255 * specVal));
+        g = Math.min(255, g + Math.floor(255 * specVal));
+        b = Math.min(255, b + Math.floor(255 * specVal));
+      }
+
+      const depthCue = Math.max(0.45, Math.min(1.0, (q.depth + 1.3) / 2.6));
+      r = Math.floor(r * depthCue);
+      g = Math.floor(g * depthCue);
+      b = Math.floor(b * depthCue);
+
+      let strokeColor = "transparent";
+      let strokeWidth = 0.5;
+
+      if (wireframeMode > 0.5) {
+        strokeColor = `rgba(${Math.min(255, r + 45)}, ${Math.min(255, g + 45)}, ${Math.min(255, b + 45)}, 0.4)`;
+        strokeWidth = 0.85;
+      } else {
+        strokeColor = `rgba(${Math.floor(r * 0.8)}, ${Math.floor(g * 0.8)}, ${Math.floor(b * 0.8)}, 0.15)`;
+        strokeWidth = 0.5;
+      }
+
+      ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${alpha})`;
       ctx.strokeStyle = strokeColor;
       ctx.lineWidth = strokeWidth;
 
@@ -1034,6 +1099,36 @@ export default function NodeGraftViewer({ lang }: NodeGraftViewerProps) {
             />
             <div className="absolute top-4 left-4 bg-zinc-950/80 border border-zinc-800/80 rounded px-2.5 py-1 text-[9px] text-zinc-400 font-mono pointer-events-none">
               {d.canvasInstructions}
+            </div>
+
+            {/* Viewport Overlay Controls for Instant Material and Wireframe Swap */}
+            <div className="absolute bottom-6 right-6 flex flex-wrap gap-2 pointer-events-auto">
+              {/* Material Dropdown */}
+              <div className="flex items-center gap-1 bg-zinc-950/90 border border-zinc-800/80 rounded px-2 py-1 text-[10px] text-zinc-300 font-mono">
+                <span>Mat:</span>
+                <select
+                  value={traits["Texture"] !== undefined ? Math.floor(traits["Texture"]) : 0}
+                  onChange={(e) => handleTraitChange("Texture", parseInt(e.target.value))}
+                  className="bg-transparent text-emerald-400 font-bold outline-none cursor-pointer border-none py-0 px-1 hover:text-emerald-300"
+                >
+                  <option value={0}>{lang === "pt" ? "Aço Escovado (0)" : "Polished Steel (0)"}</option>
+                  <option value={1}>{lang === "pt" ? "Cobre & Ferrugem (1)" : "Rusty Copper (1)"}</option>
+                  <option value={2}>{lang === "pt" ? "Placas Sci-Fi (2)" : "Sci-Fi Plates (2)"}</option>
+                  <option value={3}>{lang === "pt" ? "Madeira & Musgo (3)" : "Mossy Wood (3)"}</option>
+                </select>
+              </div>
+
+              {/* Wireframe Toggle overlay button */}
+              <button
+                onClick={() => handleTraitChange("Wireframe", (traits["Wireframe"] !== undefined ? traits["Wireframe"] : 0.0) > 0.5 ? 0.0 : 1.0)}
+                className={`px-2.5 py-1 text-[9px] font-bold font-mono rounded border transition-all ${
+                  (traits["Wireframe"] !== undefined ? traits["Wireframe"] : 0.0) > 0.5
+                    ? "bg-emerald-500/25 border-emerald-500/50 text-emerald-400"
+                    : "bg-zinc-950/90 border-zinc-800/80 text-zinc-400 hover:text-zinc-200"
+                }`}
+              >
+                {(traits["Wireframe"] !== undefined ? traits["Wireframe"] : 0.0) > 0.5 ? "Wireframe: ON" : "Wireframe: OFF"}
+              </button>
             </div>
           </div>
         );
@@ -1315,11 +1410,76 @@ export default function NodeGraftViewer({ lang }: NodeGraftViewerProps) {
             </div>
           </div>
         );
+
+      case "traits":
+        return (
+          <div className="flex-1 p-4 bg-white dark:bg-zinc-950 flex flex-col h-full overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-zinc-100 dark:border-zinc-800 pb-2 mb-3">
+              <h4 className="text-xs font-bold text-zinc-400 uppercase tracking-wider">
+                {lang === "pt" ? "Controle de Parâmetros do Prop" : "Prop Parameter Controls"}
+              </h4>
+              <button
+                onClick={handleTraitsDefaultSync}
+                className="text-[9px] font-bold text-emerald-600 hover:underline"
+              >
+                {lang === "pt" ? "Restaurar Padrões" : "Reset Sliders"}
+              </button>
+            </div>
+            <div className="space-y-4 flex-1">
+              {parsedTraits.map((t) => (
+                <div key={t.name} className="space-y-1.5 border-b border-zinc-50 dark:border-zinc-900 pb-2.5">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-semibold text-zinc-700 dark:text-zinc-300">{t.name}</span>
+                    <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">
+                      {(traits[t.name] !== undefined ? traits[t.name] : t.value).toFixed(2)}
+                    </span>
+                  </div>
+                  {t.type === "slider" ? (
+                    <input
+                      type="range"
+                      min={t.min}
+                      max={t.max}
+                      step={0.05}
+                      value={traits[t.name] !== undefined ? traits[t.name] : t.value}
+                      onChange={(e) => handleTraitChange(t.name, parseFloat(e.target.value))}
+                      className="w-full h-1 bg-zinc-200 dark:bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-emerald-500"
+                    />
+                  ) : (
+                    <button
+                      onClick={() =>
+                        handleTraitChange(
+                          t.name,
+                          (traits[t.name] !== undefined ? traits[t.name] : t.value) > 0.5 ? 0 : 1
+                        )
+                      }
+                      className={`w-full py-1 text-center rounded text-[10px] font-semibold border transition-all ${
+                        (traits[t.name] !== undefined ? traits[t.name] : t.value) > 0.5
+                          ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30"
+                          : "bg-zinc-100 dark:bg-zinc-900 text-zinc-500 border-zinc-200 dark:border-zinc-800"
+                      }`}
+                    >
+                      {(traits[t.name] !== undefined ? traits[t.name] : t.value) > 0.5 ? "ON" : "OFF"}
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            <div className="pt-3 border-t border-zinc-100 dark:border-zinc-900 flex flex-col gap-1.5 mt-3">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">
+                {lang === "pt" ? "Prop em Edição:" : "Active Inspected Prop:"}
+              </span>
+              <span className="text-xs font-bold text-zinc-800 dark:text-zinc-100">{activeProp.name}</span>
+              <p className="text-[10px] text-zinc-500 font-serif leading-normal">{activeProp.description[lang]}</p>
+            </div>
+          </div>
+        );
     }
   };
 
   return (
     <div className="border border-zinc-200 dark:border-zinc-800 rounded-xl overflow-hidden bg-white dark:bg-zinc-950/60 shadow-xl flex flex-col font-sans mb-12">
+      {/* Workspace Global Controller Header */}
       <div className="bg-zinc-100 dark:bg-zinc-900 px-5 py-3 border-b border-zinc-200 dark:border-zinc-800 flex flex-wrap gap-3 items-center justify-between">
         <div className="flex items-center gap-2">
           <span className="flex h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
@@ -1335,8 +1495,10 @@ export default function NodeGraftViewer({ lang }: NodeGraftViewerProps) {
         </button>
       </div>
 
+      {/* Main Grid: Responsive layouts that dynamically load the active widgets */}
       <div className="grid grid-cols-1 lg:grid-cols-12 divide-y lg:divide-y-0 lg:divide-x divide-zinc-200 dark:divide-zinc-800 min-h-[450px]">
         {panes.map((pane) => {
+          // Desktop column sizes adjusted dynamically based on active panels
           let colSpan = "col-span-1 lg:col-span-4";
           if (pane.type === "viewport" && panes.length === 3) {
             colSpan = "col-span-1 lg:col-span-5";
@@ -1346,6 +1508,7 @@ export default function NodeGraftViewer({ lang }: NodeGraftViewerProps) {
 
           return (
             <div key={pane.id} className={`${colSpan} flex flex-col h-full bg-white dark:bg-zinc-950/20`}>
+              {/* Individual Pane Controller Header */}
               <div className="px-3.5 py-2 bg-zinc-50 dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between text-xs">
                 <select
                   value={pane.type}
@@ -1354,6 +1517,7 @@ export default function NodeGraftViewer({ lang }: NodeGraftViewerProps) {
                 >
                   <option value="viewport">{d.widgetTitle}</option>
                   <option value="graph">{d.graphTitle}</option>
+                  <option value="traits">{lang === "pt" ? "Controle de Parâmetros" : "Parameter Controls"}</option>
                   <option value="editor">{d.editorTitle}</option>
                   <option value="refactoring">{d.refactHeader}</option>
                   <option value="dag">GPU Pipeline DAG</option>
@@ -1379,91 +1543,11 @@ export default function NodeGraftViewer({ lang }: NodeGraftViewerProps) {
                 </div>
               </div>
 
+              {/* Rendering selected sub-widget */}
               <div className="flex-1 flex flex-col">{renderWidget(pane.type)}</div>
             </div>
           );
         })}
-      </div>
-
-      <div className="bg-zinc-50/50 dark:bg-zinc-950/40 border-t border-zinc-200 dark:border-zinc-800 p-5 grid grid-cols-1 md:grid-cols-12 gap-6">
-        <div className="md:col-span-8 space-y-4">
-          <div className="flex items-center justify-between border-b border-zinc-100 dark:border-zinc-900 pb-2">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">
-              {lang === "pt" ? "Parâmetros Gerais do Prop Ativo" : "Active Prop Parameter Controls"}
-            </span>
-            <button
-              onClick={handleTraitsDefaultSync}
-              className="text-[9px] font-bold text-emerald-600 hover:underline"
-            >
-              {lang === "pt" ? "Restaurar Padrões" : "Reset Sliders"}
-            </button>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4">
-            {parsedTraits.map((t) => (
-              <div key={t.name} className="space-y-1">
-                <div className="flex items-center justify-between text-[11px]">
-                  <span className="font-semibold text-zinc-700 dark:text-zinc-300">{t.name}</span>
-                  <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">
-                    {(traits[t.name] !== undefined ? traits[t.name] : t.value).toFixed(2)}
-                  </span>
-                </div>
-                {t.type === "slider" ? (
-                  <input
-                    type="range"
-                    min={t.min}
-                    max={t.max}
-                    step={0.05}
-                    value={traits[t.name] !== undefined ? traits[t.name] : t.value}
-                    onChange={(e) => handleTraitChange(t.name, parseFloat(e.target.value))}
-                    className="w-full h-1 bg-zinc-200 rounded-lg appearance-none cursor-pointer accent-emerald-500"
-                  />
-                ) : (
-                  <button
-                    onClick={() =>
-                      handleTraitChange(
-                        t.name,
-                        (traits[t.name] !== undefined ? traits[t.name] : t.value) > 0.5 ? 0 : 1
-                      )
-                    }
-                    className={`w-full py-1 text-center rounded text-[10px] font-semibold border transition-all ${
-                      (traits[t.name] !== undefined ? traits[t.name] : t.value) > 0.5
-                        ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30"
-                        : "bg-zinc-100 dark:bg-zinc-900 text-zinc-500 border-zinc-200 dark:border-zinc-800"
-                    }`}
-                  >
-                    {(traits[t.name] !== undefined ? traits[t.name] : t.value) > 0.5 ? "ON" : "OFF"}
-                  </button>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="md:col-span-4 flex flex-col justify-between border-l md:border-l border-zinc-200 dark:border-zinc-800 pl-0 md:pl-6 pt-4 md:pt-0">
-          <div className="space-y-2">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 block">
-              {lang === "pt" ? "Prop em Edição:" : "Active Inspected Prop:"}
-            </span>
-            <span className="text-sm font-bold text-zinc-800 dark:text-zinc-100 block">{activeProp.name}</span>
-            <span className="text-[11px] text-zinc-500 leading-normal block font-serif">{activeProp.description[lang]}</span>
-          </div>
-
-          <div className="space-y-1.5 pt-3 border-t border-zinc-100 dark:border-zinc-900/40 mt-3">
-            <span className="text-[9px] font-bold uppercase tracking-wider text-zinc-400 block">
-              {lang === "pt" ? "Tags do Item:" : "Prop Tags:"}
-            </span>
-            <div className="flex flex-wrap gap-1">
-              {currentPropTags.map((tag) => (
-                <span
-                  key={tag}
-                  className="text-[9px] font-mono bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-1.5 py-0.5 rounded border border-emerald-500/20"
-                >
-                  #{tag}
-                </span>
-              ))}
-            </div>
-          </div>
-        </div>
       </div>
 
       {/* Telemetry Bar */}
@@ -1493,7 +1577,7 @@ export default function NodeGraftViewer({ lang }: NodeGraftViewerProps) {
       {/* GPU Adapter Details */}
       <div className="bg-zinc-950 text-[10px] text-zinc-500 px-5 py-2 font-mono flex items-center justify-between border-t border-zinc-900">
         <span>Adapter Details: {gpuName}</span>
-        <span>Version: 1.2.0 (Git-backed)</span>
+        <span>Version: 1.3.0 (Git-backed)</span>
       </div>
     </div>
   );
