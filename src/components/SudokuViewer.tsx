@@ -340,22 +340,7 @@ export default function SudokuViewer({ lang }: SudokuViewerProps) {
     return () => observer.disconnect();
   }, []);
 
-  const startNewGame = (diff = difficulty) => {
-    const { puzzle, solution: sol } = generatePuzzle(diff);
-    setBoard(puzzle);
-    setInitialBoard([...puzzle]);
-    setSolution(sol);
-    setSelectedIndices([]);
-    setHint(null);
-    setHintMessage(null);
-  };
-
-  const resetCurrentBoard = () => {
-    setBoard([...initialBoard]);
-    setSelectedIndices([]);
-    setHint(null);
-    setHintMessage(null);
-  };
+  const bgRef = useRef<HTMLDivElement>(null);
 
   const syncCodeTextFromBoard = (currentBoard: number[]) => {
     const lines: string[] = [];
@@ -367,6 +352,25 @@ export default function SudokuViewer({ lang }: SudokuViewerProps) {
       }
     });
     setCustomCodeText(lines.join("\n"));
+  };
+
+  const startNewGame = (diff = difficulty) => {
+    const { puzzle, solution: sol } = generatePuzzle(diff);
+    setBoard(puzzle);
+    setInitialBoard([...puzzle]);
+    setSolution(sol);
+    setSelectedIndices([]);
+    setHint(null);
+    setHintMessage(null);
+    syncCodeTextFromBoard(puzzle);
+  };
+
+  const resetCurrentBoard = () => {
+    setBoard([...initialBoard]);
+    setSelectedIndices([]);
+    setHint(null);
+    setHintMessage(null);
+    syncCodeTextFromBoard(initialBoard);
   };
 
   const handleInputDigit = (num: number) => {
@@ -397,18 +401,19 @@ export default function SudokuViewer({ lang }: SudokuViewerProps) {
   };
 
   const handleTextareaChange = (text: string) => {
-    setCustomCodeText(text);
+    const val = text.replace(/[^1-9\n]/g, "");
+    setCustomCodeText(val);
     
-    const lines = text.split("\n")
+    const lines = val.split("\n")
       .map(line => line.trim())
       .filter(line => /^[1-9][1-9][1-9]$/.test(line));
     
     const newBoard = Array(81).fill(0);
     lines.forEach((line) => {
-      const val = parseInt(line[0], 10);
+      const value = parseInt(line[0], 10);
       const r = parseInt(line[1], 10) - 1;
       const c = parseInt(line[2], 10) - 1;
-      newBoard[r * 9 + c] = val;
+      newBoard[r * 9 + c] = value;
     });
 
     setBoard(newBoard);
@@ -420,6 +425,27 @@ export default function SudokuViewer({ lang }: SudokuViewerProps) {
       setSolution(solCopy);
     } else {
       setSolution(Array(81).fill(0));
+    }
+  };
+
+  const handleTextareaKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    const key = e.key;
+    const isControlOrMeta = e.ctrlKey || e.metaKey;
+    const isEditingShortcut = isControlOrMeta && ["a", "c", "v", "z", "x"].includes(key.toLowerCase());
+    
+    const isDigit = /^[1-9]$/.test(key);
+    const isArrowKey = ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(key);
+    const isOtherAllowed = ["Enter", "Backspace", "Delete"].includes(key);
+
+    if (!isDigit && !isArrowKey && !isOtherAllowed && !isEditingShortcut) {
+      e.preventDefault();
+    }
+  };
+
+  const handleScroll = (e: React.UIEvent<HTMLTextAreaElement>) => {
+    if (bgRef.current) {
+      bgRef.current.scrollTop = e.currentTarget.scrollTop;
+      bgRef.current.scrollLeft = e.currentTarget.scrollLeft;
     }
   };
 
@@ -1164,14 +1190,41 @@ export default function SudokuViewer({ lang }: SudokuViewerProps) {
                 <span>{t.editModeLabel}</span>
               </label>
 
-              <textarea
-                cols={4}
-                rows={10}
-                value={customCodeText}
-                onChange={(e) => handleTextareaChange(e.target.value)}
-                placeholder="---"
-                className="w-16 h-48 font-mono text-center text-sm font-bold resize-none px-2 py-1.5 bg-zinc-950 text-emerald-400 rounded border border-zinc-800 focus:outline-none focus:ring-1 focus:ring-emerald-500/50"
-              />
+              <div className="relative font-mono text-sm leading-6 h-48 w-16 border border-zinc-800 rounded bg-zinc-950 overflow-hidden focus-within:ring-1 focus-within:ring-emerald-500/50">
+                <div
+                  ref={bgRef}
+                  className="absolute inset-0 px-3 py-2 overflow-hidden pointer-events-none select-none font-mono text-sm leading-6 whitespace-pre text-left"
+                >
+                  {customCodeText === "" ? (
+                    <div style={{ color: "#52525b" }}>---</div>
+                  ) : (
+                    customCodeText.split("\n").map((line, idx) => {
+                      const firstChar = line[0];
+                      const isDigit = firstChar && /^[1-9]$/.test(firstChar);
+                      const color = isMounted && isDigit ? getNumColor(parseInt(firstChar, 10), isDarkMode) : "#52525b";
+                      return (
+                        <div key={idx} style={{ color }}>
+                          {line || " "}
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+
+                <textarea
+                  cols={4}
+                  rows={10}
+                  value={customCodeText}
+                  onChange={(e) => handleTextareaChange(e.target.value)}
+                  onKeyDown={handleTextareaKeyDown}
+                  onScroll={handleScroll}
+                  className="absolute inset-0 w-full h-full font-mono text-sm leading-6 resize-none px-3 py-2 bg-transparent text-transparent caret-emerald-400 border-0 focus:outline-none focus:ring-0 overflow-y-auto overflow-x-hidden text-left"
+                  style={{
+                    scrollbarWidth: "none",
+                    msOverflowStyle: "none",
+                  }}
+                />
+              </div>
 
               <p className="w-full text-[11px] font-serif leading-relaxed text-zinc-500 dark:text-zinc-400 text-center">
                 {t.editorInstructions}
