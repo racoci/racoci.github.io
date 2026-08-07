@@ -342,15 +342,6 @@ export default function InteractiveHero({ lang }: InteractiveHeroProps) {
             className="inline-flex items-center justify-center gap-2 px-5 py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold rounded-xl hover:shadow-lg hover:-translate-y-0.5 transition-all text-sm group"
           >
             <span>{t.btn}</span>
-            <svg
-              className="h-4 w-4 text-emerald-200 group-hover:translate-x-0.5 transition-transform"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              strokeWidth="2.5"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
-            </svg>
           </Link>
           <span className="text-[10px] text-zinc-400 dark:text-zinc-500 font-serif max-w-[200px] leading-normal italic">
             {t.interactiveLabel}
