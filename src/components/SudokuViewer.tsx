@@ -48,7 +48,17 @@ function isValidPlacement(board: number[], idx: number, num: number): boolean {
   return true;
 }
 
-function fillBoard(board: number[]): boolean {
+interface SolverConfig {
+  steps: number;
+  maxSteps: number;
+}
+
+function fillBoardCapped(board: number[], config: SolverConfig): boolean {
+  config.steps++;
+  if (config.steps > config.maxSteps) {
+    return false; // Abort search to prevent thread lock!
+  }
+
   const emptyIdx = board.indexOf(0);
   if (emptyIdx === -1) return true;
 
@@ -61,11 +71,16 @@ function fillBoard(board: number[]): boolean {
   for (const num of candidates) {
     if (isValidPlacement(board, emptyIdx, num)) {
       board[emptyIdx] = num;
-      if (fillBoard(board)) return true;
+      if (fillBoardCapped(board, config)) return true;
       board[emptyIdx] = 0;
     }
   }
   return false;
+}
+
+function fillBoard(board: number[]): boolean {
+  const config = { steps: 0, maxSteps: 4000 };
+  return fillBoardCapped(board, config);
 }
 
 function getCandidates(board: number[], idx: number): number[] {
