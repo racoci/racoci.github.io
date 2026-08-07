@@ -771,52 +771,41 @@ export default function SudokuViewer({ lang }: SudokuViewerProps) {
           </div>
         </div>
 
+        {/* Main Board Wrapper with a solid bounded width to prevent Flexbox collapse */}
+        <div className="w-full max-w-[480px] flex flex-col select-none">
+          
           {/* Top Column Selectors */}
-          <div className="grid grid-cols-[auto_1fr] mb-2">
-            <div className="w-8"></div> {/* Corner spacer */}
-            <div className="flex-1 grid grid-cols-3 gap-2">
-              {[0, 1, 2].map(boxCol => (
-                <div key={boxCol} className="grid grid-cols-3 gap-0 flex-1">
-                  {[0, 1, 2].map(colIdx => {
-                    const c = boxCol * 3 + colIdx;
-                    return (
-                      <button
-                        key={c}
-                        onClick={() => selectCol(c)}
-                        className="text-xs font-mono text-zinc-400 hover:text-emerald-500 transition-colors pb-1"
-                      >
-                        C{c+1}
-                      </button>
-                    );
-                  })}
-                </div>
+          <div className="w-full grid grid-cols-[32px_1fr] mb-1.5">
+            <div className="w-8"></div> {/* Corner spacer matching Row Selectors width */}
+            <div className="grid grid-cols-9 gap-1 text-center">
+              {Array.from({ length: 9 }, (_, c) => (
+                <button
+                  key={c}
+                  onClick={() => selectCol(c)}
+                  className="text-[10px] font-mono text-zinc-400 hover:text-emerald-500 hover:font-bold transition-all pb-0.5"
+                >
+                  C{c + 1}
+                </button>
               ))}
             </div>
           </div>
 
-          <div className="flex">
+          <div className="w-full flex items-stretch gap-2">
             {/* Left Row Selectors */}
-            <div className="flex flex-col w-8 pr-2 gap-2">
-              {[0, 1, 2].map(boxRow => (
-                <div key={boxRow} className="flex flex-col flex-1">
-                  {[0, 1, 2].map(rowIdx => {
-                    const r = boxRow * 3 + rowIdx;
-                    return (
-                      <button
-                        key={r}
-                        onClick={() => selectRow(r)}
-                        className="flex-1 text-xs font-mono text-zinc-400 hover:text-emerald-500 transition-colors flex items-center justify-end pr-1"
-                      >
-                        R{r+1}
-                      </button>
-                    );
-                  })}
-                </div>
+            <div className="w-8 flex flex-col justify-between py-1">
+              {Array.from({ length: 9 }, (_, r) => (
+                <button
+                  key={r}
+                  onClick={() => selectRow(r)}
+                  className="flex-1 text-[10px] font-mono text-zinc-400 hover:text-emerald-500 hover:font-bold transition-all flex items-center justify-end pr-2"
+                >
+                  R{r + 1}
+                </button>
               ))}
             </div>
 
             {/* The 9x9 Sudoku Grid (3x3 of 3x3s) */}
-            <div className="relative w-full max-w-[460px] aspect-square bg-zinc-200/50 dark:bg-zinc-800/50 border-[3px] border-zinc-900 dark:border-zinc-300 p-1 rounded-xl overflow-hidden shadow-2xl grid grid-cols-3 grid-rows-3 gap-1.5">
+            <div className="flex-1 aspect-square bg-zinc-200/50 dark:bg-zinc-800/50 border-[3px] border-zinc-900 dark:border-zinc-300 p-1 rounded-xl overflow-hidden shadow-2xl grid grid-cols-3 grid-rows-3 gap-1.5">
               {isSolved() && (
                 <div className="absolute inset-0 z-30 bg-emerald-950/90 flex flex-col items-center justify-center text-center p-6 space-y-4 animate-fade-in">
                   <span className="text-4xl animate-bounce">🏆</span>
@@ -953,6 +942,7 @@ export default function SudokuViewer({ lang }: SudokuViewerProps) {
               })}
             </div>
           </div>
+        </div>
 
         {/* Visual Number Pad for Touch Devices */}
         <div className="w-full max-w-[500px] flex flex-col space-y-2 p-3 border border-zinc-200 dark:border-zinc-800/80 bg-zinc-50/50 dark:bg-zinc-900/5 rounded-xl">
