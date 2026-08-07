@@ -236,6 +236,9 @@ export default function SudokuViewer({ lang }: SudokuViewerProps) {
       errorsInBoard: "⚠️ Board contains error inputs. Correct them to find naked singles.",
       noNakedSingleFound: "No Naked Singles found. Try filling more cells or search for advanced patterns!",
       numPadClear: "Clear",
+      customEditorHeader: "Custom Puzzle Importer / Editor",
+      editModeLabel: "Custom Edit Mode (Grid Drawing)",
+      editorInstructions: "Format: 612 - Value 6 at Row 1, Col 2. One per line. You can copy/paste this text box to share codes easily.",
     },
     pt: {
       title: "Painel do Mentor de Sudoku",
@@ -274,6 +277,9 @@ export default function SudokuViewer({ lang }: SudokuViewerProps) {
       errorsInBoard: "⚠️ O tabuleiro possui erros. Corrija-os para encontrar Naked Singles.",
       noNakedSingleFound: "Nenhum Naked Single encontrado. Tente preencher outras células ou buscar padrões avançados!",
       numPadClear: "Limpar",
+      customEditorHeader: "Importador / Editor de Tabuleiros",
+      editModeLabel: "Modo de Edição (Desenhar Claves)",
+      editorInstructions: "Formato: 612 - Valor 6 na Linha 1, Col 2. Uma por linha. Você pode copiar/colar esta caixa de texto para compartilhar códigos facilmente.",
     },
   };
 
@@ -290,6 +296,9 @@ export default function SudokuViewer({ lang }: SudokuViewerProps) {
   const [hint, setHint] = useState<NakedSingleHint | null>(null);
   const [hintMessage, setHintMessage] = useState<string | null>(null);
   const [isDarkMode, setIsDarkMode] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [customCodeText, setCustomCodeText] = useState("");
+  const [isEditorCollapsed, setIsEditorCollapsed] = useState(false);
   
   // Guard state to defer inline styles until mounted (prevents Dark Reader hydration mismatch)
   const [isMounted, setIsMounted] = useState(false);
@@ -346,6 +355,88 @@ export default function SudokuViewer({ lang }: SudokuViewerProps) {
     setSelectedIndices([]);
     setHint(null);
     setHintMessage(null);
+  };
+
+  const syncCodeTextFromBoard = (currentBoard: number[]) => {
+    const lines: string[] = [];
+    currentBoard.forEach((val, idx) => {
+      if (val !== 0) {
+        const r = Math.floor(idx / 9) + 1;
+        const c = (idx % 9) + 1;
+        lines.push(`${val}${r}${c}`);
+      }
+    });
+    setCustomCodeText(lines.join("\n"));
+  };
+
+  const handleInputDigit = (num: number) => {
+    if (selectedIndices.length === 0) return;
+    const nextBoard = [...board];
+    let changed = false;
+    selectedIndices.forEach((idx) => {
+      if (isEditMode || initialBoard[idx] === 0) {
+        nextBoard[idx] = num;
+        changed = true;
+      }
+    });
+
+    if (changed) {
+      setBoard(nextBoard);
+      if (isEditMode) {
+        setInitialBoard([...nextBoard]);
+        syncCodeTextFromBoard(nextBoard);
+        const solCopy = [...nextBoard];
+        if (fillBoard(solCopy)) {
+          setSolution(solCopy);
+        } else {
+          setSolution(Array(81).fill(0));
+        }
+      }
+      setHint(null);
+    }
+  };
+
+  const handleTextareaChange = (text: string) => {
+    setCustomCodeText(text);
+    
+    const lines = text.split("\n")
+      .map(line => line.trim())
+      .filter(line => /^[1-9][1-9][1-9]$/.test(line));
+    
+    const newBoard = Array(81).fill(0);
+    lines.forEach((line) => {
+      const val = parseInt(line[0], 10);
+      const r = parseInt(line[1], 10) - 1;
+      const c = parseInt(line[2], 10) - 1;
+      newBoard[r * 9 + c] = val;
+    });
+
+    setBoard(newBoard);
+    setInitialBoard([...newBoard]);
+
+    // Check if solvable and fill board solution
+    const solCopy = [...newBoard];
+    if (fillBoard(solCopy)) {
+      setSolution(solCopy);
+    } else {
+      setSolution(Array(81).fill(0));
+    }
+  };
+
+  const handleToggleEditMode = (checked: boolean) => {
+    setIsEditMode(checked);
+    if (checked) {
+      const emptyBoard = Array(81).fill(0);
+      setBoard(emptyBoard);
+      setInitialBoard(emptyBoard);
+      setCustomCodeText("");
+      setSolution(Array(81).fill(0));
+      setSelectedIndices([]);
+      setHint(null);
+      setHintMessage(null);
+    } else {
+      startNewGame(difficulty);
+    }
   };
 
   // Check if board has conflicts (duplicates in rows/cols/boxes)
@@ -406,16 +497,7 @@ export default function SudokuViewer({ lang }: SudokuViewerProps) {
       // Handle clearing
       if (e.key === "Backspace" || e.key === "Delete" || e.key === "0") {
         e.preventDefault();
-        setBoard((prev) => {
-          const next = [...prev];
-          selectedIndices.forEach((idx) => {
-            if (initialBoard[idx] === 0) {
-              next[idx] = 0;
-            }
-          });
-          return next;
-        });
-        setHint(null);
+        handleInputDigit(0);
         return;
       }
 
@@ -423,22 +505,13 @@ export default function SudokuViewer({ lang }: SudokuViewerProps) {
       const num = parseInt(e.key, 10);
       if (num >= 1 && num <= 9) {
         e.preventDefault();
-        setBoard((prev) => {
-          const next = [...prev];
-          selectedIndices.forEach((idx) => {
-            if (initialBoard[idx] === 0) {
-              next[idx] = num;
-            }
-          });
-          return next;
-        });
-        setHint(null);
+        handleInputDigit(num);
       }
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [selectedIndices, initialBoard]);
+  }, [selectedIndices, board, initialBoard, isEditMode]);
 
   // Click handler with multi-select support (Ctrl key)
   const handleCellClick = (idx: number, e: React.MouseEvent) => {
@@ -593,17 +666,7 @@ export default function SudokuViewer({ lang }: SudokuViewerProps) {
 
   // Virtual Numpad placement for mobile users
   const handleNumPadInput = (num: number) => {
-    if (selectedIndices.length === 0) return;
-    setBoard((prev) => {
-      const next = [...prev];
-      selectedIndices.forEach((idx) => {
-        if (initialBoard[idx] === 0) {
-          next[idx] = num;
-        }
-      });
-      return next;
-    });
-    setHint(null);
+    handleInputDigit(num);
   };
 
   // Compute Combined Possibilities (Bitwise OR of candidates) for Selection Widget
@@ -717,17 +780,7 @@ export default function SudokuViewer({ lang }: SudokuViewerProps) {
   };
 
   const handleNumPadClear = () => {
-    if (selectedIndices.length === 0) return;
-    setBoard((prev) => {
-      const next = [...prev];
-      selectedIndices.forEach((idx) => {
-        if (initialBoard[idx] === 0) {
-          next[idx] = 0;
-        }
-      });
-      return next;
-    });
-    setHint(null);
+    handleInputDigit(0);
   };
 
   return (
@@ -947,7 +1000,7 @@ export default function SudokuViewer({ lang }: SudokuViewerProps) {
         {/* Visual Number Pad for Touch Devices */}
         <div className="w-full max-w-[500px] flex flex-col space-y-2 p-3 border border-zinc-200 dark:border-zinc-800/80 bg-zinc-50/50 dark:bg-zinc-900/5 rounded-xl">
           <div className="grid grid-cols-5 gap-2">
-            {[6, 7, 8, 9].map((n) => (
+            {[1, 2, 3, 4, 5].map((n) => (
               <button
                 key={n}
                 onClick={() => handleNumPadInput(n)}
@@ -1081,6 +1134,50 @@ export default function SudokuViewer({ lang }: SudokuViewerProps) {
               </div>
             )}
           </div>
+        </div>
+
+        {/* Custom Puzzle Importer / Editor Panel */}
+        <div className="p-5 border border-zinc-200 dark:border-zinc-800/80 bg-white dark:bg-zinc-900/20 rounded-xl shadow-sm space-y-4">
+          <button
+            type="button"
+            onClick={() => setIsEditorCollapsed(!isEditorCollapsed)}
+            className="w-full flex items-center justify-between text-sm font-extrabold text-zinc-900 dark:text-zinc-50 font-sans tracking-tight border-b border-zinc-100 dark:border-zinc-800/60 pb-2 text-left focus:outline-none"
+          >
+            <div className="flex items-center gap-1.5">
+              <span>✍️</span>
+              <span>{t.customEditorHeader}</span>
+            </div>
+            <span className="text-xs text-zinc-400 font-mono">
+              {isEditorCollapsed ? "▲" : "▼"}
+            </span>
+          </button>
+
+          {!isEditorCollapsed && (
+            <div className="space-y-4 flex flex-col items-center">
+              <label className="w-full flex items-center gap-2.5 cursor-pointer text-xs font-semibold text-zinc-700 dark:text-zinc-300 select-none">
+                <input
+                  type="checkbox"
+                  checked={isEditMode}
+                  onChange={(e) => handleToggleEditMode(e.target.checked)}
+                  className="rounded border-zinc-300 dark:border-zinc-700 text-emerald-500 focus:ring-emerald-500/50 h-4 w-4 bg-zinc-50 dark:bg-zinc-900"
+                />
+                <span>{t.editModeLabel}</span>
+              </label>
+
+              <textarea
+                cols={4}
+                rows={10}
+                value={customCodeText}
+                onChange={(e) => handleTextareaChange(e.target.value)}
+                placeholder="---"
+                className="w-16 h-48 font-mono text-center text-sm font-bold resize-none px-2 py-1.5 bg-zinc-950 text-emerald-400 rounded border border-zinc-800 focus:outline-none focus:ring-1 focus:ring-emerald-500/50"
+              />
+
+              <p className="w-full text-[11px] font-serif leading-relaxed text-zinc-500 dark:text-zinc-400 text-center">
+                {t.editorInstructions}
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Naked Subset Action Tool */}
