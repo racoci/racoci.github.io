@@ -952,6 +952,16 @@ export default function SudokuViewer({ lang }: SudokuViewerProps) {
                   }
                 }
 
+                // Gather active highlight numbers based on hover and selection
+                const activeHighlightNums = new Set<number>();
+                if (hoveredCellNum !== null && hoveredCellNum !== 0) {
+                  activeHighlightNums.add(hoveredCellNum);
+                }
+                selectedIndices.forEach((sIdx) => {
+                  const val = board[sIdx];
+                  if (val !== 0) activeHighlightNums.add(val);
+                });
+
                 return (
                   <div
                     key={boxIdx}
@@ -977,7 +987,8 @@ export default function SudokuViewer({ lang }: SudokuViewerProps) {
                       const borderTop = (r % 3) !== 0 ? "border-t border-t-zinc-100 dark:border-t-zinc-900/60" : "";
                       const borderLeft = (c % 3) !== 0 ? "border-l border-l-zinc-100 dark:border-l-zinc-900/60" : "";
 
-                      const isMatchHover = cellValue !== 0 && hoveredCellNum === cellValue;
+                      // Highlight active selected or hovered numbers on the board
+                      const isHighlighted = cellValue !== 0 && activeHighlightNums.has(cellValue);
 
                       const customColor = cellValue !== 0 ? getNumColor(cellValue, isDarkMode) : "";
                       const customBg = cellValue !== 0 ? getNumBgColor(cellValue, isDarkMode) : "";
@@ -1002,7 +1013,7 @@ export default function SudokuViewer({ lang }: SudokuViewerProps) {
                           onClick={(e) => handleCellClick(idx, e)}
                           style={isMounted ? {
                             color: cellValue !== 0 ? customColor : undefined,
-                            backgroundColor: subsetBg || (isMatchHover ? customBg : undefined),
+                            backgroundColor: subsetBg || (isHighlighted ? customBg : undefined),
                           } : undefined}
                           className={`relative flex items-center justify-center select-none cursor-pointer transition-all ${borderTop} ${borderLeft} ${
                             isSelected
@@ -1015,7 +1026,7 @@ export default function SudokuViewer({ lang }: SudokuViewerProps) {
                               ? "bg-zinc-50 dark:bg-zinc-900/20 hover:bg-zinc-100 dark:hover:bg-zinc-900/40"
                               : "bg-white dark:bg-zinc-950 hover:bg-zinc-50 dark:hover:bg-zinc-900/10"
                           }
-                          ${isMatchHover ? "shadow-inner scale-102 font-extrabold z-10" : ""}`}
+                          ${isHighlighted ? "shadow-inner scale-102 font-extrabold z-10 animate-fade-in" : ""}`}
                         >
                           {/* Cell Value Rendering */}
                           {cellValue !== 0 ? (
