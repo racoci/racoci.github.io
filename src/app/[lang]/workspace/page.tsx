@@ -1519,30 +1519,94 @@ ${diffText.slice(0, 1500)}`;
     setSyncStatus("syncing");
 
     try {
+      const isRename = `${slug}.mdx` !== activeDraft.name;
       const commitMsg = await generateCommitMessage(editorText);
-      const res = await fetch(`https://api.github.com/repos/${repo}/contents/${activeDraft.path}`, {
-        method: "PUT",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          message: commitMsg,
-          content: btoa(unescape(encodeURIComponent(editorText))),
-          sha: activeDraft.sha,
-          branch: "notes-drafts",
-        }),
-      });
 
-      if (!res.ok) throw new Error();
-      const data = await res.json();
+      if (isRename) {
+        const newName = `${slug}.mdx`;
+        const newPath = `src/content/drafts/${newName}`;
 
-      const updatedDraft = { ...activeDraft, content: editorText, sha: data.content.sha };
-      setActiveDraft(updatedDraft);
-      setDrafts(prev => prev.map(d => d.path === activeDraft.path ? updatedDraft : d));
-      lastSavedTextRef.current = editorText;
-      setHasUnsavedChanges(false);
-      setSyncStatus("saved");
+        // 1. Write/Create the new file at src/content/drafts/${slug}.mdx
+        const createRes = await fetch(`https://api.github.com/repos/${repo}/contents/${newPath}`, {
+          method: "PUT",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            message: `rename: create ${newName}`,
+            content: btoa(unescape(encodeURIComponent(editorText))),
+            branch: "notes-drafts",
+          }),
+        });
+
+        if (!createRes.ok) throw new Error("Failed to create new file during rename");
+        const createData = await createRes.json();
+        const newSha = createData.content.sha;
+
+        // 2. Delete the old file at activeDraft.path using activeDraft.sha
+        const deleteRes = await fetch(`https://api.github.com/repos/${repo}/contents/${activeDraft.path}`, {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            message: `rename: delete old file ${activeDraft.name}`,
+            sha: activeDraft.sha,
+            branch: "notes-drafts",
+          }),
+        });
+
+        if (!deleteRes.ok) throw new Error("Failed to delete old file during rename");
+
+        // 3. Update the local activeDraft state with the new path, name, and SHA
+        const updatedDraft = {
+          ...activeDraft,
+          name: newName,
+          path: newPath,
+          sha: newSha,
+          content: editorText,
+        };
+        setActiveDraft(updatedDraft);
+
+        // 4. Update the local drafts state list to map the old file path to the new one
+        setDrafts(prev => prev.map(d => d.path === activeDraft.path ? updatedDraft : d));
+
+        // 5. Dispatch the custom "workspace-sync" event so the global Sidebar re-fetches and displays the renamed draft in real time!
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new Event("workspace-sync"));
+        }
+
+        lastSavedTextRef.current = editorText;
+        setHasUnsavedChanges(false);
+        setSyncStatus("saved");
+      } else {
+        // Standard inline update as before
+        const res = await fetch(`https://api.github.com/repos/${repo}/contents/${activeDraft.path}`, {
+          method: "PUT",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            message: commitMsg,
+            content: btoa(unescape(encodeURIComponent(editorText))),
+            sha: activeDraft.sha,
+            branch: "notes-drafts",
+          }),
+        });
+
+        if (!res.ok) throw new Error();
+        const data = await res.json();
+
+        const updatedDraft = { ...activeDraft, content: editorText, sha: data.content.sha };
+        setActiveDraft(updatedDraft);
+        setDrafts(prev => prev.map(d => d.path === activeDraft.path ? updatedDraft : d));
+        lastSavedTextRef.current = editorText;
+        setHasUnsavedChanges(false);
+        setSyncStatus("saved");
+      }
     } catch (err) {
       setSyncStatus("error");
     }
@@ -1907,6 +1971,18 @@ ${editorText}`;
               {syncStatus === "error" && "Erro de Rede"}
             </span>
           </div>
+
+          <button
+            onClick={() => autoSyncToGitHub()}
+            disabled={!hasUnsavedChanges || syncStatus === "syncing"}
+            className={`px-3 py-1 text-[10px] font-bold rounded-lg transition-all border font-mono select-none ${
+              hasUnsavedChanges && syncStatus !== "syncing"
+                ? "bg-emerald-500/10 hover:bg-emerald-500/20 border-emerald-500/30 text-emerald-400 cursor-pointer"
+                : "bg-zinc-900 border-zinc-800/80 text-zinc-600 cursor-not-allowed"
+            }`}
+          >
+            Salvar
+          </button>
 
           <button
             onClick={handleLogout}
