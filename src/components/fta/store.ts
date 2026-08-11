@@ -102,18 +102,17 @@ type StoreState = {
 let state: StoreState = {
   coefficients: [
     { re: -1, im: 0 },
+    { re: -1, im: 0 },
+    { re: 0, im: 0 },
     { re: 0, im: 0 },
     { re: 0, im: 0 },
     { re: 1, im: 0 },
   ],
-  roots: [
-    { re: 1, im: 0 },
-    { re: -0.5, im: 0.866025 },
-    { re: -0.5, im: -0.866025 },
-  ],
+  roots: [],
   isRootsMode: false,
-  fractionDepth: 2, // Changed default to 2
+  fractionDepth: 2,
 };
+state.roots = coeffsToRoots(state.coefficients);
 
 type Listener = () => void;
 const listeners = new Set<Listener>();
