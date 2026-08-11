@@ -203,11 +203,9 @@ export function setCoefficients(newCoeffs: Complex[]) {
 }
 
 export function setRoots(newRoots: Complex[]) {
-  const leading = state.coefficients[state.coefficients.length - 1] || {re: 1, im: 0};
-  let coeffs = rootsToCoeffs(newRoots, leading);
-  while(coeffs.length < state.coefficients.length) {
-    coeffs.push({re: 0, im: 0});
-  }
+  let leading = state.coefficients[state.coefficients.length - 1];
+  if (!leading || (leading.re === 0 && leading.im === 0)) leading = {re: 1, im: 0};
+  const coeffs = rootsToCoeffs(newRoots, leading);
   state = { ...state, roots: newRoots, coefficients: coeffs };
   notify();
 }
@@ -225,6 +223,32 @@ export function updateRoot(index: number, val: Complex) {
     const newR = [...state.roots];
     newR[index] = val;
     setRoots(newR);
+  }
+}
+
+export function addRoot(val: Complex) {
+  const newR = [...state.roots, val];
+  setRoots(newR);
+}
+
+export function removeRoot(index: number) {
+  if (state.roots.length > 0 && index >= 0 && index < state.roots.length) {
+    const newR = [...state.roots];
+    newR.splice(index, 1);
+    setRoots(newR);
+  }
+}
+
+export function addCoefficient(val: Complex) {
+  const newC = [...state.coefficients, val];
+  setCoefficients(newC);
+}
+
+export function removeCoefficient(index: number) {
+  if (state.coefficients.length > 1 && index >= 0 && index < state.coefficients.length) {
+    const newC = [...state.coefficients];
+    newC.splice(index, 1);
+    setCoefficients(newC);
   }
 }
 
