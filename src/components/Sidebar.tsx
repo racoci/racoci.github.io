@@ -27,6 +27,7 @@ export default function Sidebar({ lang }: SidebarProps) {
       finance: "📈 B3 Screener (Finance)",
       nodegraft: "🎮 NodeGraft 3D (WebGPU)",
       sudoku: "🧩 Sudoku Mentor",
+      complexplotter: "🌌 Complex Plotter",
       mobileMenuBtn: "Menu",
       copyright: "Statically cultivated.",
     },
@@ -42,6 +43,7 @@ export default function Sidebar({ lang }: SidebarProps) {
       finance: "📈 Screener B3 (Finanças)",
       nodegraft: "🎮 NodeGraft 3D (WebGPU)",
       sudoku: "🧩 Mentor de Sudoku",
+      complexplotter: "🌌 Gráficos Complexos",
       mobileMenuBtn: "Menu",
       copyright: "Cultivado estaticamente.",
     }
@@ -70,6 +72,7 @@ export default function Sidebar({ lang }: SidebarProps) {
     { href: `/${lang}/projects/nodegraft`, label: t.nodegraft },
     { href: `/${lang}/finance`, label: t.finance },
     { href: `/${lang}/projects/sudoku`, label: t.sudoku },
+    { href: `/${lang}/projects/complex-plotter`, label: t.complexplotter },
   ];
 
   const renderNavContent = () => (
