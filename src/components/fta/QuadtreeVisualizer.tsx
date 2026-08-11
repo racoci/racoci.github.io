@@ -1,10 +1,25 @@
 "use client";
 
 import React, { useState, useMemo, useEffect } from "react";
+import { usePolynomial } from "./store";
 
 type Box = { x: number; y: number; size: number };
 
 export default function QuadtreeVisualizer() {
+  const coeffs = usePolynomial();
+  
+  // Compute degree
+  const degree = useMemo(() => {
+    let d = 0;
+    for (let i = coeffs.length - 1; i >= 0; i--) {
+      if (coeffs[i].re !== 0 || coeffs[i].im !== 0) {
+        d = i;
+        break;
+      }
+    }
+    return d;
+  }, [coeffs]);
+
   const [target, setTarget] = useState<{ x: number; y: number }>({ x: 210, y: 85 });
   const [depth, setDepth] = useState<number>(0);
   const [isPlaying, setIsPlaying] = useState<boolean>(true);
@@ -94,7 +109,7 @@ export default function QuadtreeVisualizer() {
             Quadtree Root Isolation
           </h3>
           <p className="text-xs text-zinc-400 mt-1 max-w-xl">
-            Click and drag on the domain to place a pseudo-root. Watch how the deterministic bisection algorithm systematically discards regions with $\Delta=0$ and hones in on the target.
+            Click and drag on the domain to place a pseudo-root. Watch how the deterministic bisection algorithm systematically discards regions with <span className="font-serif italic">{"\\Delta=0"}</span> and hones in on the target for a polynomial of degree {degree}.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -211,7 +226,7 @@ export default function QuadtreeVisualizer() {
               </div>
               <div className="flex justify-between">
                 <span className="text-zinc-400">Winding No. $\Delta(Q_n)$:</span>
-                <span className="text-amber-400">d</span>
+                <span className="text-amber-400">≥ 1 (Max {degree})</span>
               </div>
               <div className="flex justify-between pt-3 border-t border-zinc-800/50">
                 <span className="text-zinc-400">Discarded Regions:</span>
