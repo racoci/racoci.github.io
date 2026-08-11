@@ -1,6 +1,7 @@
 'use client';
-import React, { useState, useRef, useEffect } from 'react';
-import { useStore, updateCoefficient, updateRoot, addRoot, removeRoot, addCoefficient, removeCoefficient, setFractionDepth, Complex, formatComplexFraction, parseComplex, cAbs } from './store';
+import React, { useState, useEffect, useMemo } from 'react';
+import { useStore, updateCoefficient, updateRoot, addRoot, removeRoot, addCoefficient, removeCoefficient, setFractionDepth, Complex, formatComplexFraction, parseComplex } from './store';
+import { InteractivePlane } from './InteractivePlane';
 
 const COLORS = ['#ef4444', '#f59e0b', '#3b82f6', '#10b981', '#6366f1', '#a855f7', '#ec4899', '#14b8a6', '#f43f5e', '#8b5cf6'];
 
@@ -140,36 +141,23 @@ function PlaneEditor({ pts, type, onUpdate, onAdd, selectedPoint, setSelectedPoi
   selectedPoint: {type: 'root' | 'coeff', idx: number} | null,
   setSelectedPoint: (v: {type: 'root' | 'coeff', idx: number} | null) => void
 }) {
-  const svgRef = useRef<SVGSVGElement>(null);
   const [draggingIdx, setDraggingIdx] = useState<number | null>(null);
-  const [pan, setPan] = useState({ x: 0, y: 0 });
-  const [zoom, setZoom] = useState(100); // px per unit
-  const [isPanning, setIsPanning] = useState(false);
-  const lastMouse = useRef({ x: 0, y: 0 });
 
-  const width = 400;
-  const height = 400;
-  const cx = width / 2;
-  const cy = height / 2;
-
-  const toScreen = (c: Complex) => ({
-    x: cx + pan.x + c.re * zoom,
-    y: cy + pan.y - c.im * zoom,
-  });
-
-  const fromScreen = (x: number, y: number): Complex => {
-    return {
-      re: (x - cx - pan.x) / zoom,
-      im: (cy + pan.y - y) / zoom,
-    };
-  };
-
-  const handlePointerDown = (e: React.PointerEvent) => {
-    (e.target as Element).setPointerCapture(e.pointerId);
-    lastMouse.current = { x: e.clientX, y: e.clientY };
-    setIsPanning(true);
-    setSelectedPoint(null);
-  };
+  const bounds = useMemo(() => {
+    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+    pts.forEach(p => {
+      if (p.re < minX) minX = p.re;
+      if (p.re > maxX) maxX = p.re;
+      if (p.im < minY) minY = p.im;
+      if (p.im > maxY) maxY = p.im;
+    });
+    if (minX > 0) minX = 0;
+    if (maxX < 0) maxX = 0;
+    if (minY > 0) minY = 0;
+    if (maxY < 0) maxY = 0;
+    if (minX === Infinity) return { minX: -5, maxX: 5, minY: -5, maxY: 5 };
+    return { minX, maxX, minY, maxY };
+  }, [pts]);
 
   const handlePointPointerDown = (e: React.PointerEvent, idx: number) => {
     e.stopPropagation();
@@ -178,125 +166,81 @@ function PlaneEditor({ pts, type, onUpdate, onAdd, selectedPoint, setSelectedPoi
     setSelectedPoint({ type, idx });
   };
 
-  const handlePointerMove = (e: React.PointerEvent) => {
-    if (draggingIdx !== null && svgRef.current) {
-      const pt = svgRef.current.createSVGPoint();
-      pt.x = e.clientX;
-      pt.y = e.clientY;
-      const cursorPt = pt.matrixTransform(svgRef.current.getScreenCTM()?.inverse());
-      const newValue = fromScreen(cursorPt.x, cursorPt.y);
-      onUpdate(draggingIdx, newValue);
-    } else if (isPanning) {
-      const dx = e.clientX - lastMouse.current.x;
-      const dy = e.clientY - lastMouse.current.y;
-      setPan(p => ({ x: p.x + dx, y: p.y + dy }));
-      lastMouse.current = { x: e.clientX, y: e.clientY };
-    }
-  };
-
-  const handlePointerUp = () => {
-    setDraggingIdx(null);
-    setIsPanning(false);
-  };
-
-  const handleWheel = (e: React.WheelEvent) => {
-    e.preventDefault();
-    if (!svgRef.current) return;
-    const pt = svgRef.current.createSVGPoint();
-    pt.x = e.clientX;
-    pt.y = e.clientY;
-    const cursorPt = pt.matrixTransform(svgRef.current.getScreenCTM()?.inverse());
-    
-    // Zoom around cursor
-    const scaleFactor = e.deltaY > 0 ? 0.9 : 1.1;
-    const newZoom = Math.max(10, Math.min(1000, zoom * scaleFactor));
-    
-    const worldX = (cursorPt.x - cx - pan.x) / zoom;
-    const worldY = (cy + pan.y - cursorPt.y) / zoom;
-    
-    const newPanX = cursorPt.x - cx - worldX * newZoom;
-    const newPanY = cursorPt.y - cy + worldY * newZoom;
-
-    setZoom(newZoom);
-    setPan({ x: newPanX, y: -newPanY });
-  };
-
-  const handleDoubleClick = (e: React.MouseEvent) => {
-    if (!svgRef.current) return;
-    const pt = svgRef.current.createSVGPoint();
-    pt.x = e.clientX;
-    pt.y = e.clientY;
-    const cursorPt = pt.matrixTransform(svgRef.current.getScreenCTM()?.inverse());
-    const newValue = fromScreen(cursorPt.x, cursorPt.y);
-    onAdd(newValue);
-  };
-
-  // Draw grid
-  const gridLines = [];
-  const minX = fromScreen(0, 0).re;
-  const maxX = fromScreen(width, 0).re;
-  const minY = fromScreen(0, height).im;
-  const maxY = fromScreen(0, 0).im;
-
-  const step = zoom > 200 ? 0.5 : zoom < 50 ? 2 : 1;
-  const startX = Math.floor(minX / step) * step;
-  const startY = Math.floor(minY / step) * step;
-
-  for (let x = startX; x <= maxX; x += step) {
-    const sx = toScreen({re: x, im: 0}).x;
-    gridLines.push(<line key={`vx${x}`} x1={sx} y1={0} x2={sx} y2={height} stroke="currentColor" className="text-gray-200 dark:text-gray-800" strokeWidth={x===0 ? 2 : 1} />);
-  }
-  for (let y = startY; y <= maxY; y += step) {
-    const sy = toScreen({re: 0, im: y}).y;
-    gridLines.push(<line key={`hy${y}`} x1={0} y1={sy} x2={width} y2={sy} stroke="currentColor" className="text-gray-200 dark:text-gray-800" strokeWidth={y===0 ? 2 : 1} />);
-  }
-
   return (
     <div className="relative border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-black shadow-inner overflow-hidden touch-none select-none w-full flex justify-center">
-      <svg
-        ref={svgRef}
-        width="100%"
-        height="100%"
-        viewBox={`0 0 ${width} ${height}`}
-        style={{ maxWidth: width, maxHeight: height, width: '100%', height: 'auto', aspectRatio: '1/1' }}
-        onPointerDown={handlePointerDown}
-        onPointerMove={handlePointerMove}
-        onPointerUp={handlePointerUp}
-        onPointerLeave={handlePointerUp}
-        onWheel={handleWheel}
-        onDoubleClick={handleDoubleClick}
-        className={isPanning ? "cursor-grabbing" : "cursor-crosshair"}
+      <InteractivePlane 
+        dataBounds={bounds} 
+        padding={1.5}
+        width="100%" 
+        height="100%" 
+        style={{ aspectRatio: '1/1' }}
+        onDoubleClick={(e) => {
+           // We can get the coordinate using getScreenCTM... but we don't have screenToMath here easily unless we pass it up or do it in children
+           // But since we can just do it in a wrapper inside InteractivePlane:
+        }}
       >
-        {gridLines}
-        <circle cx={cx + pan.x} cy={cy + pan.y} r={zoom} fill="none" stroke="currentColor" className="text-gray-300 dark:text-gray-700" strokeDasharray="4 4" />
+        {({ screenToMath, viewBox }) => {
+          
+          const step = viewBox.w > 20 ? 5 : viewBox.w > 5 ? 1 : 0.2;
+          const startX = Math.floor(viewBox.x / step) * step;
+          const startY = Math.floor(viewBox.y / step) * step;
+          const gridLines = [];
+          
+          for (let x = startX; x <= viewBox.x + viewBox.w; x += step) {
+            gridLines.push(<line key={`vx${x}`} x1={x} y1={viewBox.y} x2={x} y2={viewBox.y + viewBox.h} stroke="currentColor" className="text-gray-200 dark:text-gray-800" strokeWidth={x===0 ? viewBox.w/100 : viewBox.w/300} />);
+          }
+          for (let y = startY; y <= viewBox.y + viewBox.h; y += step) {
+            gridLines.push(<line key={`hy${y}`} x1={viewBox.x} y1={y} x2={viewBox.x + viewBox.w} y2={y} stroke="currentColor" className="text-gray-200 dark:text-gray-800" strokeWidth={y===0 ? viewBox.w/100 : viewBox.w/300} />);
+          }
 
-        {/* Points */}
-        {pts.map((pt, i) => {
-          const { x, y } = toScreen(pt);
-          const isSelected = selectedPoint?.type === type && selectedPoint?.idx === i;
           return (
-            <g key={i} transform={`translate(${x}, ${y})`}>
-              {isSelected && <circle r={12} fill="none" stroke={COLORS[i % COLORS.length]} strokeWidth={2} className="animate-pulse" />}
-              <circle
-                r={isSelected ? 8 : 6}
-                fill={COLORS[i % COLORS.length]}
-                className="cursor-grab active:cursor-grabbing hover:opacity-80 transition-opacity drop-shadow"
-                onPointerDown={(e) => handlePointPointerDown(e, i)}
-              />
-              <text
-                x={12}
-                y={4}
-                fill={COLORS[i % COLORS.length]}
-                fontSize={14}
-                fontWeight="bold"
-                className="pointer-events-none select-none drop-shadow-md bg-white/50 dark:bg-black/50"
-              >
-                {type === 'root' ? `r${i+1}` : `c${i}`}
-              </text>
+            <g 
+              onDoubleClick={(e) => {
+                const pt = screenToMath(e.clientX, e.clientY);
+                onAdd({ re: pt.x, im: pt.y });
+              }}
+              onPointerMove={(e) => {
+                if (draggingIdx !== null) {
+                  const pt = screenToMath(e.clientX, e.clientY);
+                  onUpdate(draggingIdx, { re: pt.x, im: pt.y });
+                }
+              }}
+              onPointerUp={() => setDraggingIdx(null)}
+              onPointerLeave={() => setDraggingIdx(null)}
+            >
+              <rect x={viewBox.x} y={viewBox.y} width={viewBox.w} height={viewBox.h} fill="transparent" />
+              {gridLines}
+              <circle cx={0} cy={0} r={1} fill="none" stroke="currentColor" className="text-gray-300 dark:text-gray-700" strokeDasharray={`${viewBox.w/100} ${viewBox.w/100}`} strokeWidth={viewBox.w/200} />
+              
+              {pts.map((pt, i) => {
+                const isSelected = selectedPoint?.type === type && selectedPoint?.idx === i;
+                return (
+                  <g key={i} transform={`translate(${pt.re}, ${-pt.im})`}>
+                    {isSelected && <circle r={viewBox.w/20} fill="none" stroke={COLORS[i % COLORS.length]} strokeWidth={viewBox.w/150} className="animate-pulse" />}
+                    <circle
+                      r={isSelected ? viewBox.w/30 : viewBox.w/40}
+                      fill={COLORS[i % COLORS.length]}
+                      className="cursor-grab active:cursor-grabbing hover:opacity-80 transition-opacity drop-shadow"
+                      onPointerDown={(e) => handlePointPointerDown(e, i)}
+                    />
+                    {/* Since y is flipped (-im), text will be normal, not flipped, because InteractivePlane viewBox has y natively SVG-oriented. We just draw at -pt.im */}
+                    <text
+                      x={viewBox.w/30 + viewBox.w/100}
+                      y={viewBox.w/80}
+                      fill={COLORS[i % COLORS.length]}
+                      fontSize={viewBox.w/25}
+                      fontWeight="bold"
+                      className="pointer-events-none select-none drop-shadow-md"
+                    >
+                      {type === 'root' ? `r${i+1}` : `c${i}`}
+                    </text>
+                  </g>
+                );
+              })}
             </g>
           );
-        })}
-      </svg>
+        }}
+      </InteractivePlane>
     </div>
   );
 }
