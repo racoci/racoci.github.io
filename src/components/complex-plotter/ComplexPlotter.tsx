@@ -5,9 +5,8 @@ import { initializeScene, drawScene } from './gl-code/scene';
 import { parseExpression } from './gl-code/complex-functions';
 import { getFreeVariables } from './gl-code/utils/variables';
 import toLaTeX from './gl-code/translators/to-latex';
-import 'katex/dist/katex.min.css';
-import { InlineMath } from 'react-katex';
-import MathInput from './MathInput';
+import { convertMathLiveToAlgebraic } from './gl-code/translators/mathlive-converter';
+import 'mathlive';
 
 export default function ComplexPlotter({ lang = 'en' }: { lang?: 'en' | 'pt' }) {
   const t = lang === 'pt' ? {
@@ -73,7 +72,8 @@ export default function ComplexPlotter({ lang = 'en' }: { lang?: 'en' | 'pt' }) 
   // Parse expression when it changes
   useEffect(() => {
     try {
-      const ast = parseExpression(expression);
+      const mathliveAlgebraic = convertMathLiveToAlgebraic(expression);
+      const ast = parseExpression(mathliveAlgebraic);
       if (ast) {
         setError(null);
         setLastValidAst(ast);
@@ -272,10 +272,20 @@ export default function ComplexPlotter({ lang = 'en' }: { lang?: 'en' | 'pt' }) 
          <div className="bg-zinc-950/40 backdrop-blur-md border border-zinc-800/60 p-4 rounded-xl shadow-2xl pointer-events-auto max-w-md w-full">
             <h2 className="text-xl font-bold mb-1 text-zinc-100">{t.title}</h2>
             <div className="mt-3">
-               <MathInput value={expression} onChange={setExpression} hasError={!!error} />
-            </div>
-            <div className="mt-3 px-2 py-1 text-center min-h-[2.5rem] flex items-center justify-center bg-zinc-900/40 rounded-lg overflow-x-auto text-emerald-100">
-               <InlineMath math={`f(z) = ${latexStr}`} />
+               {React.createElement('math-field', {
+                 style: { 
+                   width: '100%', 
+                   padding: '12px', 
+                   backgroundColor: 'rgba(24, 24, 27, 0.6)', 
+                   color: '#a7f3d0', 
+                   borderRadius: '0.5rem', 
+                   outline: 'none', 
+                   border: error ? '1px solid #ef4444' : '1px solid rgba(63, 63, 70, 0.5)', 
+                   boxShadow: error ? '0 0 10px rgba(239, 68, 68, 0.3)' : 'none',
+                   fontSize: '1.25rem' 
+                 },
+                 onInput: (e: any) => setExpression(e.target.value)
+               }, expression)}
             </div>
          </div>
          

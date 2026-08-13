@@ -7,6 +7,7 @@ import { parseExpression } from '../src/components/complex-plotter/gl-code/compl
 import compileGLSL from '../src/components/complex-plotter/gl-code/translators/to-glsl';
 import toJS from '../src/components/complex-plotter/gl-code/translators/to-js';
 import toLaTeX from '../src/components/complex-plotter/gl-code/translators/to-latex';
+import { convertMathLiveToAlgebraic } from '../src/components/complex-plotter/gl-code/translators/mathlive-converter';
 import { ASTNode } from '../src/components/complex-plotter/gl-code/types';
 
 // Mock WebGL and DOM variables
@@ -163,6 +164,26 @@ function runTest() {
       if (!generatedLaTeX) {
         throw new Error(`Generated LaTeX is empty for input "${input}"`);
       }
+    }
+
+    // ----------------------------------------------------
+    // TEST 6: MathLive LaTeX to Algebraic Transpiler
+    // ----------------------------------------------------
+    console.log("\n[Test 6] Testing MathLive to Algebraic Transpiler...");
+    
+    const mathLiveTests = [
+       { input: "\\sin\\left(z\\right)+\\cos\\left(c\\right)", expected: "sin(z)+cos(c)" },
+       { input: "\\frac{z^2}{\\pi}", expected: "(z^2)/(pi)" },
+       { input: "\\sqrt{z} + \\sqrt[3]{z}", expected: "sqrt(z) + (z)^(1/(3))" },
+       { input: "z\\cdot x \\times y", expected: "z* x * y" },
+       { input: "\\left|z\\right| + \\lvert c \\rvert", expected: "abs(z) + abs( c )" },
+    ];
+    for (const {input, expected} of mathLiveTests) {
+       const algebraic = convertMathLiveToAlgebraic(input);
+       if (algebraic !== expected) {
+          throw new Error(`MathLive conversion failed for "${input}".\nExpected: "${expected}"\nGot:      "${algebraic}"`);
+       }
+       console.log(`  ✓ Input: "${input}" -> Algebraic: "${algebraic}"`);
     }
 
   } catch (err) {
