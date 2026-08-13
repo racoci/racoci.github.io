@@ -121,10 +121,9 @@ export default function ComplexPlotter({ lang = 'en' }: { lang?: 'en' | 'pt' }) 
       // transform variables to [location, value] array format expected by scene.js
       const variablesForScene: any = {};
       for (const k of varNames) {
-         if (varLocations[k]) {
-            // CRITICAL: WebGL uniform setters expect scalar floats. Extract variables[k][0]
-            variablesForScene[k] = [varLocations[k], variables[k][0]];
-         }
+         // CRITICAL: WebGL uniform setters expect scalar floats. Extract variables[k][0]
+         // If a variable is client-only (like enable_axes), pass null as the location to prevent crashes
+         variablesForScene[k] = [varLocations[k] || null, variables[k][0]];
       }
       
       if (ctx) {

@@ -1,4 +1,5 @@
-import {get, isNil} from 'lodash';
+import lodash from 'lodash';
+const { get, isNil } = lodash;
 import {
     zeta, eta, gamma, beta, binom, erf, lambertw,
     nome,
@@ -8,7 +9,7 @@ import {
     sm, cm,
     j, e2, e4, e6, e8, e10, e12, e14, e16
 } from './custom-functions.js'
-const math = require('mathjs');
+import * as math from 'mathjs';
 
 const constants = {
     'e': Math.E,

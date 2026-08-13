@@ -1,4 +1,4 @@
-const math = require('mathjs');
+import * as math from 'mathjs';
 
 const I = math.complex(0, 1);
 const isZero = (x) => (x === 0 || (x.re === 0 && x.im === 0));
