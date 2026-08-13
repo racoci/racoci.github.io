@@ -184,7 +184,7 @@ export default function ComplexPlotter({ lang = 'en' }: { lang?: 'en' | 'pt' }) 
        const cy = variables.center_y[0];
        
        const re = cx + (x - dimensions.width / 2) / scale;
-       const im = cy - (dimensions.height / 2 - y) / scale;
+       const im = cy + (dimensions.height / 2 - y) / scale;
        
        setVariables((prev: any) => ({
            ...prev,
