@@ -1,7 +1,7 @@
 import {
   functionDefinitions,
 } from './complex-functions';
-import toGLSL from './translators/to-glsl';
+import { compileGLSL } from './translators/to-glsl';
 import { ASTNode, WebGLRenderingContextExtended } from './types';
 
 function loadShader(gl: WebGLRenderingContext, type: number, source: string): WebGLShader | null {
@@ -96,12 +96,15 @@ function getFragmentShaderSource(
 
   let custom_code = '';
   let glsl_expression: string | null = null;
+  let helpers = '';
   if (customShader) {
     custom_code = expression as string;
     glsl_expression = 'mapping(z)';
   } else {
-    const glslResult = toGLSL(expression as ASTNode, LOG_MODE);
-    glsl_expression = glslResult ? glslResult[0] : null;
+    const glslResult = compileGLSL(expression as ASTNode, LOG_MODE);
+    if (!glslResult) return null;
+    glsl_expression = glslResult.expression;
+    helpers = glslResult.helpers;
     if (LOG_MODE && glsl_expression) {
         glsl_expression = `upconvert(${glsl_expression})`
     }
@@ -205,6 +208,7 @@ ${LOG_MODE ? 'color_value += (0.75 - color_value) * (1. - phase_decay_factor);' 
     return hsv2rgb(hsv_color);
   }
 
+  ${helpers}
   ${custom_code}
 
   const vec2 screen_offset = vec2(${x_offset}, ${y_offset});

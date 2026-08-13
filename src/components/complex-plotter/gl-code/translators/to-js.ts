@@ -96,7 +96,29 @@ function toJS(ast: ASTNode | null, variables: Record<string, any>): (z: [number,
     if (operator === 'variable') {
         const [name] = args;
         if (name === 'z') {return z => z;}
-        return () => [get(variables, name, NaN), 0];
+        return () => {
+            const val = get(variables, name, NaN);
+            if (Array.isArray(val)) {
+                return [val[0], val[1]];
+            }
+            return [Number(val), 0];
+        };
+    }
+
+    // Summation and Product loops
+    if (operator === 'sum' || operator === 'prod') {
+        const [expr, idxVar, low, high] = args;
+        const subfn = toJS(expr as ASTNode, variables);
+        return z => {
+            let acc = operator === 'sum' ? math.complex(0, 0) : math.complex(1, 0);
+            const mathOp = operator === 'sum' ? math.add : math.multiply;
+            for (let i = low; i <= high; i++) {
+                variables[idxVar] = [i, 0];
+                const val = subfn(z);
+                acc = mathOp(acc, math.complex(val[0], val[1])) as unknown as math.Complex;
+            }
+            return [acc.re, acc.im];
+        };
     }
 
     // Built-in constant

@@ -62,16 +62,32 @@ function drawScene(
 ): void {
   for (const key of Object.keys(variables)) {
     const [location, value] = variables[key];
-    if (gl.LOG_MODE) {
-        gl.uniform3f(location, value, 0, 0);
-    } else {
-        gl.uniform2f(location, value, 0);
+    if (location) {
+      if (Array.isArray(value)) {
+        if (gl.LOG_MODE) {
+          gl.uniform3f(location, value[0], value[1], 0.0);
+        } else {
+          gl.uniform2f(location, value[0], value[1]);
+        }
+      } else {
+        if (gl.LOG_MODE) {
+          gl.uniform3f(location, value, 0.0, 0.0);
+        } else {
+          gl.uniform2f(location, value, 0.0);
+        }
+      }
     }
   }
 
   gl.drawArrays(gl.TRIANGLES, 0, 6);
 
-  drawAxes(axis_ctx, variables);
+  const scalarVariables: Record<string, [WebGLUniformLocation | null, number]> = {};
+  for (const key of Object.keys(variables)) {
+    const [location, value] = variables[key];
+    scalarVariables[key] = [location, Array.isArray(value) ? value[0] : value];
+  }
+
+  drawAxes(axis_ctx, scalarVariables);
 }
 
 function drawAxes(

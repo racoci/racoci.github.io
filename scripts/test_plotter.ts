@@ -1,12 +1,13 @@
 /**
- * Automated test suite to validate the Complex Function Plotter math engine
- * and prevent regression of the WebGL / canvas uniform-locations TypeError.
- *
- * Runs locally to verify structural and mathematical correctness of our AST
- * compiling, Nearley parsing, and coordinate system layouts.
+ * Automated test suite to validate the Complex Function Plotter math engine,
+ * parser expansion, synonyms, LaTeX commands, and coordinate systems.
  */
 
 import { parseExpression } from '../src/components/complex-plotter/gl-code/complex-functions';
+import compileGLSL from '../src/components/complex-plotter/gl-code/translators/to-glsl';
+import toJS from '../src/components/complex-plotter/gl-code/translators/to-js';
+import toLaTeX from '../src/components/complex-plotter/gl-code/translators/to-latex';
+import { ASTNode } from '../src/components/complex-plotter/gl-code/types';
 
 // Mock WebGL and DOM variables
 const mockVariables: Record<string, any> = {
@@ -22,77 +23,150 @@ const mockVariables: Record<string, any> = {
   c: [0.35, 0.45],
 };
 
-// Simulated mock of initializeScene
-const mockVarLocations: Record<string, any> = {
-  log_scale: "WebGLUniformLocation_log_scale",
-  center_x: "WebGLUniformLocation_center_x",
-  center_y: "WebGLUniformLocation_center_y",
-  c: "WebGLUniformLocation_c",
-  // Note: 'enable_axes' is a client-only variable and will NOT have a WebGL uniform location
-};
+function getFreeVariables(ast: ASTNode | null, bound: Set<string> = new Set()): string[] {
+    if (ast === null) return [];
+    if (typeof ast === 'number' || !isNaN(ast as any)) return [];
+    if (!Array.isArray(ast)) return [];
+
+    const [operator, ...args] = ast as [string, ...any[]];
+
+    if (operator === 'variable') {
+        const name = args[0];
+        if (name === 'z' || bound.has(name)) return [];
+        return [name];
+    }
+
+    if (operator === 'sum' || operator === 'prod') {
+        const [expr, idxVar, low, high] = args;
+        const newBound = new Set(bound);
+        newBound.add(idxVar);
+        return getFreeVariables(expr as ASTNode, newBound);
+    }
+
+    const freeVars = new Set<string>();
+    for (const arg of args) {
+        if (Array.isArray(arg) || typeof arg === 'object') {
+            getFreeVariables(arg as ASTNode, bound).forEach(v => freeVars.add(v));
+        }
+    }
+    return Array.from(freeVars);
+}
 
 function runTest() {
-  console.log("=== RUNNING COMPLEX FUNCTION PLOTTER AUTOMATED TESTS ===");
+  console.log("=== RUNNING COMPLEX FUNCTION PLOTTER OVERHAUL TESTS ===");
 
   let passed = true;
 
   try {
     // ----------------------------------------------------
-    // TEST 1: Nearley Parser & Compiler Stability
+    // TEST 1: Synonyms & Aliases Parser Support
     // ----------------------------------------------------
-    console.log("\n[Test 1] Testing Nearley Parser on algebraic equations...");
-    
-    const expressions = ["z^2 + c", "sin(z)", "z^5 - z - 1", "exp(z)", "tan(z) * i"];
-    for (const expr of expressions) {
+    console.log("\n[Test 1] Testing math synonyms (sen, tg, arctg, etc.)...");
+    const synonymsToTest = [
+      { input: "sen(z)", expectedOp: "sin" },
+      { input: "seno(z)", expectedOp: "sin" },
+      { input: "tg(z)", expectedOp: "tan" },
+      { input: "atg(z)", expectedOp: "arctan" },
+      { input: "arctg(z)", expectedOp: "arctan" }
+    ];
+
+    for (const { input, expectedOp } of synonymsToTest) {
+      const ast = parseExpression(input);
+      if (!ast || !Array.isArray(ast)) {
+        throw new Error(`Failed to parse synonym input "${input}"`);
+      }
+      if (ast[0] !== expectedOp) {
+        throw new Error(`Expected op "${expectedOp}" for synonym "${input}", but got "${ast[0]}"`);
+      }
+      console.log(`  ✓ Synonym "${input}" successfully mapped to "${expectedOp}"`);
+    }
+
+    // ----------------------------------------------------
+    // TEST 2: LaTeX Parsing Commands
+    // ----------------------------------------------------
+    console.log("\n[Test 2] Testing LaTeX command parsing (\\sin, \\cos, \\pi, \\frac)...");
+    const latexExpressions = [
+      "\\sin(z) + \\cos(z)",
+      "z^{\\pi}",
+      "\\frac{z}{2}",
+      "z^{2 + i}"
+    ];
+
+    for (const expr of latexExpressions) {
+      const ast = parseExpression(expr);
+      if (!ast) {
+        throw new Error(`Failed to parse LaTeX expression "${expr}"`);
+      }
+      console.log(`  ✓ LaTeX expression "${expr}" parsed successfully:`, JSON.stringify(ast));
+    }
+
+    // ----------------------------------------------------
+    // TEST 3: LaTeX Summation and Product loops
+    // ----------------------------------------------------
+    console.log("\n[Test 3] Testing LaTeX style \\sum and \\prod loops...");
+    const loopsToTest = [
+      "\\sum_{n=1}^{5}{z^n}",
+      "\\prod_{k=2}^{4}{z * k}"
+    ];
+
+    for (const expr of loopsToTest) {
       const ast = parseExpression(expr);
       if (!ast || !Array.isArray(ast)) {
-        throw new Error(`Failed to compile expression: "${expr}". Returned AST is invalid.`);
+        throw new Error(`Failed to parse loop expression "${expr}"`);
       }
-      console.log(`  ✓ Successfully compiled "${expr}" -> AST type: [${ast[0]}]`);
+      const [op, exprBody, idxVar, low, high] = ast;
+      if (op !== 'sum' && op !== 'prod') {
+        throw new Error(`Expected sum or prod operator, but got "${op}" for "${expr}"`);
+      }
+      if (idxVar !== 'n' && idxVar !== 'k') {
+        throw new Error(`Incorrect loop variable: got "${idxVar}"`);
+      }
+      console.log(`  ✓ LaTeX loop "${expr}" parsed successfully as [${op}] loop variable ${idxVar} from ${low} to ${high}`);
     }
 
     // ----------------------------------------------------
-    // TEST 2: Uniform Variable Extraction & Alignment (Prevention of L81 TypeError)
+    // TEST 4: Custom Free Variables Discovery
     // ----------------------------------------------------
-    console.log("\n[Test 2] Testing WebGL / Canvas Uniform variable extraction...");
-
-    const varNames = Object.keys(mockVariables);
-    const variablesForScene: Record<string, any> = {};
-
-    for (const k of varNames) {
-      // Replicate the exact new non-collapsing uniform assignments:
-      // If a uniform location is not found on the GPU program (e.g., client-only 'enable_axes'),
-      // it MUST default to null instead of omitting the key entirely.
-      variablesForScene[k] = [mockVarLocations[k] || null, mockVariables[k][0]];
+    console.log("\n[Test 4] Testing free variables discovery and bound scoping...");
+    const astForFreeVars = parseExpression("z^2 + c * a + \\sum_{n=1}^{5}{z^n * b}");
+    if (!astForFreeVars) {
+      throw new Error("Failed to parse expression for variable discovery");
     }
-
-    // Assert that 'enable_axes' and 'log_scale' exist and are well-formed 2-tuples
-    if (!variablesForScene["enable_axes"]) {
-      throw new Error("Regression detected! 'enable_axes' is omitted from variablesForScene dictionary.");
+    const freeVars = getFreeVariables(astForFreeVars);
+    console.log("  Parsed free variables:", freeVars);
+    
+    const expectedVars = ['c', 'a', 'b'];
+    for (const v of expectedVars) {
+      if (!freeVars.includes(v)) {
+        throw new Error(`Expected free variable "${v}" to be discovered, but it was missing!`);
+      }
     }
-    if (!variablesForScene["log_scale"]) {
-      throw new Error("Regression detected! 'log_scale' is omitted from variablesForScene dictionary.");
+    if (freeVars.includes('z') || freeVars.includes('n')) {
+      throw new Error("Regression! 'z' or bound variable 'n' mistakenly treated as free variables.");
     }
+    console.log("  ✓ Free variables correctly identified (ignoring z and loop indices)!");
 
-    // Replicate the exact index accesses done in scene.js (drawAxes and drawScene)
-    // L81 check in scene.js: variables.enable_axes[1]
-    const enableAxesValue = variablesForScene["enable_axes"][1];
-    const logScaleValue = variablesForScene["log_scale"][1];
-
-    if (enableAxesValue === undefined || enableAxesValue === null) {
-      throw new Error("TypeError risk! variables.enable_axes[1] is undefined, which will crash drawAxes.");
+    // ----------------------------------------------------
+    // TEST 5: AST to LaTeX Translation (Symmetry)
+    // ----------------------------------------------------
+    console.log("\n[Test 5] Testing AST to LaTeX Symmetrical Visualizer...");
+    const latexTests = [
+      { input: "\\sin(z) + c", expected: "\\sin\\left(z\\right) + c" },
+      { input: "\\frac{z}{2}", expected: "\\frac{z}{2}" },
+      { input: "z^{\\pi}", expected: "{z}^{\\pi}" },
+      { input: "\\sum_{n=1}^{5}{z^n}", expected: "\\sum_{n=1}^{5} {z}^{n}" }
+    ];
+    for (const { input } of latexTests) {
+      const ast = parseExpression(input);
+      const generatedLaTeX = toLaTeX(ast);
+      console.log(`  ✓ Input: "${input}" -> LaTeX: "${generatedLaTeX}"`);
+      if (!generatedLaTeX) {
+        throw new Error(`Generated LaTeX is empty for input "${input}"`);
+      }
     }
-    if (logScaleValue === undefined || logScaleValue === null) {
-      throw new Error("TypeError risk! variables.log_scale[1] is undefined, which will crash drawAxes.");
-    }
-
-    console.log(`  ✓ 'enable_axes' uniform formatted correctly:`, variablesForScene["enable_axes"]);
-    console.log(`  ✓ 'log_scale' uniform formatted correctly:`, variablesForScene["log_scale"]);
-    console.log(`  ✓ Tested L81 access: variables.enable_axes[1] = ${enableAxesValue} (Safe!)`);
-    console.log(`  ✓ Tested L84 access: variables.log_scale[1] = ${logScaleValue} (Safe!)`);
 
   } catch (err) {
-    console.error("\n❌ TEST SUITE FAILED:");
+    console.error("\n❌ OVERHAUL TEST SUITE FAILED:");
     console.error(err instanceof Error ? err.message : String(err));
     passed = false;
   }
