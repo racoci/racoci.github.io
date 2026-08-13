@@ -76,7 +76,7 @@ function drawScene(gl, variables, axis_ctx) {
 function drawAxes(ctx, variables) {
     // Clear canvas
     const dpr = window.devicePixelRatio;
-    const [width, height] = [window.innerWidth * dpr, window.innerHeight * dpr];
+    const [width, height] = [ctx.canvas.width, ctx.canvas.height];
     ctx.clearRect(0, 0, width, height);
     if (variables.enable_axes[1] < 0.5) {return;}
 

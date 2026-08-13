@@ -50,7 +50,7 @@ export default function ComplexPlotter({ lang = 'en' }: { lang?: 'en' | 'pt' }) 
     center_y: [0, 0],
     enable_axes: [1, 0], // Enable axes/labels
     enable_checkerboard: [0, 0], // Disables checkerboard by default for raw aesthetic
-    invert_gradient: [0, 0],
+    invert_gradient: [1, 0], // Default to 1 (inverted magnitude gradient) for perfect dark-theme aesthetics
     continuous_gradient: [1, 0], // Smooth gradient
     custom_function: [0, 0],
     grid_type: [1, 0], // Cartesian/polar grid type
@@ -61,46 +61,48 @@ export default function ComplexPlotter({ lang = 'en' }: { lang?: 'en' | 'pt' }) 
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [centerStart, setCenterStart] = useState({ x: 0, y: 0 });
+  const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
 
-  // WebGL context & resize
+  // Use a ResizeObserver on the canvas container to dynamically monitor layout updates
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const { width, height } = entry.contentRect;
+        setDimensions({ width, height });
+      }
+    });
+
+    observer.observe(container);
+    return () => {
+      observer.disconnect();
+    };
+  }, []);
+
+  // Combined WebGL sizing, compilation, and render loop
   useEffect(() => {
     const canvas = canvasRef.current;
     const axesCanvas = axesCanvasRef.current;
-    if (!canvas || !axesCanvas) return;
+    if (!canvas || !axesCanvas || dimensions.width === 0 || dimensions.height === 0) return;
     
     const gl = canvas.getContext('webgl');
     if (!gl) return;
+    const ctx = axesCanvas.getContext('2d');
 
     const ext = gl.getExtension('OES_standard_derivatives');
     if (!ext) {
        console.warn('OES_standard_derivatives not supported');
     }
 
-    const handleResize = () => {
-       const dpr = window.devicePixelRatio || 1;
-       const width = canvas.clientWidth;
-       const height = canvas.clientHeight;
-       canvas.width = width * dpr;
-       canvas.height = height * dpr;
-       axesCanvas.width = width * dpr;
-       axesCanvas.height = height * dpr;
-       gl.viewport(0, 0, canvas.width, canvas.height);
-    };
-    handleResize();
-    window.addEventListener('resize', handleResize);
-
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
-
-  // WebGL render loop
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    const axesCanvas = axesCanvasRef.current;
-    if (!canvas || !axesCanvas) return;
-    
-    const gl = canvas.getContext('webgl');
-    if (!gl) return;
-    const ctx = axesCanvas.getContext('2d');
+    // Explicitly set width/height on the canvases multiplied by devicePixelRatio
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = dimensions.width * dpr;
+    canvas.height = dimensions.height * dpr;
+    axesCanvas.width = dimensions.width * dpr;
+    axesCanvas.height = dimensions.height * dpr;
+    gl.viewport(0, 0, canvas.width, canvas.height);
 
     let ast;
     try {
@@ -119,6 +121,7 @@ export default function ComplexPlotter({ lang = 'en' }: { lang?: 'en' | 'pt' }) 
     const varNames = Object.keys(variables);
     const customShader = null; 
     
+    // Re-compile scene using the dynamically sized drawing buffer dimensions for perfect math centering!
     const varLocations: any = initializeScene(gl, ast, customShader, varNames);
     if (!varLocations) {
        setError("Shader Error");
@@ -147,7 +150,7 @@ export default function ComplexPlotter({ lang = 'en' }: { lang?: 'en' | 'pt' }) 
     return () => {
       cancelAnimationFrame(animationFrameId);
     };
-  }, [expression, variables]);
+  }, [expression, variables, dimensions]);
 
   // Non-passive wheel event listener to lock page scroll during zoom
   useEffect(() => {
