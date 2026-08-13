@@ -1,0 +1,67 @@
+# Compilador & Visualizador Holds Substrate
+
+## Contexto
+
+O **Holds Substrate** é um resolvedor de restrições físicas de baixo nível e simulador de kernel concorrente desenvolvido inteiramente em Rust. Ele funciona como um laboratório de exploração sobre mecânica estrutural, dinâmica de contato por colisão e otimização em tempo de compilação. Como os simuladores numéricos tradicionais sofrem com desvio de ponto flutuante (drift) e latência de agendamento de threads sob cargas intensas, o Holds Substrate aproveita uma thread de Web Worker baseada em **WebAssembly (WASM)** altamente otimizada, pareada com uma interface moderna desenvolvida em Svelte.
+
+## Objetivo
+
+O objetivo deste projeto é fornecer uma área de testes (sandbox) com custo zero de infraestrutura para projetar, compilar e visualizar estruturas físicas (como vigas, juntas e nós de múltiplos corpos) sob forças não-lineares. Ao compilar as configurações estruturais em bytecode Rust otimizado e executá-las em um worker WebAssembly, alcançamos velocidades de execução quase nativas no navegador ($60$ Hz), enquanto oferecemos um ambiente desktop interativo e modular alimentado por Svelte e `Dockview`.
+
+---
+
+## Arquitetura Técnica & Design
+
+O Holds Substrate é dividido em três camadas arquiteturais principais para manter isolamento absoluto de falhas e excelente performance:
+
+```text
+       +-------------------------------------------------+
+       |               Svelte UI (Dockview)              |
+       |  - Orquestração de Layout                       |
+       |  - Editor Drag-and-Drop / Hierarquia em Árvore  |
+       +------------------------┬------------------------+
+                                │
+                 IPC Serializado (Mensagens JSON)
+                                │
+                                ▼
+       +-------------------------------------------------+
+       |          WebAssembly (WASM) Web Worker          |
+       |  - Gerenciamento de Estado SharedArrayBuffer    |
+       |  - Pipeline de Física Concorrente (60 FPS)      |
+       +------------------------┬------------------------+
+                                │
+                     Compilação de Bytecode Rust
+                                │
+                                ▼
+       +-------------------------------------------------+
+       |           Rust Engine (Holds Kernel)            |
+       |  - Resolvedor de Restrições Verlet              |
+       |  - Jacobianas de Contato / Variedades de Atrito |
+       +-------------------------------------------------+
+```
+
+### 1. O Resolvedor Principal (Rust Kernel)
+O motor de física principal executa um esquema de **integração de Verlet** altamente otimizado combinado com um resolvedor iterativo de **impulsos sequenciais** (semelhante ao resolvedor de restrições do Box2D) para solucionar restrições de velocidade e posição nas juntas.
+Para garantir invariantes matemáticos e prevenir flutuações físicas sob cargas estruturais massivas, as juntas são representadas como equações de restrição rígida:
+
+$$
+C(x_1, x_2) = \|x_1 - x_2\|^2 - d^2 = 0
+$$
+
+O resolvedor projeta os erros de gradiente de restrição no espaço de velocidade ponderado pela massa, resolvendo as Jacobianas de contato por meio de iterações do tipo Jacobi:
+
+$$
+J M^{-1} J^T \lambda = -\beta \frac{C}{\Delta t} - J v
+$$
+
+Onde:
+*   $J$ é a Jacobiana de restrição.
+*   $M^{-1}$ é a matriz diagonal de massa inversa.
+*   $\lambda$ é o impulso do multiplicador de Lagrange.
+*   $\beta$ é o fator de estabilização de Baumgarte para neutralizar desvios numéricos.
+
+### 2. A Camada de Isolamento (WASM & Web Workers)
+Todo o loop de física é compilado para WebAssembly usando o ecossistema `wasm-bindgen` do Rust. Para evitar travamentos de tela e quedas de quadros na thread principal do Svelte durante cálculos intensivos, a instância WASM roda dentro de um **Web Worker** dedicado. Todas as transferências de estado ocorrem por meio de mensagens JSON serializadas ou via `SharedArrayBuffer` para troca de dados com cópia zero de memória, mantendo o renderizador do Svelte perfeitamente responsivo.
+
+### 3. A Shell Desktop (Svelte & Dockview)
+A interface utiliza uma estrutura moderna do Svelte empacotada no `Dockview` para emular uma experiência completa de IDE desktop. Os usuários podem arrastar e soltar componentes estruturais, inspecionar a árvore de conexões, ajustar parâmetros dinamicamente via painéis de controle especializados e assistir a simulações de física 2D/3D em tempo real renderizadas em componentes Canvas acelerados por GPU.

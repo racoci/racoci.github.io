@@ -42,6 +42,10 @@ const dict = {
     sudokuBadge: "Deductive Logic & CSP",
     sudokuDesc: "An interactive, type-safe client-side Sudoku Mentor and Procedural Generator. Features equidistant HSL cell color mapping, visual constraint crosshairs, and step-by-step logical explanations of 'Naked Singles' to teach advanced deductive techniques.",
     sudokuBtn: "Launch Sudoku Mentor",
+    holdsTitle: "Holds Substrate Kernel Compiler",
+    holdsBadge: "Rust WASM & Svelte",
+    holdsDesc: "A concurrent rigid-body constraint simulation kernel compiled into Rust WebAssembly and isolated inside dedicated Web Worker threads. Features an interactive modular Dockview Svelte workbench.",
+    holdsBtn: "Launch Holds Substrate",
   },
   pt: {
     title: "Projetos & Repositórios",
@@ -65,6 +69,10 @@ const dict = {
     sudokuBadge: "Lógica Dedutiva & CSP",
     sudokuDesc: "Um mentor interativo e gerador procedural de Sudoku executado totalmente no cliente. Apresenta mapeamento de cores HSL equidistantes, linhas de mira visual de restrições e explicações lógicas passo a passo de 'Naked Singles' para ensinar técnicas dedutivas avançadas.",
     sudokuBtn: "Iniciar Mentor de Sudoku",
+    holdsTitle: "Compilador Holds Substrate Kernel",
+    holdsBadge: "Rust WASM & Svelte",
+    holdsDesc: "Um motor concorrente de simulação de restrições de corpos rígidos compilado em Rust WebAssembly e isolado dentro de threads Web Workers dedicado. Apresenta bancada Svelte Dockview modular interativa.",
+    holdsBtn: "Iniciar Holds Substrate",
   },
 };
 
@@ -219,6 +227,43 @@ export default function ProjectsPage({ params }: PageProps) {
             className="w-full md:w-auto inline-flex items-center justify-center gap-2 px-5 py-3 bg-zinc-900 dark:bg-zinc-100 hover:bg-zinc-800 dark:hover:bg-zinc-200 text-zinc-100 dark:text-zinc-950 font-semibold rounded-xl hover:shadow-lg hover:-translate-y-0.5 transition-all text-sm group"
           >
             <span>{t.sudokuBtn}</span>
+            <svg
+              className="h-4 w-4 text-zinc-400 dark:text-zinc-600 group-hover:translate-x-0.5 transition-transform"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth="2.5"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
+            </svg>
+          </Link>
+        </div>
+      </div>
+
+      {/* Featured Project - Holds Substrate */}
+      <div className="p-6 border border-emerald-500/20 dark:border-emerald-400/20 bg-emerald-500/[0.02] dark:bg-emerald-400/[0.01] rounded-2xl flex flex-col md:flex-row gap-6 items-center justify-between shadow-sm hover:shadow-md transition-all">
+        <div className="space-y-3 flex-1">
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] uppercase tracking-wider font-extrabold px-2.5 py-1 bg-emerald-100 dark:bg-emerald-950/50 text-emerald-800 dark:text-emerald-300 rounded-full">
+              {t.featuredTitle}
+            </span>
+            <span className="text-[10px] uppercase tracking-wider font-extrabold px-2.5 py-1 bg-zinc-100 dark:bg-zinc-800/60 text-zinc-600 dark:text-zinc-400 rounded-full font-mono">
+              {t.holdsBadge}
+            </span>
+          </div>
+          <h2 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">
+            {t.holdsTitle}
+          </h2>
+          <p className="text-zinc-600 dark:text-zinc-400 font-serif leading-relaxed text-sm md:text-base">
+            {t.holdsDesc}
+          </p>
+        </div>
+        <div className="w-full md:w-auto shrink-0">
+          <Link
+            href={`/${lang}/projects/holds`}
+            className="w-full md:w-auto inline-flex items-center justify-center gap-2 px-5 py-3 bg-zinc-900 dark:bg-zinc-100 hover:bg-zinc-800 dark:hover:bg-zinc-200 text-zinc-100 dark:text-zinc-950 font-semibold rounded-xl hover:shadow-lg hover:-translate-y-0.5 transition-all text-sm group"
+          >
+            <span>{t.holdsBtn}</span>
             <svg
               className="h-4 w-4 text-zinc-400 dark:text-zinc-600 group-hover:translate-x-0.5 transition-transform"
               fill="none"
