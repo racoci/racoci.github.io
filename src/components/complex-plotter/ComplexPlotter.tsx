@@ -15,7 +15,12 @@ export default function ComplexPlotter({ lang = 'en' }: { lang?: 'en' | 'pt' }) 
     polar: 'Grade Polar',
     varC: 'Variável "c" (Re, Im)',
     adapted: 'Adaptado do Complex Function Plotter de Samuel J. Li (wgxli).',
-    repo: 'Repositório Original'
+    repo: 'Repositório Original',
+    graphicsOptions: 'Opções Gráficas',
+    enableAxes: 'Exibir Eixos de Coordenadas',
+    enableCheckerboard: 'Ativar Grade Xadrez',
+    invertGradient: 'Inverter Gradiente',
+    continuousGradient: 'Usar Gradiente Contínuo'
   } : {
     title: 'Complex Plotter',
     desc: 'Web-based domain coloring.',
@@ -26,7 +31,12 @@ export default function ComplexPlotter({ lang = 'en' }: { lang?: 'en' | 'pt' }) 
     polar: 'Polar Grid',
     varC: 'Variable "c" (Re, Im)',
     adapted: 'Adapted from Complex Function Plotter by Samuel J. Li (wgxli).',
-    repo: 'Original Repository'
+    repo: 'Original Repository',
+    graphicsOptions: 'Graphics Options',
+    enableAxes: 'Display Coordinate Axes',
+    enableCheckerboard: 'Enable Checkerboard Grid',
+    invertGradient: 'Invert Gradient',
+    continuousGradient: 'Use Continuous Gradient'
   };
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -243,15 +253,77 @@ export default function ComplexPlotter({ lang = 'en' }: { lang?: 'en' | 'pt' }) 
                 type="number" step="0.1"
                 value={variables.c[0]}
                 onChange={e => setVariables({...variables, c: [parseFloat(e.target.value), variables.c[1]]})}
-                className="w-full bg-zinc-950/50 border border-zinc-700/50 rounded p-2 text-sm font-mono"
+                className="w-full bg-zinc-950/50 border border-zinc-700/50 rounded p-2 text-sm font-mono text-zinc-200"
               />
               <input 
                 type="number" step="0.1"
                 value={variables.c[1]}
                 onChange={e => setVariables({...variables, c: [variables.c[0], parseFloat(e.target.value)]})}
-                className="w-full bg-zinc-950/50 border border-zinc-700/50 rounded p-2 text-sm font-mono"
+                className="w-full bg-zinc-950/50 border border-zinc-700/50 rounded p-2 text-sm font-mono text-zinc-200"
               />
             </div>
+          </div>
+
+          <div className="pt-4 border-t border-zinc-800/60 space-y-3">
+            <label className="block text-xs font-mono font-bold text-zinc-400 uppercase tracking-wider mb-2">
+              {t.graphicsOptions}
+            </label>
+
+            {/* Enable Axes */}
+            <label className="flex items-center gap-2.5 cursor-pointer text-sm text-zinc-300 select-none hover:text-zinc-100 transition-colors">
+              <input 
+                type="checkbox"
+                checked={variables.enable_axes[0] > 0.5}
+                onChange={e => setVariables({
+                  ...variables,
+                  enable_axes: [e.target.checked ? 1 : 0, 0]
+                })}
+                className="rounded border-zinc-700 bg-zinc-950 text-emerald-500 focus:ring-emerald-500 h-4 w-4 accent-emerald-500"
+              />
+              {t.enableAxes}
+            </label>
+
+            {/* Enable Checkerboard */}
+            <label className="flex items-center gap-2.5 cursor-pointer text-sm text-zinc-300 select-none hover:text-zinc-100 transition-colors">
+              <input 
+                type="checkbox"
+                checked={variables.enable_checkerboard[0] > 0.5}
+                onChange={e => setVariables({
+                  ...variables,
+                  enable_checkerboard: [e.target.checked ? 1 : 0, 0]
+                })}
+                className="rounded border-zinc-700 bg-zinc-950 text-emerald-500 focus:ring-emerald-500 h-4 w-4 accent-emerald-500"
+              />
+              {t.enableCheckerboard}
+            </label>
+
+            {/* Invert Gradient */}
+            <label className="flex items-center gap-2.5 cursor-pointer text-sm text-zinc-300 select-none hover:text-zinc-100 transition-colors">
+              <input 
+                type="checkbox"
+                checked={variables.invert_gradient[0] > 0.5}
+                onChange={e => setVariables({
+                  ...variables,
+                  invert_gradient: [e.target.checked ? 1 : 0, 0]
+                })}
+                className="rounded border-zinc-700 bg-zinc-950 text-emerald-500 focus:ring-emerald-500 h-4 w-4 accent-emerald-500"
+              />
+              {t.invertGradient}
+            </label>
+
+            {/* Continuous Gradient */}
+            <label className="flex items-center gap-2.5 cursor-pointer text-sm text-zinc-300 select-none hover:text-zinc-100 transition-colors">
+              <input 
+                type="checkbox"
+                checked={variables.continuous_gradient[0] > 0.5}
+                onChange={e => setVariables({
+                  ...variables,
+                  continuous_gradient: [e.target.checked ? 1 : 0, 0]
+                })}
+                className="rounded border-zinc-700 bg-zinc-950 text-emerald-500 focus:ring-emerald-500 h-4 w-4 accent-emerald-500"
+              />
+              {t.continuousGradient}
+            </label>
           </div>
         </div>
 
