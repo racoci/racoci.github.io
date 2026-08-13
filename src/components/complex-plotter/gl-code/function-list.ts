@@ -1,10 +1,9 @@
-// @ts-nocheck
-import {complex_functions} from './complex-functions';
+import { complex_functions } from './complex-functions';
 
-const restrictedFunctions = [];
+const restrictedFunctions: string[] = [];
 
 restrictedFunctions.push(...Object.keys(complex_functions));
-restrictedFunctions.push(...Object.values(complex_functions).map(f => f.name));
+restrictedFunctions.push(...Object.values(complex_functions).map((f: any) => f.name));
 restrictedFunctions.push('z', 'i', 'e', 'pi', 'tau', 'phi');
 
 /* GLSL Keywords */
@@ -54,5 +53,5 @@ restrictedFunctions.push(
   'texture'
 );
 
-const functionList = new Set(restrictedFunctions);
+const functionList = new Set<string>(restrictedFunctions);
 export default functionList;

@@ -1,4 +1,3 @@
-// @ts-nocheck
 import lodash from 'lodash';
 const { get, isNil } = lodash;
 import {
@@ -9,43 +8,44 @@ import {
     wp, wpp,
     sm, cm,
     j, e2, e4, e6, e8, e10, e12, e14, e16
-} from './custom-functions'
+} from './custom-functions';
 import * as math from 'mathjs';
+import { ASTNode } from '../types';
 
-const constants = {
+const constants: Record<string, number> = {
     'e': Math.E,
     'pi': Math.PI,
     'tau': 2 * Math.PI,
     'phi': (1 + Math.sqrt(5))/2,
-}
+};
 
-function fract(z) {return math.complex(z.re - Math.floor(z.re), z.im - Math.floor(z.im));}
-const mod =  (z, w) => math.multiply(w, fract(math.divide(z, w)));
-const add4 = (a, b, c, d) => math.add(math.add(a, b), math.add(c, d));
+function fract(z: any): math.Complex {return math.complex(z.re - Math.floor(z.re), z.im - Math.floor(z.im));}
+const mod = (z: any, w: any) => math.multiply(w, fract(math.divide(z, w))) as unknown as math.Complex;
+const add4 = (a: any, b: any, c: any, d: any) => math.add(math.add(a, b), math.add(c, d)) as unknown as math.Complex;
 
 const I = math.complex(0, 1);
-const fns = {
+const fns: Record<string, (...args: any[]) => any> = {
     add8: (a, b, c, d, e, f, g, h) => math.add(add4(a, b, c, d), add4(e, f, g, h)),
     add4,
     mul4: (a, b, c, d) => math.multiply(math.multiply(a, b), math.multiply(c, d)),
 
     rawpow: math.pow,
-    log: z => (z === 0) ? -1e100 : math.log((z.re < 0) ? math.add(z, math.complex(0, 1e-20)) : z), // Consistent branch cut
+    log: (z: any) => (z === 0 || (typeof z === 'object' && z.re === 0 && z.im === 0)) ? -1e100 : math.log((z.re < 0) ? math.add(z, math.complex(0, 1e-20)) : z), // Consistent branch cut
 
     sub: math.subtract,
     neg: math.unaryMinus,
     mul: math.multiply,
     div: math.divide,
     mod,
-    reciprocal: z => math.divide(1, z),
-    component_mul: (z, alpha) => math.complex(alpha*z.re, alpha*z.im),
-    component_mul_prelog: (z, alpha) => math.complex(math.exp(alpha)*z.re, math.exp(alpha)*z.im),
+    reciprocal: (z: any) => math.divide(1, z),
+    component_mul: (z: any, alpha: number) => math.complex(alpha*z.re, alpha*z.im),
+    component_mul_prelog: (z: any, alpha: number) => math.complex(math.exp(alpha)*z.re, math.exp(alpha)*z.im),
     real: math.re,
     imag: math.im,
-    step: z => (z.re >= 0) ? 1 : 0,
+    step: (z: any) => (z.re >= 0) ? 1 : 0,
 
-    max: (z, w) => math.complex(Math.max(z.re, w.re), Math.max(z.im, w.im)),
-    min: (z, w) => math.complex(Math.min(z.re, w.re), Math.min(z.im, w.im)),
+    max: (z: any, w: any) => math.complex(Math.max(z.re, w.re), Math.max(z.im, w.im)),
+    min: (z: any, w: any) => math.complex(Math.min(z.re, w.re), Math.min(z.im, w.im)),
 
     arcsin: math.asin,
     arccos: math.acos,
@@ -61,7 +61,7 @@ const fns = {
     arcsch: math.acsch,
     arcoth: math.acoth,
 
-    cis: z => math.exp(math.multiply(z, I)),
+    cis: (z: any) => math.exp(math.multiply(z, I) as any),
 
     gamma, beta, binom,
     eta,
@@ -69,62 +69,53 @@ const fns = {
     erf,
     lambertw,
 
-//    factorial: z => gamma(math.add(z, 1)),
-
     nome,
     theta00, theta01, theta10, theta11,
     sn, cn, dn,
     wp, wpp,
     sm, cm,
     j, e2, e4, e6, e8, e10, e12, e14, e16,
-}
+};
 
 /**
- * Returns a JS function that evaluates
- * the given AST.
- *
- * Inputs of the returned function
- * are [real, imag],
- * representing the complex input.
- * The returned function outputs a
- * 2-tuple [real, imag]
- * representing the complex output.
+ * Returns a JS function that evaluates the given AST.
  */
-function toJS(ast, variables) {
-    const errorValue = [NaN, NaN];
-    if (ast === null) {return z => errorValue;}
-    if (!isNaN(ast)) {return z => [ast, 0];}
+function toJS(ast: ASTNode | null, variables: Record<string, any>): (z: [number, number]) => [number, number] {
+    const errorValue: [number, number] = [NaN, NaN];
+    if (ast === null) {return () => errorValue;}
+    if (typeof ast === 'number') {return () => [ast, 0];}
+    if (!isNaN(ast as any)) {return () => [Number(ast), 0];}
 
     // Destructure this level of the AST
-    const [operator, ...args] = ast;
+    const [operator, ...args] = ast as [string, ...any[]];
 
     // Complex number literal
-    if (operator === 'number') {return z => args;}
+    if (operator === 'number') {return () => args as [number, number];}
 
     // User-defined variable
     if (operator === 'variable') {
         const [name] = args;
         if (name === 'z') {return z => z;}
-        return z => [get(variables, name, NaN), 0];
+        return () => [get(variables, name, NaN), 0];
     }
 
     // Built-in constant
     if (operator === 'constant') {
         const [name] = args;
-        return z => [constants[name], 0];
+        return () => [constants[name], 0];
     }
 
     // Built-in function
-    const func = fns[operator] || math[operator];
+    const func = fns[operator] || (math as any)[operator];
     if (!isNil(func)) {
-        const destructure = z => isNil(z.re) ? [z, 0] : [z.re, z.im];
+        const destructure = (z: any): [number, number] => isNil(z.re) ? [z, 0] : [z.re, z.im];
         return z => destructure(func(...args.map(
-                subtree => math.complex(...toJS(subtree, variables)(z))
+                subtree => math.complex(...toJS(subtree as ASTNode, variables)(z))
         )));
     }
 
     // Fallback if no match
-    return z => errorValue;
+    return () => errorValue;
 }
 
 export {constants, fns};
