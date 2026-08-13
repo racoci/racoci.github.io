@@ -1,3 +1,4 @@
+// @ts-nocheck
 // Substitute bound variable with value in AST
 function substitute(ast, name, value) {
     if (!Array.isArray(ast)) {return ast;}

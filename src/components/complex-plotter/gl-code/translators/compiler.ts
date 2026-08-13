@@ -1,9 +1,10 @@
+// @ts-nocheck
 /*****
  * Compile higher-order constructs in AST,
  * and perform some AST optimizations.
  */
-import {constants, fns} from './to-js.js';
-import diff, {substitute} from './derivative.js';
+import {constants, fns} from './to-js';
+import diff, {substitute} from './derivative';
 
 import * as math from 'mathjs';
 

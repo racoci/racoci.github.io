@@ -1,3 +1,4 @@
+// @ts-nocheck
 import * as math from 'mathjs';
 
 const I = math.complex(0, 1);

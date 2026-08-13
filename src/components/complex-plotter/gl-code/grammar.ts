@@ -1,8 +1,10 @@
+// @ts-nocheck
 // Generated automatically by nearley, version 2.20.1
 // http://github.com/Hardmath123/nearley
+var grammar: any;
 (function () {
 function id(x) { return x[0]; }
-var grammar = {
+grammar = {
     Lexer: undefined,
     ParserRules: [
     {"name": "_$ebnf$1", "symbols": []},
@@ -289,7 +291,9 @@ var grammar = {
 }
 if (typeof module !== 'undefined'&& typeof module.exports !== 'undefined') {
    module.exports = grammar;
-} else {
-   window.grammar = grammar;
+} else if (typeof window !== 'undefined') {
+   (window as any).grammar = grammar;
 }
 })();
+
+export default grammar;

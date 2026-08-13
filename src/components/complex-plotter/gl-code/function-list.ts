@@ -1,4 +1,5 @@
-import {complex_functions} from './complex-functions.js';
+// @ts-nocheck
+import {complex_functions} from './complex-functions';
 
 const restrictedFunctions = [];
 

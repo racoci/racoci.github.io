@@ -1,11 +1,10 @@
-import createShaderProgram from './shaders.js';
+import createShaderProgram from './shaders';
+import { ASTNode, WebGLRenderingContextExtended } from './types';
 
-
-function initBuffers(gl) {
+function initBuffers(gl: WebGLRenderingContext): void {
   const vertexBuffer = gl.createBuffer();
   gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
 
-  // Positions of vertices (two triangles)
   const vertices = [
     -1, -1,
     1, -1,
@@ -14,9 +13,8 @@ function initBuffers(gl) {
     -1, 1,
     1, -1,
     1, 1
-  ]
+  ];
 
-  // Initialize buffer with position data
   gl.bufferData(
     gl.ARRAY_BUFFER,
     new Float32Array(vertices),
@@ -24,7 +22,12 @@ function initBuffers(gl) {
   );
 }
 
-function initializeScene(gl, expression, customShader, variableNames) {
+function initializeScene(
+  gl: WebGLRenderingContextExtended, 
+  expression: ASTNode | null, 
+  customShader: boolean, 
+  variableNames: string[]
+): Record<string, WebGLUniformLocation | null> | null {
   if (expression === null) {return null;}
 
   const shaderProgram = createShaderProgram(
@@ -38,25 +41,25 @@ function initializeScene(gl, expression, customShader, variableNames) {
     return null;
   }
 
-  // Initialize shader program
   initBuffers(gl);
   gl.useProgram(shaderProgram);
 
-  // Initialize vertex array
   const positionLocation = gl.getAttribLocation(shaderProgram, 'a_position');
   gl.enableVertexAttribArray(positionLocation);
   gl.vertexAttribPointer(positionLocation, 2, gl.FLOAT, false, 0, 0);
 
-  // Retrieve pointers to variables
-  const variableLocations = {};
+  const variableLocations: Record<string, WebGLUniformLocation | null> = {};
   for (const name of variableNames) {
     variableLocations[name] = gl.getUniformLocation(shaderProgram, name);
   }
   return variableLocations;
 }
 
-function drawScene(gl, variables, axis_ctx) {
-  // Set variable values
+function drawScene(
+  gl: WebGLRenderingContextExtended, 
+  variables: Record<string, [WebGLUniformLocation | null, any]>, 
+  axis_ctx: CanvasRenderingContext2D
+): void {
   for (const key of Object.keys(variables)) {
     const [location, value] = variables[key];
     if (gl.LOG_MODE) {
@@ -66,21 +69,20 @@ function drawScene(gl, variables, axis_ctx) {
     }
   }
 
-  // Draw scene
   gl.drawArrays(gl.TRIANGLES, 0, 6);
 
-  // Draw coordinate axes
   drawAxes(axis_ctx, variables);
 }
 
-function drawAxes(ctx, variables) {
-    // Clear canvas
-    const dpr = window.devicePixelRatio;
+function drawAxes(
+  ctx: CanvasRenderingContext2D, 
+  variables: Record<string, [WebGLUniformLocation | null, any]>
+): void {
+    const dpr = window.devicePixelRatio || 1;
     const [width, height] = [ctx.canvas.width, ctx.canvas.height];
     ctx.clearRect(0, 0, width, height);
-    if (variables.enable_axes[1] < 0.5) {return;}
+    if (!variables.enable_axes || variables.enable_axes[1] < 0.5) {return;}
 
-    // Compute display scales
     const scale = Math.exp(variables.log_scale[1]) * dpr;
     
     let rawLogLabelScale = 2.3 - variables.log_scale[1] / Math.log(10);
@@ -96,31 +98,27 @@ function drawAxes(ctx, variables) {
         logLabelScale--;
     }
 
-    // Compute origin location in screen space
     const [x0, y0] = [
-        width/2 - scale*variables.center_x[1],
-        height/2 + scale*variables.center_y[1],
+        width/2 - scale * variables.center_x[1],
+        height/2 + scale * variables.center_y[1],
     ];
 
-    // Compute window bounds
     const [x_min, x_max] = [-x0/scale, (width - x0)/scale];
     const [y_min, y_max] = [(y0-height)/scale, y0/scale];
 
-
-    // Utility functions
-    function horizontalLine(y) {
+    function horizontalLine(y: number): void {
         const yy = Math.round(y0 - scale*y);
         ctx.moveTo(0, yy);
         ctx.lineTo(width, yy);
     }
 
-    function verticalLine(x, lineWidth) {
+    function verticalLine(x: number): void {
         const xx = Math.round(x0 + scale*x);
         ctx.moveTo(xx, 0);
         ctx.lineTo(xx, height);
     }
 
-    function xLabel(x) {
+    function xLabel(x: number): void {
         const xx = x0 + scale * x;
         if (xx > width - 30*dpr || xx < 30*dpr) {return;}
 
@@ -130,13 +128,13 @@ function drawAxes(ctx, variables) {
         let label = x.toFixed(Math.max(0, -logLabelScale)).replace('-', '−');
         const textWidth = ctx.measureText(label).width + 6 * dpr;
 
-        ctx.textAlign = 'center'
+        ctx.textAlign = 'center';
         ctx.clearRect(xx - textWidth/2, y - 18*dpr, textWidth, 24*dpr);
         ctx.strokeText(label, xx, y);
         ctx.fillText(label, xx, y);
     }
 
-    function yLabel(y, iWidth) {
+    function yLabel(y: number, iWidth: number): void {
         const yy = y0 - scale * y + 6 * dpr;
         if (yy > height - 50*dpr || yy < 100*dpr) {return;}
 
@@ -171,10 +169,8 @@ function drawAxes(ctx, variables) {
         ctx.fillText('i', x + iOffset, yy);
     }
 
-
-    // Draw gridlines
     ctx.globalAlpha = 0.8;
-    ctx.strokeStyle= '#ffffff';
+    ctx.strokeStyle = '#ffffff';
 
     ctx.lineWidth = 1;
     ctx.beginPath();
@@ -194,7 +190,6 @@ function drawAxes(ctx, variables) {
     horizontalLine(0);
     ctx.stroke();
 
-    // Draw labels
     ctx.font = `${20 * dpr}px Computer Modern Serif`;
     ctx.globalAlpha = 1;
     ctx.fillStyle = '#ffffff';
@@ -205,7 +200,6 @@ function drawAxes(ctx, variables) {
         if (i === 0) {continue;}
         xLabel(i * labelScale);
     }
-
 
     ctx.font = `italic ${20 * dpr}px Computer Modern Serif`;
     const iWidth = ctx.measureText('i').width;

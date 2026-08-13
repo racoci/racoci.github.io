@@ -1,3 +1,4 @@
+// @ts-nocheck
 import lodash from 'lodash';
 const { get } = lodash;
 
