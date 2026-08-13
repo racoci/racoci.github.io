@@ -1,277 +1,571 @@
 "use client";
 
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { usePolynomial, evaluatePolynomial, Complex } from "./store";
-import { InteractivePlane } from "./InteractivePlane";
 
-type Box = { x: number; y: number; size: number; depth: number };
+// Helper to convert HSL to RGB
+function hslToRgb(h: number, s: number, l: number) {
+  h /= 360; s /= 100; l /= 100;
+  let r, g, b;
+  if (s === 0) {
+    r = g = b = l; // achromatic
+  } else {
+    const hue2rgb = (p: number, q: number, t: number) => {
+      if (t < 0) t += 1;
+      if (t > 1) t -= 1;
+      if (t < 1/6) return p + (q - p) * 6 * t;
+      if (t < 1/2) return q;
+      if (t < 2/3) return p + (q - p) * (2/3 - t) * 6;
+      return p;
+    };
+    const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+    const p = 2 * l - q;
+    r = hue2rgb(p, q, h + 1/3);
+    g = hue2rgb(p, q, h);
+    b = hue2rgb(p, q, h - 1/3);
+  }
+  return [Math.round(r * 255), Math.round(g * 255), Math.round(b * 255)];
+}
+
+type Square = {
+  x: number; // math coordinate re (bottom-left)
+  y: number; // math coordinate im (bottom-left)
+  size: number; // side length
+  depth: number;
+};
 
 export default function QuadtreeVisualizer() {
   const coeffs = usePolynomial();
+
+  const domainCanvasRef = useRef<HTMLCanvasElement>(null);
+  const imageCanvasRef = useRef<HTMLCanvasElement>(null);
+
+  // States
+  const [activeSquare, setActiveSquare] = useState<Square>({ x: -2, y: -2, size: 4, depth: 0 });
+  const [subSquares, setSubSquares] = useState<Square[] | null>(null);
   
-  const rootSize = 280;
-  const R = 2.0;
+  // Animation progress: 0 to 800 (representing 800 sampled boundary points)
+  const [animationFrame, setAnimationFrame] = useState<number>(0);
+  const [isAnimating, setIsAnimating] = useState<boolean>(false);
+  const [verdictReached, setVerdictReached] = useState<boolean>(false);
+  const [winningIndex, setWinningIndex] = useState<number | null>(null);
 
-  // target is now in math coordinates [-R, R]
-  const [target, setTarget] = useState<Complex>({ re: 0, im: 0 });
-  const [depth, setDepth] = useState<number>(0);
-  const [isPlaying, setIsPlaying] = useState<boolean>(true);
-  const [isDraggingTarget, setIsDraggingTarget] = useState(false);
+  // Computed curves data: 4 curves, each containing 800 mapped points
+  const [curves, setCurves] = useState<{ zPoints: Complex[]; pPoints: Complex[] }[]>([]);
+  const [windingNumbers, setWindingNumbers] = useState<number[]>([]);
 
-  const maxDepth = 6;
+  // Viewport/Camera transitions for Domain Canvas (pan & zoom)
+  const [domainCamera, setDomainCamera] = useState({ x: -2, y: -2, size: 4 });
 
-  // Compute bounding boxes
-  const zBounds = { minX: -R, maxX: R, minY: -R, maxY: R };
-  
-  const [pBounds, setPBounds] = useState({ minX: -2, maxX: 2, minY: -2, maxY: 2 });
+  // Right panel auto-fit scale
+  const [imageCamera, setImageCamera] = useState({ cx: 0, cy: 0, size: 4 });
 
-  // Initial P-plane bounding box based on coeffs
+  // Boundary colors matching user suggestions
+  const colors = ["#06b6d4", "#ec4899", "#eab308", "#f97316"]; // Cyan, Magenta, Yellow, Orange
+
+  // Detect language from context (defaulting to EN/PT toggle)
+  const [isPt, setIsPt] = useState(true);
   useEffect(() => {
-    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-    // sample perimeter of the [-R, R] square
-    for (let i = 0; i <= 20; i++) {
-      const perimeters = [
-        { re: -R + (i/20) * 2 * R, im: -R },
-        { re: R, im: -R + (i/20) * 2 * R },
-        { re: R - (i/20) * 2 * R, im: R },
-        { re: -R, im: R - (i/20) * 2 * R }
-      ];
-      for (const z of perimeters) {
-        const p = evaluatePolynomial(coeffs, z);
+    if (typeof window !== "undefined") {
+      setIsPt(window.location.pathname.includes("/pt"));
+    }
+  }, []);
+
+  const t = {
+    title: isPt ? "Visualizador do Teorema Fundamental (Quad-tree)" : "Fundamental Theorem Visualizer (Quadtree)",
+    step: isPt ? "Próximo Passo" : "Next Step",
+    reset: isPt ? "Reiniciar" : "Reset",
+    depth: isPt ? "Profundidade" : "Depth",
+    size: isPt ? "Tamanho" : "Size",
+    activeLabel: isPt ? "Quadrado Ativo" : "Active Square",
+    domainTitle: isPt ? "Domínio Complexo (z)" : "Complex Domain (z)",
+    imageTitle: isPt ? "Imagem Complexa P(z)" : "Complex Image P(z)",
+    scanning: isPt ? "Rastreando Índice de Rotação (Winding Number)..." : "Tracking Winding Number (Ray Tracer)...",
+    verdict: isPt ? "Decisão: Quadrados mortos (Δ = 0) descartados; vencedor focado!" : "Verdict: Dead squares (Δ = 0) discarded; winner focused!",
+    intro: isPt ? "Divida o plano dinamicamente e rastreie o índice de rotação (radar) ao redor de (0,0)." : "Bisect the complex domain and track the winding number radar around (0,0) in real-time."
+  };
+
+  // Generate 800 high-density boundary points for a square
+  const getBoundaryPoints = (sq: Square): Complex[] => {
+    const pts: Complex[] = [];
+    const pointsPerEdge = 200;
+
+    // Bottom edge (y = sq.y, moving right)
+    for (let i = 0; i < pointsPerEdge; i++) {
+      pts.push({ re: sq.x + (i / pointsPerEdge) * sq.size, im: sq.y });
+    }
+    // Right edge (x = sq.x + sq.size, moving up)
+    for (let i = 0; i < pointsPerEdge; i++) {
+      pts.push({ re: sq.x + sq.size, im: sq.y + (i / pointsPerEdge) * sq.size });
+    }
+    // Top edge (y = sq.y + sq.size, moving left)
+    for (let i = 0; i < pointsPerEdge; i++) {
+      pts.push({ re: sq.x + sq.size - (i / pointsPerEdge) * sq.size, im: sq.y + sq.size });
+    }
+    // Left edge (x = sq.x, moving down)
+    for (let i = 0; i < pointsPerEdge; i++) {
+      pts.push({ re: sq.x, im: sq.y + sq.size - (i / pointsPerEdge) * sq.size });
+    }
+    return pts;
+  };
+
+  // Trigger Bisection (Next Step)
+  const handleNextStep = () => {
+    if (isAnimating) return;
+
+    // Reset bisection step states
+    setVerdictReached(false);
+    setWinningIndex(null);
+    setAnimationFrame(0);
+
+    const half = activeSquare.size / 2;
+    const nextDepth = activeSquare.depth + 1;
+
+    // 1. Bisect active square into 4 sub-squares
+    const subs: Square[] = [
+      { x: activeSquare.x, y: activeSquare.y, size: half, depth: nextDepth }, // Q1: Bottom-Left
+      { x: activeSquare.x + half, y: activeSquare.y, size: half, depth: nextDepth }, // Q2: Bottom-Right
+      { x: activeSquare.x, y: activeSquare.y + half, size: half, depth: nextDepth }, // Q3: Top-Left
+      { x: activeSquare.x + half, y: activeSquare.y + half, size: half, depth: nextDepth } // Q4: Top-Right
+    ];
+    setSubSquares(subs);
+
+    // 2. Generate and evaluate high density perimeters
+    const newCurves = subs.map(sub => {
+      const zPoints = getBoundaryPoints(sub);
+      const pPoints = zPoints.map(z => evaluatePolynomial(coeffs, z));
+      return { zPoints, pPoints };
+    });
+    setCurves(newCurves);
+
+    // 3. Compute mathematically exact Winding Numbers
+    const computedWindingNumbers = newCurves.map(curve => {
+      let totalAngle = 0;
+      for (let i = 0; i < curve.pPoints.length; i++) {
+        const p0 = curve.pPoints[i];
+        const p1 = curve.pPoints[(i + 1) % curve.pPoints.length];
+        const theta0 = Math.atan2(p0.im, p0.re);
+        const theta1 = Math.atan2(p1.im, p1.re);
+        let dTheta = theta1 - theta0;
+        if (dTheta > Math.PI) dTheta -= 2 * Math.PI;
+        if (dTheta < -Math.PI) dTheta += 2 * Math.PI;
+        totalAngle += dTheta;
+      }
+      return Math.abs(Math.round(totalAngle / (2 * Math.PI)));
+    });
+    setWindingNumbers(computedWindingNumbers);
+
+    // 4. Calculate Auto-Fit zoom bounding box for Image canvas (must contain (0,0) and all curves)
+    let minX = 0, maxX = 0, minY = 0, maxY = 0;
+    newCurves.forEach(curve => {
+      curve.pPoints.forEach(p => {
         if (p.re < minX) minX = p.re;
         if (p.re > maxX) maxX = p.re;
         if (p.im < minY) minY = p.im;
         if (p.im > maxY) maxY = p.im;
-      }
-    }
-    if (minX > 0) minX = 0;
-    if (maxX < 0) maxX = 0;
-    if (minY > 0) minY = 0;
-    if (maxY < 0) maxY = 0;
-    if (minX === Infinity) {
-      minX = -2; maxX = 2; minY = -2; maxY = 2;
-    }
-    setPBounds({ minX, maxX, minY, maxY });
-  }, [coeffs]);
-
-  useEffect(() => {
-    if (!isPlaying) return;
-    const interval = setInterval(() => {
-      setDepth((prev) => {
-        if (prev >= maxDepth) {
-          setIsPlaying(false);
-          return prev;
-        }
-        return prev + 1;
       });
-    }, 800);
-    return () => clearInterval(interval);
-  }, [isPlaying]);
+    });
+    const cx = (minX + maxX) / 2;
+    const cy = (minY + maxY) / 2;
+    const padding = 1.25;
+    const size = Math.max(maxX - minX, maxY - minY) * padding || 4;
+    setImageCamera({ cx, cy, size });
 
-  const { discarded, active } = useMemo(() => {
-    const discardedBoxes: Box[] = [];
-    let currentActive: Box = { x: -R, y: -R, size: 2 * R, depth: 0 };
+    // 5. Fire radar ray-tracer animation
+    setIsAnimating(true);
+  };
 
-    for (let n = 1; n <= depth; n++) {
-      const half = currentActive.size / 2;
-      const boxes: Box[] = [
-        { x: currentActive.x, y: currentActive.y, size: half, depth: n }, // bottom-left
-        { x: currentActive.x + half, y: currentActive.y, size: half, depth: n }, // bottom-right
-        { x: currentActive.x, y: currentActive.y + half, size: half, depth: n }, // top-left
-        { x: currentActive.x + half, y: currentActive.y + half, size: half, depth: n }, // top-right
-      ];
+  // Run Ray Tracer Animation Loop
+  useEffect(() => {
+    if (!isAnimating) return;
+    let animId: number;
+    const step = 8; // Number of points processed per frame to speed up scanning reasonably (800 / 8 = 100 frames)
 
-      let newActive: Box | null = null;
-      for (const b of boxes) {
-        if (
-          target.re >= b.x &&
-          target.re <= b.x + b.size &&
-          target.im >= b.y &&
-          target.im <= b.y + b.size
-        ) {
-          if (!newActive) newActive = b;
-          else discardedBoxes.push(b);
+    const tick = () => {
+      setAnimationFrame(prev => {
+        if (prev >= 800 - step) {
+          setIsAnimating(false);
+          setVerdictReached(true);
+          
+          // Determine the winner (first sub-square with winding number >= 1)
+          const winner = windingNumbers.findIndex(wn => wn >= 1);
+          if (winner !== -1) {
+            setWinningIndex(winner);
+          }
+          return 800;
+        }
+        return prev + step;
+      });
+      animId = requestAnimationFrame(tick);
+    };
+
+    tick();
+    return () => cancelAnimationFrame(animId);
+  }, [isAnimating, windingNumbers]);
+
+  // Handle zooming smoothly into winning square after verdict
+  useEffect(() => {
+    if (verdictReached && winningIndex !== null && subSquares) {
+      const winner = subSquares[winningIndex];
+      
+      // Animate Camera to zoom in smoothly over 600ms
+      let start: number | null = null;
+      const duration = 600;
+      const initialCam = { ...domainCamera };
+      const targetCam = { x: winner.x, y: winner.y, size: winner.size };
+
+      const step = (timestamp: number) => {
+        if (!start) start = timestamp;
+        const progress = Math.min((timestamp - start) / duration, 1);
+        
+        // Easing cubic-out
+        const ease = 1 - Math.pow(1 - progress, 3);
+
+        setDomainCamera({
+          x: initialCam.x + (targetCam.x - initialCam.x) * ease,
+          y: initialCam.y + (targetCam.y - initialCam.y) * ease,
+          size: initialCam.size + (targetCam.size - initialCam.size) * ease
+        });
+
+        if (progress < 1) {
+          requestAnimationFrame(step);
         } else {
-          discardedBoxes.push(b);
+          // Set active square to winner for the next bisection step!
+          setActiveSquare(winner);
+          setSubSquares(null);
+        }
+      };
+
+      requestAnimationFrame(step);
+    }
+  }, [verdictReached, winningIndex, subSquares]);
+
+  // Canvas drawing loop
+  useEffect(() => {
+    const dCanvas = domainCanvasRef.current;
+    const iCanvas = imageCanvasRef.current;
+    if (!dCanvas || !iCanvas) return;
+
+    const dCtx = dCanvas.getContext("2d");
+    const iCtx = iCanvas.getContext("2d");
+    if (!dCtx || !iCtx) return;
+
+    const dWidth = dCanvas.width;
+    const dHeight = dCanvas.height;
+    const iWidth = iCanvas.width;
+    const iHeight = iCanvas.height;
+
+    // Helper to map math coordinates to domain canvas pixels
+    const mathToDomainPixel = (mx: number, my: number) => {
+      const sx = ((mx - domainCamera.x) / domainCamera.size) * dWidth;
+      const sy = dHeight - ((my - domainCamera.y) / domainCamera.size) * dHeight;
+      return { x: sx, y: sy };
+    };
+
+    // Helper to map math coordinates to image canvas pixels
+    const mathToImagePixel = (mx: number, my: number) => {
+      const halfSize = imageCamera.size / 2;
+      const minX = imageCamera.cx - halfSize;
+      const maxY = imageCamera.cy + halfSize;
+      const sx = ((mx - minX) / imageCamera.size) * iWidth;
+      const sy = ((maxY - my) / imageCamera.size) * iHeight;
+      return { x: sx, y: sy };
+    };
+
+    // --- DRAW DOMAIN CANVAS (LEFT) ---
+    dCtx.clearRect(0, 0, dWidth, dHeight);
+
+    // 1. Draw subtle background Domain Coloring
+    const dColoringCanvas = document.createElement("canvas");
+    dColoringCanvas.width = 120;
+    dColoringCanvas.height = 120;
+    const dcCtx = dColoringCanvas.getContext("2d");
+    if (dcCtx) {
+      const imgData = dcCtx.createImageData(120, 120);
+      const data = imgData.data;
+      for (let py = 0; py < 120; py++) {
+        const im = (domainCamera.y + domainCamera.size) - (py / 120) * domainCamera.size;
+        for (let px = 0; px < 120; px++) {
+          const re = domainCamera.x + (px / 120) * domainCamera.size;
+          const p = evaluatePolynomial(coeffs, { re, im });
+          const angle = Math.atan2(p.im, p.re);
+          const hue = ((angle + Math.PI) / (2 * Math.PI)) * 360;
+          const mag = Math.hypot(p.re, p.im);
+          const logMag = mag > 0 ? Math.log2(mag) : 0;
+          const lightness = 35 + (logMag % 1) * 15;
+          const [r, g, b] = hslToRgb(hue, 60, lightness);
+          const idx = (py * 120 + px) * 4;
+          data[idx] = r; data[idx+1] = g; data[idx+2] = b; data[idx+3] = 90; // Subtle alpha 0.35
         }
       }
-      if (!newActive) newActive = boxes[0];
-      currentActive = newActive;
+      dcCtx.putImageData(imgData, 0, 0);
+      dCtx.drawImage(dColoringCanvas, 0, 0, dWidth, dHeight);
     }
 
-    return { discarded: discardedBoxes, active: currentActive };
-  }, [target, depth]);
+    // 2. Draw Domain Axes
+    const originZ = mathToDomainPixel(0, 0);
+    dCtx.strokeStyle = "rgba(255, 255, 255, 0.15)";
+    dCtx.lineWidth = 1;
+    dCtx.beginPath();
+    dCtx.moveTo(0, originZ.y); dCtx.lineTo(dWidth, originZ.y);
+    dCtx.moveTo(originZ.x, 0); dCtx.lineTo(originZ.x, dHeight);
+    dCtx.stroke();
 
-  const getMappedPath = (b: Box) => {
-    const steps = 4;
-    let d = "";
-    
-    // Bottom edge (y = b.y)
-    for (let i = 0; i <= steps; i++) {
-      const z = { re: b.x + (i / steps) * b.size, im: b.y };
-      const p = evaluatePolynomial(coeffs, z);
-      d += `${i === 0 ? 'M' : 'L'} ${p.re} ${-p.im} `;
-    }
-    // Right edge (x = b.x + b.size)
-    for (let i = 1; i <= steps; i++) {
-      const z = { re: b.x + b.size, im: b.y + (i / steps) * b.size };
-      const p = evaluatePolynomial(coeffs, z);
-      d += `L ${p.re} ${-p.im} `;
-    }
-    // Top edge (y = b.y + b.size, moving left)
-    for (let i = 1; i <= steps; i++) {
-      const z = { re: b.x + b.size - (i / steps) * b.size, im: b.y + b.size };
-      const p = evaluatePolynomial(coeffs, z);
-      d += `L ${p.re} ${-p.im} `;
-    }
-    // Left edge (x = b.x, moving down)
-    for (let i = 1; i <= steps; i++) {
-      const z = { re: b.x, im: b.y + b.size - (i / steps) * b.size };
-      const p = evaluatePolynomial(coeffs, z);
-      d += `L ${p.re} ${-p.im} `;
-    }
-    d += "Z";
-    return d;
-  };
+    // 3. Draw Active Square boundary
+    const activeBL = mathToDomainPixel(activeSquare.x, activeSquare.y);
+    const activeTR = mathToDomainPixel(activeSquare.x + activeSquare.size, activeSquare.y + activeSquare.size);
+    dCtx.strokeStyle = "rgba(16, 185, 129, 0.5)"; // emerald-500
+    dCtx.lineWidth = 2.5;
+    dCtx.strokeRect(activeBL.x, activeTR.y, activeTR.x - activeBL.x, activeBL.y - activeTR.y);
 
-  const handleTargetPointerDown = (e: React.PointerEvent) => {
-    e.stopPropagation();
-    (e.target as Element).setPointerCapture(e.pointerId);
-    setIsDraggingTarget(true);
-    setIsPlaying(true);
-    setDepth(0);
-  };
+    // 4. Draw Sub-squares and highlight winner/discarded
+    if (subSquares) {
+      subSquares.forEach((sub, idx) => {
+        const bl = mathToDomainPixel(sub.x, sub.y);
+        const tr = mathToDomainPixel(sub.x + sub.size, sub.y + sub.size);
+        const w = tr.x - bl.x;
+        const h = bl.y - tr.y;
 
-  const handleTargetPointerUp = (e: React.PointerEvent) => {
-    setIsDraggingTarget(false);
-    (e.target as Element).releasePointerCapture(e.pointerId);
+        if (verdictReached) {
+          if (idx === winningIndex) {
+            // Winning square: Flashes bright emerald
+            dCtx.fillStyle = "rgba(16, 185, 129, 0.15)";
+            dCtx.fillRect(bl.x, tr.y, w, h);
+            dCtx.strokeStyle = "#10b981"; // Bright emerald
+            dCtx.lineWidth = 3;
+            dCtx.strokeRect(bl.x, tr.y, w, h);
+          } else {
+            // Discarded square: Blacked out/semi-transparent
+            dCtx.fillStyle = "rgba(0, 0, 0, 0.65)";
+            dCtx.fillRect(bl.x, tr.y, w, h);
+            dCtx.strokeStyle = "rgba(255, 255, 255, 0.1)";
+            dCtx.lineWidth = 1;
+            dCtx.strokeRect(bl.x, tr.y, w, h);
+          }
+        } else {
+          // Bisection lines: Styled in sub-square color
+          dCtx.strokeStyle = colors[idx];
+          dCtx.lineWidth = 1.5;
+          dCtx.strokeRect(bl.x, tr.y, w, h);
+        }
+      });
+    }
+
+    // --- DRAW IMAGE CANVAS (RIGHT) ---
+    iCtx.clearRect(0, 0, iWidth, iHeight);
+
+    // 1. Draw subtle background Domain Coloring in P-plane
+    const iColoringCanvas = document.createElement("canvas");
+    iColoringCanvas.width = 120;
+    iColoringCanvas.height = 120;
+    const icCtx = iColoringCanvas.getContext("2d");
+    if (icCtx) {
+      const imgData = icCtx.createImageData(120, 120);
+      const data = imgData.data;
+      const halfSize = imageCamera.size / 2;
+      const minX = imageCamera.cx - halfSize;
+      const maxY = imageCamera.cy + halfSize;
+      for (let py = 0; py < 120; py++) {
+        const im = maxY - (py / 120) * imageCamera.size;
+        for (let px = 0; px < 120; px++) {
+          const re = minX + (px / 120) * imageCamera.size;
+          const angle = Math.atan2(im, re);
+          const hue = ((angle + Math.PI) / (2 * Math.PI)) * 360;
+          const mag = Math.hypot(re, im);
+          const logMag = mag > 0 ? Math.log2(mag) : 0;
+          const lightness = 35 + (logMag % 1) * 15;
+          const [r, g, b] = hslToRgb(hue, 60, lightness);
+          const idx = (py * 120 + px) * 4;
+          data[idx] = r; data[idx+1] = g; data[idx+2] = b; data[idx+3] = 90;
+        }
+      }
+      icCtx.putImageData(imgData, 0, 0);
+      iCtx.drawImage(iColoringCanvas, 0, 0, iWidth, iHeight);
+    }
+
+    // 2. Draw High Contrast Origin Crosshair
+    const originW = mathToImagePixel(0, 0);
+    iCtx.strokeStyle = "rgba(239, 68, 68, 0.4)"; // red-500
+    iCtx.lineWidth = 1.5;
+    iCtx.beginPath();
+    iCtx.moveTo(0, originW.y); iCtx.lineTo(iWidth, originW.y);
+    iCtx.moveTo(originW.x, 0); iCtx.lineTo(originW.x, iHeight);
+    iCtx.stroke();
+    // Center point marker
+    iCtx.fillStyle = "#ef4444";
+    iCtx.beginPath();
+    iCtx.arc(originW.x, originW.y, 4, 0, 2 * Math.PI);
+    iCtx.fill();
+
+    // 3. Draw Projected Curves
+    if (curves.length > 0) {
+      curves.forEach((curve, idx) => {
+        iCtx.strokeStyle = colors[idx];
+        iCtx.lineWidth = isAnimating ? 1 : 2;
+        
+        // Fading discarded curves
+        if (verdictReached && idx !== winningIndex) {
+          iCtx.strokeStyle = "rgba(255, 255, 255, 0.1)";
+          iCtx.lineWidth = 1;
+        }
+
+        iCtx.beginPath();
+        for (let i = 0; i <= animationFrame; i++) {
+          if (i >= curve.pPoints.length) break;
+          const p = curve.pPoints[i];
+          const pix = mathToImagePixel(p.re, p.im);
+          if (i === 0) iCtx.moveTo(pix.x, pix.y);
+          else iCtx.lineTo(pix.x, pix.y);
+        }
+        iCtx.stroke();
+
+        // 4. Draw Radar Ray and Tracker Dot
+        if (isAnimating && animationFrame > 0 && animationFrame < 800) {
+          const p = curve.pPoints[animationFrame];
+          const pPix = mathToImagePixel(p.re, p.im);
+
+          // Radar Line: Thin straight line from origin
+          iCtx.strokeStyle = colors[idx] + "aa";
+          iCtx.lineWidth = 1;
+          iCtx.beginPath();
+          iCtx.moveTo(originW.x, originW.y);
+          iCtx.lineTo(pPix.x, pPix.y);
+          iCtx.stroke();
+
+          // Seeker Dot: Pulsing circle
+          iCtx.fillStyle = colors[idx];
+          iCtx.beginPath();
+          iCtx.arc(pPix.x, pPix.y, 5, 0, 2 * Math.PI);
+          iCtx.fill();
+        }
+
+        // 5. Draw Winding Number Labels after verdict
+        if (verdictReached) {
+          const finalPt = curve.pPoints[Math.floor(curve.pPoints.length / 2)];
+          const labelPix = mathToImagePixel(finalPt.re, finalPt.im);
+          const wn = windingNumbers[idx];
+
+          iCtx.fillStyle = wn >= 1 ? "#10b981" : "#52525b"; // Emerald vs Zinc
+          iCtx.font = "bold 11px monospace";
+          iCtx.shadowColor = "rgba(0,0,0,0.8)";
+          iCtx.shadowBlur = 4;
+          iCtx.fillText(`Δ = ${wn}`, labelPix.x + 6, labelPix.y - 6);
+          iCtx.shadowBlur = 0; // reset
+        }
+      });
+    }
+
+  }, [domainCamera, imageCamera, activeSquare, subSquares, curves, animationFrame, isAnimating, verdictReached, winningIndex, windingNumbers, coeffs]);
+
+  // Restart/Reset state
+  const handleReset = () => {
+    setIsAnimating(false);
+    setVerdictReached(false);
+    setWinningIndex(null);
+    setAnimationFrame(0);
+    setCurves([]);
+    setWindingNumbers([]);
+    setSubSquares(null);
+    setActiveSquare({ x: -2, y: -2, size: 4, depth: 0 });
+    setDomainCamera({ x: -2, y: -2, size: 4 });
   };
 
   return (
-    <div className="flex flex-col items-center gap-6 my-8 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-6 shadow-xl w-full max-w-4xl mx-auto">
-      <div className="text-center w-full">
-        <h3 className="text-xl font-bold text-zinc-800 dark:text-zinc-100">
-          Dual Quadtree Visualizer
-        </h3>
-        <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-2 max-w-xl mx-auto">
-          Drag the red target point in the domain (z-plane) to see how the quadtree isolates it. Drag empty space to pan, scroll to zoom.
-        </p>
+    <div className="w-full flex flex-col gap-6 bg-zinc-950 p-6 rounded-2xl border border-zinc-800 shadow-2xl select-none">
+      
+      {/* Header and statistics controls */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-zinc-800 pb-5">
+        <div className="space-y-1">
+          <h3 className="text-xl font-extrabold text-zinc-100 tracking-tight font-sans">
+            {t.title}
+          </h3>
+          <p className="text-xs text-zinc-400 font-serif leading-relaxed max-w-xl">
+            {t.intro}
+          </p>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <div className="flex flex-col text-right font-mono text-[10px] text-zinc-400 gap-0.5">
+            <span>{t.depth}: <strong className="text-emerald-400 font-bold">{activeSquare.depth}</strong></span>
+            <span>{t.size}: <strong className="text-blue-400 font-bold">{activeSquare.size.toFixed(4)}</strong></span>
+          </div>
+
+          <button
+            onClick={handleNextStep}
+            disabled={isAnimating}
+            className="px-4 py-2 bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-zinc-950 font-extrabold text-xs rounded-xl shadow-lg transition-all transform active:scale-95"
+          >
+            {t.step}
+          </button>
+
+          <button
+            onClick={handleReset}
+            className="px-4 py-2 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 font-extrabold text-xs rounded-xl transition-all"
+          >
+            {t.reset}
+          </button>
+        </div>
       </div>
 
-      <div className="flex flex-col md:flex-row gap-8 justify-center items-center w-full">
+      {/* Dual Screen Display Panels */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-stretch">
         
-        {/* Z-plane Quadtree */}
-        <div className="flex flex-col items-center">
-          <h4 className="font-semibold mb-3 text-sm text-zinc-700 dark:text-zinc-300">z-plane (Domain Quadtree)</h4>
-          <div className="border border-zinc-300 dark:border-zinc-700 rounded-xl overflow-hidden bg-white dark:bg-black shadow-sm touch-none">
-            <InteractivePlane
-              dataBounds={zBounds}
-              padding={1.2}
-              width={rootSize}
-              height={rootSize}
-            >
-              {({ screenToMath, viewBox }) => (
-                <g 
-                  onPointerMove={(e) => {
-                    if (isDraggingTarget) {
-                      const pt = screenToMath(e.clientX, e.clientY);
-                      let re = Math.max(-R, Math.min(R, pt.x));
-                      let im = Math.max(-R, Math.min(R, pt.y));
-                      setTarget({ re, im });
-                      setDepth(0);
-                    }
-                  }}
-                  onPointerUp={handleTargetPointerUp}
-                  onPointerLeave={handleTargetPointerUp}
-                >
-                  <rect x={viewBox.x} y={viewBox.y} width={viewBox.w} height={viewBox.h} fill="transparent" />
-                  
-                  {discarded.map((b, i) => (
-                    <rect
-                      key={`z-discard-${i}`}
-                      x={b.x}
-                      y={-b.y - b.size}
-                      width={b.size}
-                      height={b.size}
-                      fill={`hsla(340, 70%, ${20 + b.depth * 10}%, 0.4)`}
-                      stroke={`hsla(340, 70%, ${30 + b.depth * 10}%, 0.8)`}
-                      strokeWidth={viewBox.w/300}
-                    />
-                  ))}
-                  
-                  <rect
-                    x={active.x}
-                    y={-active.y - active.size}
-                    width={active.size}
-                    height={active.size}
-                    fill={`hsla(160, 70%, ${20 + active.depth * 10}%, 0.5)`}
-                    stroke={`hsla(160, 70%, ${30 + active.depth * 10}%, 0.9)`}
-                    strokeWidth={viewBox.w/150}
-                  />
+        {/* Domain Panel (Left) */}
+        <div className="flex flex-col space-y-2">
+          <div className="flex items-center justify-between px-1">
+            <span className="text-xs font-mono font-bold text-zinc-400 uppercase tracking-widest">
+              {t.domainTitle}
+            </span>
+            <span className="text-[10px] font-mono text-zinc-500 font-semibold italic">
+              {t.activeLabel}: x:[{activeSquare.x.toFixed(2)}, {(activeSquare.x + activeSquare.size).toFixed(2)}]
+            </span>
+          </div>
 
-                  <circle 
-                    cx={target.re} 
-                    cy={-target.im} 
-                    r={viewBox.w/50} 
-                    fill="#f43f5e" 
-                    stroke="#fff" 
-                    strokeWidth={viewBox.w/300}
-                    className="cursor-crosshair hover:opacity-80"
-                    onPointerDown={handleTargetPointerDown} 
-                  />
-                </g>
-              )}
-            </InteractivePlane>
+          <div className="relative aspect-square w-full rounded-xl overflow-hidden border border-zinc-800 bg-zinc-900/40">
+            <canvas
+              ref={domainCanvasRef}
+              width={500}
+              height={500}
+              className="w-full h-full block"
+            />
           </div>
         </div>
 
-        {/* P(z)-plane Quadtree */}
-        <div className="flex flex-col items-center">
-          <h4 className="font-semibold mb-3 text-sm text-zinc-700 dark:text-zinc-300">P(z)-plane (Mapped Quadtree)</h4>
-          <div className="border border-zinc-300 dark:border-zinc-700 rounded-xl overflow-hidden bg-white dark:bg-black shadow-sm touch-none">
-            <InteractivePlane
-              dataBounds={pBounds}
-              padding={1.2}
-              width={rootSize}
-              height={rootSize}
-            >
-              {({ viewBox }) => (
-                <>
-                  {/* Axes */}
-                  <line x1={viewBox.x} y1={0} x2={viewBox.x + viewBox.w} y2={0} stroke="currentColor" className="text-zinc-200 dark:text-zinc-800" strokeWidth={viewBox.w/150} />
-                  <line x1={0} y1={viewBox.y} x2={0} y2={viewBox.y + viewBox.h} stroke="currentColor" className="text-zinc-200 dark:text-zinc-800" strokeWidth={viewBox.w/150} />
+        {/* Image Panel (Right) */}
+        <div className="flex flex-col space-y-2">
+          <div className="flex items-center justify-between px-1">
+            <span className="text-xs font-mono font-bold text-zinc-400 uppercase tracking-widest">
+              {t.imageTitle}
+            </span>
+            <span className="text-[10px] font-mono text-red-400 font-semibold">
+              Crosshair: Origin (0,0)
+            </span>
+          </div>
 
-                  {discarded.map((b, i) => {
-                    const lightness = 20 + b.depth * 10; 
-                    return <path key={`p-d-${i}`} d={getMappedPath(b)} fill={`hsla(340, 70%, ${lightness}%, 0.4)`} stroke={`hsla(340, 70%, ${lightness + 10}%, 0.6)`} strokeWidth={viewBox.w/200} strokeLinejoin="round" />;
-                  })}
-                  
-                  {(() => {
-                    const lightness = 20 + active.depth * 10; 
-                    return <path d={getMappedPath(active)} fill={`hsla(160, 70%, ${lightness}%, 0.6)`} stroke={`hsla(160, 70%, ${lightness + 10}%, 0.9)`} strokeWidth={viewBox.w/200} strokeLinejoin="round" />;
-                  })()}
-                  
-                  {/* Mapped target */}
-                  {(() => {
-                    const p = evaluatePolynomial(coeffs, target);
-                    return (
-                      <circle 
-                        cx={p.re} 
-                        cy={-p.im} 
-                        r={viewBox.w/50} 
-                        fill="#f43f5e" 
-                        stroke="#fff" 
-                        strokeWidth={viewBox.w/300}
-                      />
-                    );
-                  })()}
-                </>
-              )}
-            </InteractivePlane>
+          <div className="relative aspect-square w-full rounded-xl overflow-hidden border border-zinc-800 bg-zinc-900/40">
+            <canvas
+              ref={imageCanvasRef}
+              width={500}
+              height={500}
+              className="w-full h-full block"
+            />
+
+            {/* Live scanning/verdict absolute bottom alert */}
+            {isAnimating && (
+              <div className="absolute bottom-3 left-3 right-3 py-2 px-3 bg-zinc-950/90 border border-emerald-500/30 rounded-lg backdrop-blur text-[10px] font-mono text-emerald-400 tracking-wide text-center animate-pulse">
+                ⚡ {t.scanning} [{animationFrame}/800]
+              </div>
+            )}
+            {verdictReached && (
+              <div className="absolute bottom-3 left-3 right-3 py-2 px-3 bg-zinc-950/90 border border-blue-500/30 rounded-lg backdrop-blur text-[10px] font-mono text-blue-400 tracking-wide text-center">
+                🏆 {t.verdict}
+              </div>
+            )}
           </div>
         </div>
 
       </div>
+
     </div>
   );
 }
