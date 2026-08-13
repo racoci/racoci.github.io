@@ -3,42 +3,42 @@ import MappingVisualizer from "../../../components/fta/MappingVisualizer";
 import CountersVisualizer from "../../../components/fta/CountersVisualizer";
 import QuadtreeVisualizer from "../../../components/fta/QuadtreeVisualizer";
 
-# Constructive Approximate Fundamental Theorem of Algebra over Rational Complex Numbers
+# Teorema Fundamental da Álgebra Construtivo Aproximado sobre Números Complexos Racionais
 
-## Context
+## Contexto
 
-The standard Fundamental Theorem of Algebra relies heavily on the complete topological properties of the real numbers ($\mathbb{R}$) and the complex plane ($\mathbb{C}$), utilizing concepts like compactness, continuous homotopies, and the Extreme Value Theorem. However, establishing the existence of roots can be problematic in strictly constructive mathematics, as the exact roots of a polynomial with rational coefficients may be irrational, meaning they do not physically exist within the field of rationals.
+O Teorema Fundamental da Álgebra padrão depende fortemente das propriedades topológicas completas dos números reais ($\mathbb{R}$) e do plano complexo ($\mathbb{C}$), utilizando conceitos como compacidade, homotopias contínuas e o Teorema do Valor Extremo. No entanto, estabelecer a existência de raízes pode ser problemático na matemática estritamente construtiva, uma vez que as raízes exatas de um polinômio com coeficientes racionais podem ser irracionais, o que significa que elas não existem fisicamente dentro do campo dos racionais.
 
-## Objective
+## Objetivo
 
-The objective of this document is to prove an "approximate" version of the Fundamental Theorem of Algebra strictly within the rational complex field $\mathbb{Q}(i)$. We will construct a sequence of points—using only rational arithmetic, finite combinatorial counting, and algebraic inequalities—that is proven to be a Cauchy sequence, and whose polynomial evaluation converges to exactly zero in algebraic quadrature. We will achieve this without ever assuming the existence of real numbers, square roots, continuous angles, or traditional Euclidean metric completeness.
+O objetivo deste documento é provar uma versão "aproximada" do Teorema Fundamental da Álgebra estritamente dentro do campo complexo racional $\mathbb{Q}(i)$. Construiremos uma sequência de pontos — usando apenas aritmética racional, contagem combinatória finita e desigualdades algébricas — que se prova ser uma sequência de Cauchy, e cuja avaliação polinomial converge para exatamente zero em quadratura algébrica. Alcançaremos isso sem nunca assumir a existência de números reais, raízes quadradas, ângulos contínuos ou completude métrica euclidiana tradicional.
 
 ---
 
-## I. Definitions
+## I. Definições
 <PolynomialEditor />
 
 
-**Definition 1.1: The Rational Complex Field**
-Let $F = \mathbb{Q}(i) = \{a + bi \mid a, b \in \mathbb{Q}\}$ be the field of rational complex numbers.
+**Definição 1.1: O Campo Complexo Racional**
+Seja $F = \mathbb{Q}(i) = \{a + bi \mid a, b \in \mathbb{Q}\}$ o campo de números complexos racionais.
 
-**Definition 1.2: The Polynomial**
-Let $P(z) = c_d z^d + c_{d-1} z^{d-1} + \dots + c_1 z + c_0$ be a non-constant polynomial of degree $d \ge 1$ with coefficients $c_k \in F$.
+**Definição 1.2: O Polinômio**
+Seja $P(z) = c_d z^d + c_{d-1} z^{d-1} + \dots + c_1 z + c_0$ um polinômio não-constante de grau $d \ge 1$ com coeficientes $c_k \in F$.
 
-**Definition 1.3: Algebraic Quadrature**
-To avoid irrational square roots, we define the algebraic quadrature $N: F \to \mathbb{Q}_{\ge 0}$ as the squared distance from the origin:
+**Definição 1.3: Quadratura Algébrica**
+Para evitar raízes quadradas irracionais, definimos a quadratura algébrica $N: F \to \mathbb{Q}_{\ge 0}$ como a distância ao quadrado da origem:
 
 $$N(a+bi) = a^2 + b^2$$
 
-**Definition 1.4: Algebraic Inner Product**
-We define the algebraic inner product $\langle \cdot, \cdot \rangle: F \times F \to \mathbb{Q}$ as the real part of the product of the first element and the conjugate of the second:
+**Definição 1.4: Produto Interno Algébrico**
+Definimos o produto interno algébrico $\langle \cdot, \cdot \rangle: F \times F \to \mathbb{Q}$ como a parte real do produto do primeiro elemento pelo conjugado do segundo:
 
 $$\langle w_1, w_2 \rangle = \text{Re}(w_1 \cdot \overline{w_2}) = a_1 a_2 + b_1 b_2$$
 
-Where $w_1 = a_1 + b_1 i$ and $w_2 = a_2 + b_2 i$. Note that $N(w) = \langle w, w \rangle$.
+Onde $w_1 = a_1 + b_1 i$ e $w_2 = a_2 + b_2 i$. Note que $N(w) = \langle w, w \rangle$.
 
-**Definition 1.5: Discrete Quadrants**
-We partition $F \setminus \{0\}$ into four strict quadrants tracked by the cyclic group $\mathbb{Z}_4$:
+**Definição 1.5: Quadrantes Discretos**
+Particionamos $F \setminus \{0\}$ em quatro quadrantes estritos rastreados pelo grupo cíclico $\mathbb{Z}_4$:
 
 * $Q_0$: $(+, +) \to 0$
 * $Q_1$: $(-, +) \to 1$
@@ -47,14 +47,14 @@ We partition $F \setminus \{0\}$ into four strict quadrants tracked by the cycli
 
 ---
 
-## II. Fundamental Rational Theorems
+## II. Teoremas Racionais Fundamentais
 
-Because we cannot use the standard Euclidean triangle inequality $|w_1 + w_2| \le |w_1| + |w_2|$, we must establish strict algebraic equivalents using quadrature.
+Como não podemos usar a desigualdade triangular euclidiana clássica $|w_1 + w_2| \le |w_1| + |w_2|$, devemos estabelecer equivalentes algébricos estritos usando quadratura.
 
-**Theorem 2.1: The Rational Cauchy-Schwarz Inequality**
-For any $w_1, w_2 \in F$, the following inequality holds: $\langle w_1, w_2 \rangle^2 \le N(w_1)N(w_2)$.
-*Proof:*
-By algebraic expansion:
+**Teorema 2.1: A Desigualdade Racional de Cauchy-Schwarz**
+Para quaisquer $w_1, w_2 \in F$, a seguinte desigualdade é válida: $\langle w_1, w_2 \rangle^2 \le N(w_1)N(w_2)$.
+*Demonstração:*
+Por expansão algébrica:
 
 $$N(w_1)N(w_2) - \langle w_1, w_2 \rangle^2 = (a_1^2 + b_1^2)(a_2^2 + b_2^2) - (a_1 a_2 + b_1 b_2)^2$$
 
@@ -62,35 +62,35 @@ $$= a_1^2 a_2^2 + a_1^2 b_2^2 + b_1^2 a_2^2 + b_1^2 b_2^2 - (a_1^2 a_2^2 + 2a_1 
 
 $$= a_1^2 b_2^2 - 2a_1 a_2 b_1 b_2 + b_1^2 a_2^2 = (a_1 b_2 - b_1 a_2)^2$$
 
-Because the square of any rational number is non-negative, $(a_1 b_2 - b_1 a_2)^2 \ge 0$. Therefore, $\langle w_1, w_2 \rangle^2 \le N(w_1)N(w_2)$. $\blacksquare$
+Como o quadrado de qualquer número racional é não-negativo, $(a_1 b_2 - b_1 a_2)^2 \ge 0$. Portanto, $\langle w_1, w_2 \rangle^2 \le N(w_1)N(w_2)$. $\blacksquare$
 
-**Theorem 2.2: Rational Quadrature Sum Bound**
-For any finite set of $m$ elements $w_1, \dots, w_m \in F$, $N\left(\sum_{k=1}^m w_k\right) \le m \sum_{k=1}^m N(w_k)$.
-*Proof:*
-First, note that for any two elements $u, v \in F$, expanding the algebraic quadrature yields:
+**Teorema 2.2: Limite da Soma de Quadratura Racional**
+Para qualquer conjunto finito de $m$ elementos $w_1, \dots, w_m \in F$, $N\left(\sum_{k=1}^m w_k\right) \le m \sum_{k=1}^m N(w_k)$.
+*Demonstração:*
+Primeiro, observe que para quaisquer dois elementos $u, v \in F$, a expansão da quadratura algébrica produz:
 
 $$N(u - v) = N(u) + N(v) - 2\langle u, v \rangle$$
 
-Since $N(u - v) \ge 0$, we have $2\langle u, v \rangle \le N(u) + N(v)$.
-Expanding the quadrature of the sum of $m$ elements:
+Como $N(u - v) \ge 0$, temos $2\langle u, v \rangle \le N(u) + N(v)$.
+Expandindo a quadratura da soma de $m$ elementos:
 
 $$N\left(\sum_{j=1}^m w_j\right) = \sum_{j=1}^m \sum_{k=1}^m \langle w_j, w_k \rangle \le \sum_{j=1}^m \sum_{k=1}^m \frac{1}{2}(N(w_j) + N(w_k))$$
 
 $$= \frac{1}{2} \left( m \sum_{j=1}^m N(w_j) + m \sum_{k=1}^m N(w_k) \right) = m \sum_{k=1}^m N(w_k) \ \blacksquare$$
 
-**Corollary 2.3: Algebraic Lower Bound (Triangle Alternative)**
-If $N(w_2) \le \frac{1}{9} N(w_1)$, then $N(w_1 + w_2) \ge \frac{1}{3} N(w_1)$.
-*Proof:*
-By algebraic expansion: $N(w_1 + w_2) = N(w_1) + N(w_2) + 2\langle w_1, w_2 \rangle$.
-By Cauchy-Schwarz (Theorem 2.1) and the premise $N(w_2) \le \frac{1}{9} N(w_1)$:
+**Corolário 2.3: Limite Inferior Algébrico (Alternativa Triangular)**
+Se $N(w_2) \le \frac{1}{9} N(w_1)$, então $N(w_1 + w_2) \ge \frac{1}{3} N(w_1)$.
+*Demonstração:*
+Por expansão algébrica: $N(w_1 + w_2) = N(w_1) + N(w_2) + 2\langle w_1, w_2 \rangle$.
+Por Cauchy-Schwarz (Teorema 2.1) e a premissa $N(w_2) \le \frac{1}{9} N(w_1)$:
 
 $$\langle w_1, w_2 \rangle^2 \le N(w_1)N(w_2) \le \frac{1}{9} N(w_1)^2$$
 
-In any ordered field, if $X^2 \le Y^2$ for $Y > 0$, then $X \ge -Y$. Thus:
+Em qualquer campo ordenado, se $X^2 \le Y^2$ para $Y > 0$, então $X \ge -Y$. Assim:
 
 $$\langle w_1, w_2 \rangle \ge -\frac{1}{3} N(w_1)$$
 
-Substituting this into the expansion:
+Substituindo isso na expansão:
 
 $$N(w_1 + w_2) \ge N(w_1) + 0 - \frac{2}{3} N(w_1) = \frac{1}{3} N(w_1) \ \blacksquare$$
 
@@ -98,126 +98,126 @@ $$N(w_1 + w_2) \ge N(w_1) + 0 - \frac{2}{3} N(w_1) = \frac{1}{3} N(w_1) \ \black
 
 ---
 
-## III. Polynomial Bounding and Alignment
+## III. Limites e Alinhamento Polinomial
 
-We decompose the polynomial into a leading term $L(z) = c_d z^d$ and an error term $E(z) = \sum_{k=0}^{d-1} c_k z^k$.
+Decompomos o polinômio em um termo líder $L(z) = c_d z^d$ e um termo de erro $E(z) = \sum_{k=0}^{d-1} c_k z^k$.
 
-**Theorem 3.1: Dominance of the Leading Term**
-There exists a rational square region $Q_0$ around the origin such that for all $z$ on its boundary $\partial Q_0$, the leading term dominates the error term, ensuring the polynomial's image never touches the origin.
-*Proof:*
-We define a rational radius $R \in \mathbb{Q}_{>0}$ explicitly:
+**Teorema 3.1: Dominância do Termo Líder**
+Existe uma região quadrada racional $Q_0$ em torno da origem tal que para todo $z$ em sua fronteira $\partial Q_0$, o termo líder domina o termo de erro, garantindo que a imagem do polinômio nunca toque a origem.
+*Demonstração:*
+Definimos um raio racional $R \in \mathbb{Q}_{>0}$ explicitamente:
 
 $$R^2 = 1 + 9d^2 \sum_{k=0}^{d-1} \frac{N(c_k)}{N(c_d)}$$
 
-Let $Q_0$ be the square region defined by $\{a+bi \mid a, b \in [-R, R] \cap \mathbb{Q}\}$. For any $z$ on the boundary $\partial Q_0$, $N(z) \ge R^2 > 1$. Therefore, $N(z)^{d-k} \ge N(z) \ge R^2 > 9d^2 \frac{N(c_k)}{N(c_d)}$.
-Rearranging this yields: $d \cdot N(c_k) N(z)^k < \frac{1}{9d} N(c_d) N(z)^d$.
+Seja $Q_0$ a região quadrada definida por $\{a+bi \mid a, b \in [-R, R] \cap \mathbb{Q}\}$. Para qualquer $z$ na fronteira $\partial Q_0$, $N(z) \ge R^2 > 1$. Portanto, $N(z)^{d-k} \ge N(z) \ge R^2 > 9d^2 \frac{N(c_k)}{N(c_d)}$.
+Reorganizar isso produz: $d \cdot N(c_k) N(z)^k < \frac{1}{9d} N(c_d) N(z)^d$.
 
-Applying Theorem 2.2 to the error term $E(z)$ (which has $d$ terms):
+Aplicando o Teorema 2.2 ao termo de erro $E(z)$ (que possui $d$ termos):
 
 $$N(E(z)) \le d \sum_{k=0}^{d-1} N(c_k z^k) = d \sum_{k=0}^{d-1} N(c_k)N(z)^k < d \sum_{k=0}^{d-1} \left( \frac{1}{9d^2} N(c_d)N(z)^d \right) = \frac{1}{9} N(L(z))$$
 
-By Corollary 2.3, because $N(E(z)) \le \frac{1}{9} N(L(z))$, the total quadrature is strictly bounded below:
+Pelo Corolário 2.3, como $N(E(z)) \le \frac{1}{9} N(L(z))$, a quadratura total é estritamente limitada inferiormente:
 
 $$N(P(z)) = N(L(z) + E(z)) \ge \frac{1}{3} N(L(z)) \ge \frac{1}{3} N(c_d) R^{2d}$$
 
-Let $\mu = \frac{1}{3} N(c_d) R^{2d} \in \mathbb{Q}_{>0}$. We have proved that $N(P(z)) \ge \mu > 0$ for all $z \in \partial Q_0$. $\blacksquare$
+Seja $\mu = \frac{1}{3} N(c_d) R^{2d} \in \mathbb{Q}_{>0}$. Provamos que $N(P(z)) \ge \mu > 0$ para todo $z \in \partial Q_0$. $\blacksquare$
 
-**Theorem 3.2: Algebraic Alignment**
-For any $z \in \partial Q_0$, the terms $P(z)$ and $L(z)$ reside in the same algebraic half-plane, meaning $\langle P(z), L(z) \rangle > 0$.
-*Proof:*
+**Teorema 3.2: Alinhamento Algébrico**
+Para qualquer $z \in \partial Q_0$, os termos $P(z)$ e $L(z)$ residem no mesmo meio-plano algébrico, o que significa que $\langle P(z), L(z) \rangle > 0$.
+*Demonstração:*
 
 $$\langle P(z), L(z) \rangle = N(L(z)) + \langle E(z), L(z) \rangle$$
 
-Since $N(E(z)) \le \frac{1}{9} N(L(z))$, by Theorem 2.1 (Cauchy-Schwarz), $\langle E(z), L(z) \rangle \ge -\frac{1}{3} N(L(z))$.
-Thus, $\langle P(z), L(z) \rangle \ge \frac{2}{3} N(L(z)) > 0$. $P(z)$ and $L(z)$ cannot occupy opposite quadrants. $\blacksquare$
+Como $N(E(z)) \le \frac{1}{9} N(L(z))$, pelo Teorema 2.1 (Cauchy-Schwarz), $\langle E(z), L(z) \rangle \ge -\frac{1}{3} N(L(z))$.
+Assim, $\langle P(z), L(z) \rangle \ge \frac{2}{3} N(L(z)) > 0$. $P(z)$ e $L(z)$ não podem ocupar quadrantes opostos. $\blacksquare$
 
 ---
 
-## IV. Combinatorial Topology
+## IV. Topologia Combinatória
 
-**Definition 4.1: Rational Lipschitz Mesh**
-Because $Q_0$ is a rationally bounded region, we can compute a strict rational constant $K \in \mathbb{Q}_{>0}$ such that for any $u, v \in Q_0$, $N(P(u) - P(v)) \le K \cdot N(u - v)$.
-We discretize $\partial Q_0$ into a finite sequence of rational points $w_0, w_1, \dots, w_k = w_0$. We strictly choose a rational step size $\delta$ such that $K \cdot \delta^2 < \mu$. This guarantees that the step-to-step variation in the polynomial's image is strictly less than the minimum distance to the origin, making it impossible to cross the origin or skip adjacent quadrants in a single step.
+**Definição 4.1: Malha de Lipschitz Racional**
+Como $Q_0$ é uma região racionalmente limitada, podemos computar uma constante racional estrita $K \in \mathbb{Q}_{>0}$ tal que para quaisquer $u, v \in Q_0$, $N(P(u) - P(v)) \le K \cdot N(u - v)$.
+Discretizamos $\partial Q_0$ em uma sequência finita de pontos racionais $w_0, w_1, \dots, w_k = w_0$. Escolhemos estritamente um tamanho de passo racional $\delta$ tal que $K \cdot \delta^2 < \mu$. Isso garante que a variação de passo a passo na imagem do polinômio seja estritamente menor que a distância mínima à origem, impossibilitando cruzar a origem ou pular quadrantes adjacentes em um único passo.
 
-**Definition 4.2: Discrete Winding Number**
-For any valid rational closed-loop mesh, we track an unrolled integer counter $U(j) \in \mathbb{Z}$ that increments or decrements as the sequence transitions between adjacent quadrants in $\mathbb{Z}_4$. The discrete winding number is defined as $\Delta = \frac{U(k) - U(0)}{4}$.
+**Definição 4.2: Número de Rotação Discreto**
+Para qualquer malha de loop fechado racional válida, rastreamos um contador de inteiros desdobrados $U(j) \in \mathbb{Z}$ que se incrementa ou decrementa conforme a sequência transiciona entre quadrantes adjacentes em $\mathbb{Z}_4$. O número de rotação discreto (winding number) é definido como $\Delta = \frac{U(k) - U(0)}{4}$.
 
-**Theorem 4.3: Additivity of Winding Numbers**
-For a product of two sequences $A(z) \cdot B(z)$, $\Delta(A \cdot B) = \Delta(A) + \Delta(B)$.
-*Proof:*
-The algebraic sign rules dictate that the product falls into the quadrant corresponding to the sum of their quadrants, plus a localized correction factor $\epsilon(j) \in \{0, 1\}$ accounting for internal magnitude proportions:
+**Teorema 4.3: Aditividade de Números de Rotação**
+Para um produto de duas sequências $A(z) \cdot B(z)$, $\Delta(A \cdot B) = \Delta(A) + \Delta(B)$.
+*Demonstração:*
+As regras algébricas de sinal dão que o produto cai no quadrante correspondente à soma de seus quadrantes, mais um fator de correção localizado $\epsilon(j) \in \{0, 1\}$ que contabiliza as proporções de magnitude internas:
 
 $$U_{AB}(j) = U_A(j) + U_B(j) + \epsilon(j)$$
 
-Because the mesh forms a closed loop and evaluates exactly the same values at the start and end ($w_k = w_0$), the correction factors perfectly match: $\epsilon(k) = \epsilon(0)$.
-Evaluating the total rotation:
+Como a malha forma um loop fechado e avalia exatamente os mesmos valores no início e no fim ($w_k = w_0$), os fatores de correção coincidem perfeitamente: $\epsilon(k) = \epsilon(0)$.
+Avaliando a rotação total:
 
 $$U_{AB}(k) - U_{AB}(0) = [U_A(k) - U_A(0)] + [U_B(k) - U_B(0)]$$
 
-Dividing by 4 yields $\Delta(A \cdot B) = \Delta(A) + \Delta(B)$. $\blacksquare$
+Dividir por 4 produz $\Delta(A \cdot B) = \Delta(A) + \Delta(B)$. $\blacksquare$
 
-**Corollary 4.4:** Since the boundary of $Q_0$ surrounds the origin exactly once, $\Delta(z) = 1$. Consequently, the winding number of the leading term is precisely $\Delta(L(z)) = \Delta(c_d) + d \cdot \Delta(z) = d$.
+**Corolário 4.4:** Como a fronteira de $Q_0$ circunda a origem exatamente uma vez, $\Delta(z) = 1$. Consequentemente, o número de rotação do termo líder é precisamente $\Delta(L(z)) = \Delta(c_d) + d \cdot \Delta(z) = d$.
 
-**Theorem 4.5: Discrete Rouché's Theorem**
-The winding number of $P(z)$ on the boundary of $Q_0$ is exactly $d$.
-*Proof:*
-By Theorem 3.2, $\langle P(w_j), L(w_j) \rangle > 0$ for all points in the mesh. Therefore, $P$ and $L$ can never occupy opposite quadrants. This restricts the divergence of their unrolled counters:
+**Teorema 4.5: Teorema de Rouché Discreto**
+O número de rotação de $P(z)$ na fronteira de $Q_0$ é exatamente $d$.
+*Demonstração:*
+Pelo Teorema 3.2, $\langle P(w_j), L(w_j) \rangle > 0$ para todos os pontos na malha. Portanto, $P$ e $L$ nunca podem ocupar quadrantes opostos. Isso restringe a divergência de seus contadores desdobrados:
 
 $$|U_P(j) - U_L(j)| \le 1 \quad \forall j$$
 
-If $\Delta_P \neq \Delta_L$, their final counters would differ by at least one full rotation ($4$ quadrants), meaning $|U_P(k) - U_L(k)| \ge 4$. Since the initial divergence is $\le 1$ and the step size $\delta$ prevents jumps $>1$ quadrant per step, the divergence would have to pass continuously through the integer $2$. A divergence of $2$ requires $P$ and $L$ to be in opposite quadrants, meaning $\langle P, L \rangle < 0$, which contradicts Theorem 3.2.
-Thus, $\Delta_P = \Delta_L = d$. $\blacksquare$
+Se $\Delta_P \neq \Delta_L$, seus contadores finais difeririam por pelo menos uma rotação completa ($4$ quadrantes), o que significa que $|U_P(k) - U_L(k)| \ge 4$. Como a divergência inicial é $\le 1$ e o tamanho do passo $\delta$ evita saltos $>1$ quadrante por passo, a divergência teria que passar continuamente pelo inteiro $2$. Uma divergência de $2$ exige que $P$ e $L$ estejam em quadrantes opostos, significando $\langle P, L \rangle < 0$, o que contradiz o Teorema 3.2.
+Portanto, $\Delta_P = \Delta_L = d$. $\blacksquare$
 
 <CountersVisualizer />
 
 ---
 
-## V. The Quadtree Bisection Algorithm
+## V. O Algoritmo de Bisseção por Quadtree
 
-We iteratively construct our Cauchy sequence starting with $Q_0$ (where $\Delta(Q_0) = d \neq 0$).
+Construímos iterativamente nossa sequência de Cauchy começando com $Q_0$ (onde $\Delta(Q_0) = d \neq 0$).
 
-At each step $n$:
+A cada passo $n$:
 
-1. We bisect $Q_n$ at its rational midpoints into 4 smaller sub-squares: $Q_{n,1}$ (Top-Right), $Q_{n,2}$ (Top-Left), $Q_{n,3}$ (Bottom-Left), $Q_{n,4}$ (Bottom-Right).
-2. By combinatorial conservation, the internal mesh transitions evaluate in opposite directions and cancel out. Thus, $\sum_{i=1}^4 \Delta(Q_{n,i}) = \Delta(Q_n)$.
-3. Because $\Delta(Q_n) \neq 0$, at least one sub-square must possess a non-zero winding number.
+1. Bisseccionamos $Q_n$ em seus pontos médios racionais em 4 subquadrados menores: $Q_{n,1}$ (Nordeste - Superior Direito), $Q_{n,2}$ (Noroeste - Superior Esquerdo), $Q_{n,3}$ (Sudoeste - Inferior Esquerdo), $Q_{n,4}$ (Sudeste - Inferior Direito).
+2. Por conservação combinatória, as transições de malha internas se avaliam em direções opostas e se cancelam. Assim, $\sum_{i=1}^4 \Delta(Q_{n,i}) = \Delta(Q_n)$.
+3. Como $\Delta(Q_n) \neq 0$, pelo menos um subquadrado deve possuir um número de rotação diferente de zero.
 
-**Axiom 5.1: Deterministic Selection Rule**
-A polynomial of degree $d$ may possess multiple roots, meaning multiple sub-squares could simultaneously exhibit non-zero winding numbers. To construct a singular, unambiguous sequence targeting exactly one pseudo-root, we define $Q_{n+1}$ as the **first** sub-square in the canonical ordered list $(Q_{n,1}, Q_{n,2}, Q_{n,3}, Q_{n,4})$ that satisfies $\Delta(Q_{n,i}) \neq 0$.
+**Axioma 5.1: Regra de Seleção Determinística**
+Um polinômio de grau $d$ pode possuir múltiplas raízes, o que significa que múltiplos subquadrados poderiam exibir simultaneamente números de rotação não-nulos. Para construir uma sequência singular e inequívoca visando exatamente uma pseudo-raiz, definimos $Q_{n+1}$ as o **primeiro** subquadrado na lista ordenada canônica $(Q_{n,1}, Q_{n,2}, Q_{n,3}, Q_{n,4})$ que satisfaz $\Delta(Q_{n,i}) \neq 0$.
 
-Let $z_n \in F$ be the geometric center of the uniquely chosen square $Q_n$.
+Seja $z_n \in F$ o centro geométrico do quadrado unicamente escolhido $Q_n$.
 
 <QuadtreeVisualizer />
 
 ---
 
-## VI. Proof of Convergence
+## VI. Demonstração de Convergência
 
-**Theorem 6.1: The Sequence is Cauchy**
-The sequence $(z_n)$ generated by the bisection algorithm is a Cauchy sequence.
-*Proof:*
-The side length of $Q_n$ is strictly $L_n = \frac{2R}{2^n} \in \mathbb{Q}$. For any indices $m > n$, both $z_n$ and $z_m$ reside inside $Q_n$. The maximum squared distance between any two points in $Q_n$ is strictly bounded by the squared diagonal:
+**Teorema 6.1: A Sequência é de Cauchy**
+La sequência $(z_n)$ gerada pelo algoritmo de bisseção é uma sequência de Cauchy.
+*Demonstração:*
+O comprimento do lado de $Q_n$ é estritamente $L_n = \frac{2R}{2^n} \in \mathbb{Q}$. Para quaisquer índices $m > n$, ambos $z_n$ e $z_m$ residem dentro de $Q_n$. A distância máxima ao quadrado entre quaisquer dois pontos em $Q_n$ é estritamente limitada pela diagonal ao quadrado:
 
 $$N(z_n - z_m) \le \frac{8R^2}{4^n}$$
 
-For any rational tolerance $\epsilon > 0$, there exists an integer $n$ large enough such that $\frac{8R^2}{4^n} < \epsilon$. Thus, $(z_n)$ is strictly a Cauchy sequence by definition. $\blacksquare$
+Para qualquer tolerância racional $\epsilon > 0$, existe um inteiro $n$ grande o suficiente tal que $\frac{8R^2}{4^n} < \epsilon$. Assim, $(z_n)$ é estritamente uma sequência de Cauchy por definição. $\blacksquare$
 
-**Theorem 6.2: Quadrature Convergence (The Approximate FTA)**
-The polynomial evaluation of the sequence converges to zero: $\lim_{n \to \infty} N(P(z_n)) = 0$.
-*Proof:*
-Assume, for contradiction, that there exists a rational constant $\lambda > 0$ such that the image of $Q_n$ never falls below $N(w) < \lambda$.
-Because $P(z)$ is bounded by the rational Lipschitz constant $K$ on $Q_n$, the maximum image variation inside $Q_n$ is strictly bounded:
+**Teorema 6.2: Convergência de Quadratura (O TFA Aproximado)**
+A avaliação polinomial da sequência converge para zero: $\lim_{n \to \infty} N(P(z_n)) = 0$.
+*Demonstração:*
+Suponha, por contradição, que exista uma constante racional $\lambda > 0$ tal que a imagem de $Q_n$ nunca caia abaixo de $N(w) < \lambda$.
+Como $P(z)$ é limitado pela constante de Lipschitz racional $K$ em $Q_n$, a variação máxima da imagem dentro de $Q_n$ é estritamente limitada:
 
 $$N(P(u) - P(v)) \le K \cdot \frac{8R^2}{4^n} \quad \forall u, v \in Q_n$$
 
-For sufficiently large $n$, this internal variation becomes strictly less than $\lambda$.
-If the entire perimeter of $Q_n$ maps to points farther than $\lambda$ from the origin, yet the maximum variation across that perimeter is strictly smaller than $\lambda$, the mapped boundary is confined to a tight region that algebraically cannot enclose the origin.
-Consequently, its discrete winding number would evaluate to exactly $0$.
-However, Axiom 5.1 structurally guarantees that $\Delta(Q_n) \neq 0$ for every $n$. This is a direct contradiction.
-Therefore, the assumption must be false. The sequence's quadrature inevitably drops below any rational bound $\epsilon > 0$, yielding:
+Para $n$ suficientemente grande, esta variação interna torna-se estritamente menor que $\lambda$.
+Se todo o perímetro de $Q_n$ mapeia para pontos mais distantes do que $\lambda$ da origem, porém a variação máxima ao longo desse perímetro é estritamente menor do que $\lambda$, a fronteira mapeada fica confinada a uma região estreita que algebricamente não pode circundar a origem.
+Consequentemente, seu número de rotação discreto resultaria em exatamente $0$.
+No entanto, o Axioma 5.1 garante estruturalmente que $\Delta(Q_n) \neq 0$ para todo $n$. Isto é uma contradição direta.
+Portanto, a suposição deve ser falsa. A quadratura da sequência inevitavelmente cai abaixo de qualquer limite racional $\epsilon > 0$, resultando em:
 
 $$\lim_{n \to \infty} N(P(z_n)) = 0$$
 
 $\blacksquare$
 
-This completes the constructive proof that a Cauchy sequence honing in on a pseudo-root can be rigorously established entirely within the rational complex field $\mathbb{Q}(i)$.
+Isto completa a demonstração construtiva de que uma sequência de Cauchy afunilando em uma pseudo-raiz pode ser rigorosamente estabelecida inteiramente dentro do campo complexo racional $\mathbb{Q}(i)$.
