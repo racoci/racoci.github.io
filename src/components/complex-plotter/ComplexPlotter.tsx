@@ -40,10 +40,18 @@ export default function ComplexPlotter({ lang = 'en' }: { lang?: 'en' | 'pt' }) 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const axesCanvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const mathFieldRef = useRef<any>(null);
 
   const [expression, setExpression] = useState("z^2 + c");
   const [dynamicVars, setDynamicVars] = useState<string[]>([]);
   const [latexStr, setLatexStr] = useState("z^2 + c");
+
+  // Sync initial and external expression changes to the math-field safely without destroying cursor
+  useEffect(() => {
+    if (mathFieldRef.current && mathFieldRef.current.value !== expression) {
+      mathFieldRef.current.value = expression;
+    }
+  }, [expression]);
   
   const [variables, setVariables] = useState<any>({
     log_scale: [1.2, 0],
@@ -273,6 +281,8 @@ export default function ComplexPlotter({ lang = 'en' }: { lang?: 'en' | 'pt' }) 
             <h2 className="text-xl font-bold mb-1 text-zinc-100">{t.title}</h2>
             <div className="mt-3">
                {React.createElement('math-field', {
+                 ref: mathFieldRef,
+                 'math-virtual-keyboard-policy': 'manual',
                  style: { 
                    width: '100%', 
                    padding: '12px', 
@@ -285,7 +295,7 @@ export default function ComplexPlotter({ lang = 'en' }: { lang?: 'en' | 'pt' }) 
                    fontSize: '1.25rem' 
                  },
                  onInput: (e: any) => setExpression(e.target.value)
-               }, expression)}
+               })}
             </div>
          </div>
          
