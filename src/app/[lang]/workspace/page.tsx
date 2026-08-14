@@ -16,6 +16,7 @@ import QuadtreeVisualizer from "../../../components/fta/QuadtreeVisualizer";
 import MappingVisualizer from "../../../components/fta/MappingVisualizer";
 import CountersVisualizer from "../../../components/fta/CountersVisualizer";
 import PolynomialEditor from "../../../components/fta/PolynomialEditor";
+import InnerProductWindingVisualizer from "../../../components/fta/InnerProductWindingVisualizer";
 
 interface DraftFile {
   name: string;
@@ -306,7 +307,8 @@ const WIDGET_SUGGESTIONS = [
   "QuadtreeVisualizer",
   "MappingVisualizer",
   "CountersVisualizer",
-  "PolynomialEditor"
+  "PolynomialEditor",
+  "InnerProductWindingVisualizer"
 ];
 
 function getCaretCoordinates(textarea: HTMLTextAreaElement, position: number) {
@@ -1250,6 +1252,7 @@ function BlockContentRenderer({
               {token.widgetName === "MappingVisualizer" && <MappingVisualizer />}
               {token.widgetName === "CountersVisualizer" && <CountersVisualizer />}
               {token.widgetName === "PolynomialEditor" && <PolynomialEditor />}
+              {token.widgetName === "InnerProductWindingVisualizer" && <InnerProductWindingVisualizer />}
             </div>
           );
         }
@@ -1425,7 +1428,7 @@ function parseMDXContent(text: string): Token[] {
   // 4. Split by Interactive Widgets
   tokens = splitTokenList(
     tokens,
-    /<(ComplexPlotter|NodeGraftViewer|B3Screener|SudokuViewer|SudokuMiniWidget|QuadtreeVisualizer|MappingVisualizer|CountersVisualizer|PolynomialEditor)\s*\/>/g,
+    /<(ComplexPlotter|NodeGraftViewer|B3Screener|SudokuViewer|SudokuMiniWidget|QuadtreeVisualizer|MappingVisualizer|CountersVisualizer|PolynomialEditor|InnerProductWindingVisualizer)\s*\/>/g,
     (match) => ({
       type: "widget",
       widgetName: match[1],

@@ -2,6 +2,7 @@ import PolynomialEditor from "../../../components/fta/PolynomialEditor";
 import MappingVisualizer from "../../../components/fta/MappingVisualizer";
 import CountersVisualizer from "../../../components/fta/CountersVisualizer";
 import QuadtreeVisualizer from "../../../components/fta/QuadtreeVisualizer";
+import InnerProductWindingVisualizer from "../../../components/fta/InnerProductWindingVisualizer";
 
 # Teorema Fundamental da Álgebra Construtivo Aproximado sobre Números Complexos Racionais
 
@@ -169,6 +170,14 @@ Se $\Delta_P \neq \Delta_L$, seus contadores finais difeririam por pelo menos um
 Portanto, $\Delta_P = \Delta_L = d$. $\blacksquare$
 
 <CountersVisualizer />
+
+### 4.6 A Mecânica de Projeção Vetorial do Winding
+
+Embora a definição discreta baseada em quadrantes seja ideal para a computabilidade estritamente racional, ela representa a aproximação discreta de um fenômeno contínuo profundo. Sob o capô, a rotação (winding) é ditada pela projeção da velocidade instantânea da curva sobre a direção perpendicular de avanço positivo (que chamamos de $\vec{r}^\perp$).
+
+Se o produto interno entre o vetor velocidade $\vec{v}(t)$ e o vetor rotacionado $\vec{r}(t)^\perp$ for estritamente positivo em todos os pontos, a curva é topologicamente impedida de retroceder, garantindo que o número final de voltas seja não-nulo. O visualizador interativo abaixo ilustra essa mecânica vetorial em tempo real para diversas curvas complexas.
+
+<InnerProductWindingVisualizer />
 
 ---
 

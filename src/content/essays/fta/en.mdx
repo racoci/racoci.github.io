@@ -2,6 +2,7 @@ import PolynomialEditor from "../../../components/fta/PolynomialEditor";
 import MappingVisualizer from "../../../components/fta/MappingVisualizer";
 import CountersVisualizer from "../../../components/fta/CountersVisualizer";
 import QuadtreeVisualizer from "../../../components/fta/QuadtreeVisualizer";
+import InnerProductWindingVisualizer from "../../../components/fta/InnerProductWindingVisualizer";
 
 # Constructive Approximate Fundamental Theorem of Algebra over Rational Complex Numbers
 
@@ -169,6 +170,14 @@ If $\Delta_P \neq \Delta_L$, their final counters would differ by at least one f
 Thus, $\Delta_P = \Delta_L = d$. $\blacksquare$
 
 <CountersVisualizer />
+
+### 4.6 The Vector Projection Mechanics of Winding
+
+While the discrete quadrant-based definition is ideal for strict rational computability, it is a discrete approximation of a deep continuous phenomenon. Under the hood, the winding of a curve is dictated by the projection of the curve's instantaneous velocity onto the perpendicular direction of positive CCW advance (which we call $\vec{r}^\perp$).
+
+If the inner product between the velocity vector $\vec{v}(t)$ and the rotated position vector $\vec{r}(t)^\perp$ is strictly positive everywhere, the curve is topologically prevented from backtracking, guaranteeing that the final winding number is non-zero. The interactive visualizer below demonstrates this vector mechanics in real time for various complex curves.
+
+<InnerProductWindingVisualizer />
 
 ---
 
