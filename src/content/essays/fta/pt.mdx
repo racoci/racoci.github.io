@@ -3,6 +3,7 @@ import MappingVisualizer from "../../../components/fta/MappingVisualizer";
 import CountersVisualizer from "../../../components/fta/CountersVisualizer";
 import QuadtreeVisualizer from "../../../components/fta/QuadtreeVisualizer";
 import InnerProductWindingVisualizer from "../../../components/fta/InnerProductWindingVisualizer";
+import { OrthogonalProjectionVisualizer, ErrorDiskConstraintVisualizer, AsymptoticScalingVisualizer } from "../../../components/fta/VectorWindingVisualizers";
 
 # Teorema Fundamental da Álgebra Construtivo Aproximado sobre Números Complexos Racionais
 
@@ -178,6 +179,25 @@ Embora a definição discreta baseada em quadrantes seja ideal para a computabil
 Se o produto interno entre o vetor velocidade $\vec{v}(t)$ e o vetor rotacionado $\vec{r}(t)^\perp$ for estritamente positivo em todos os pontos, a curva é topologicamente impedida de retroceder, garantindo que o número final de voltas seja não-nulo. O visualizador interativo abaixo ilustra essa mecânica vetorial em tempo real para diversas curvas complexas.
 
 <InnerProductWindingVisualizer />
+
+### 4.7 As Três Invariantes Geométricas de Rouché
+
+Para provar de forma geométrica direta que o polinômio completo $P(z)$ e o termo líder $L(z) = a_n z^n$ se alinham topologicamente, analisamos as relações vetoriais e de desigualdade de Cauchy-Schwarz conforme o domínio de raio $R$ se estende.
+
+#### 4.7.1 A Invariante da Projeção Ortogonal
+A condição matemática para que $P(t)$ e $L(t)$ compartilhem o mesmo winding number é que o ângulo entre eles permaneça estritamente agudo ($< 90^\circ$). Isto é garantido se o produto interno $\langle L(t), P(t) \rangle$ for maior que zero, forçando $P(t)$ a habitar o mesmo semiplano positivo ortogonal de $L(t)$.
+
+<OrthogonalProjectionVisualizer />
+
+#### 4.7.2 A Restrição Geométrica pelo Disco de Erro
+Como $P(t) = L(t) + E(t)$ (onde $E(t)$ representa a soma de todos os termos inferiores), a ponta do vetor $P(t)$ é fisicamente forçada a habitar o interior de um disco fechado com raio $\|E(t)\|$ centralizado no topo do vetor guia dominante $L(t)$.
+
+<ErrorDiskConstraintVisualizer />
+
+#### 4.7.3 Convergência Assintótica pelo Crescimento de Potências
+Conforme o raio do plano complexo $R$ cresce, a norma do termo dominante $\|L(t)\|$ cresce a uma taxa polinomial de ordem superior ($R^n$), enquanto o raio do disco de erro $\|E(t)\|$ cresce em uma taxa de ordem menor ($R^{n-1}$). Isso força o descolamento definitivo do disco de erro em relação à origem $(0,0)$, trancando o vetor $P(t)$ no alinhamento do winding do termo dominante.
+
+<AsymptoticScalingVisualizer />
 
 ---
 

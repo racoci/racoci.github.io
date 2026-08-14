@@ -3,6 +3,7 @@ import MappingVisualizer from "../../../components/fta/MappingVisualizer";
 import CountersVisualizer from "../../../components/fta/CountersVisualizer";
 import QuadtreeVisualizer from "../../../components/fta/QuadtreeVisualizer";
 import InnerProductWindingVisualizer from "../../../components/fta/InnerProductWindingVisualizer";
+import { OrthogonalProjectionVisualizer, ErrorDiskConstraintVisualizer, AsymptoticScalingVisualizer } from "../../../components/fta/VectorWindingVisualizers";
 
 # Constructive Approximate Fundamental Theorem of Algebra over Rational Complex Numbers
 
@@ -178,6 +179,25 @@ While the discrete quadrant-based definition is ideal for strict rational comput
 If the inner product between the velocity vector $\vec{v}(t)$ and the rotated position vector $\vec{r}(t)^\perp$ is strictly positive everywhere, the curve is topologically prevented from backtracking, guaranteeing that the final winding number is non-zero. The interactive visualizer below demonstrates this vector mechanics in real time for various complex curves.
 
 <InnerProductWindingVisualizer />
+
+### 4.7 The Three Geometric Invariants of Rouché
+
+To prove geometrically and directly that the complete polynomial $P(z)$ and the leading term $L(z) = a_n z^n$ topologically align, we analyze their vector relationships and the Cauchy-Schwarz inequality as the domain radius $R$ expands.
+
+#### 4.7.1 The Orthogonal Projection Invariant
+The mathematical condition for $P(t)$ and $L(t)$ to share the same winding number is that the angle between them remains strictly acute ($< 90^\circ$). This is guaranteed if the inner product $\langle L(t), P(t) \rangle$ is strictly positive, forcing $P(t)$ to lie entirely inside the positive orthogonal half-plane of $L(t)$.
+
+<OrthogonalProjectionVisualizer />
+
+#### 4.7.2 The Geometric Error Disk Constraint
+Since $P(t) = L(t) + E(t)$ (where $E(t)$ represents the sum of all lower-order terms), the tip of the vector $P(t)$ is physically constrained to lie within a closed disk of radius $\|E(t)\|$ centered at the tip of the dominant guide vector $L(t)$.
+
+<ErrorDiskConstraintVisualizer />
+
+#### 4.7.3 Asymptotic Scaling and Radius Convergence
+As the complex plane radius $R$ grows, the norm of the dominant term $\|L(t)\|$ grows at a higher-order polynomial rate ($R^n$), while the error disk radius $\|E(t)\|$ grows at a lower-order rate ($R^{n-1}$). This asymptotically forces the entire error disk away from the origin $(0,0)$, locking the vector $P(t)$ within the positive half-plane and aligning its winding number with the leading term.
+
+<AsymptoticScalingVisualizer />
 
 ---
 

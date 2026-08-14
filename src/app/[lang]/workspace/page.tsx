@@ -17,6 +17,7 @@ import MappingVisualizer from "../../../components/fta/MappingVisualizer";
 import CountersVisualizer from "../../../components/fta/CountersVisualizer";
 import PolynomialEditor from "../../../components/fta/PolynomialEditor";
 import InnerProductWindingVisualizer from "../../../components/fta/InnerProductWindingVisualizer";
+import { OrthogonalProjectionVisualizer, ErrorDiskConstraintVisualizer, AsymptoticScalingVisualizer } from "../../../components/fta/VectorWindingVisualizers";
 
 interface DraftFile {
   name: string;
@@ -308,7 +309,10 @@ const WIDGET_SUGGESTIONS = [
   "MappingVisualizer",
   "CountersVisualizer",
   "PolynomialEditor",
-  "InnerProductWindingVisualizer"
+  "InnerProductWindingVisualizer",
+  "OrthogonalProjectionVisualizer",
+  "ErrorDiskConstraintVisualizer",
+  "AsymptoticScalingVisualizer"
 ];
 
 function getCaretCoordinates(textarea: HTMLTextAreaElement, position: number) {
@@ -1253,6 +1257,9 @@ function BlockContentRenderer({
               {token.widgetName === "CountersVisualizer" && <CountersVisualizer />}
               {token.widgetName === "PolynomialEditor" && <PolynomialEditor />}
               {token.widgetName === "InnerProductWindingVisualizer" && <InnerProductWindingVisualizer />}
+              {token.widgetName === "OrthogonalProjectionVisualizer" && <OrthogonalProjectionVisualizer />}
+              {token.widgetName === "ErrorDiskConstraintVisualizer" && <ErrorDiskConstraintVisualizer />}
+              {token.widgetName === "AsymptoticScalingVisualizer" && <AsymptoticScalingVisualizer />}
             </div>
           );
         }
@@ -1428,7 +1435,7 @@ function parseMDXContent(text: string): Token[] {
   // 4. Split by Interactive Widgets
   tokens = splitTokenList(
     tokens,
-    /<(ComplexPlotter|NodeGraftViewer|B3Screener|SudokuViewer|SudokuMiniWidget|QuadtreeVisualizer|MappingVisualizer|CountersVisualizer|PolynomialEditor|InnerProductWindingVisualizer)\s*\/>/g,
+    /<(ComplexPlotter|NodeGraftViewer|B3Screener|SudokuViewer|SudokuMiniWidget|QuadtreeVisualizer|MappingVisualizer|CountersVisualizer|PolynomialEditor|InnerProductWindingVisualizer|OrthogonalProjectionVisualizer|ErrorDiskConstraintVisualizer|AsymptoticScalingVisualizer)\s*\/>/g,
     (match) => ({
       type: "widget",
       widgetName: match[1],
