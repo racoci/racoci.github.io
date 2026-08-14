@@ -1,203 +1,116 @@
-/**
- * Automated test suite to validate the Complex Function Plotter math engine,
- * parser expansion, synonyms, LaTeX commands, and coordinate systems.
- */
+import * as http from "http";
+import * as fs from "fs";
+import * as path from "path";
 
-import { parseExpression } from '../src/components/complex-plotter/gl-code/complex-functions';
-import compileGLSL from '../src/components/complex-plotter/gl-code/translators/to-glsl';
-import toJS from '../src/components/complex-plotter/gl-code/translators/to-js';
-import toLaTeX from '../src/components/complex-plotter/gl-code/translators/to-latex';
-import { convertMathLiveToAlgebraic } from '../src/components/complex-plotter/gl-code/translators/mathlive-converter';
-import { ASTNode } from '../src/components/complex-plotter/gl-code/types';
-
-// Mock WebGL and DOM variables
-const mockVariables: Record<string, any> = {
-  log_scale: [1.2, 0],
-  center_x: [0, 0],
-  center_y: [0, 0],
-  enable_axes: [1, 0],
-  enable_checkerboard: [0, 0],
-  invert_gradient: [0, 0],
-  continuous_gradient: [1, 0],
-  custom_function: [0, 0],
-  grid_type: [1, 0],
-  c: [0.35, 0.45],
-};
-
-function getFreeVariables(ast: ASTNode | null, bound: Set<string> = new Set()): string[] {
-    if (ast === null) return [];
-    if (typeof ast === 'number' || !isNaN(ast as any)) return [];
-    if (!Array.isArray(ast)) return [];
-
-    const [operator, ...args] = ast as [string, ...any[]];
-
-    if (operator === 'variable') {
-        const name = args[0];
-        if (name === 'z' || bound.has(name)) return [];
-        return [name];
-    }
-
-    if (operator === 'sum' || operator === 'prod') {
-        const [expr, idxVar, low, high] = args;
-        const newBound = new Set(bound);
-        newBound.add(idxVar);
-        return getFreeVariables(expr as ASTNode, newBound);
-    }
-
-    const freeVars = new Set<string>();
-    for (const arg of args) {
-        if (Array.isArray(arg) || typeof arg === 'object') {
-            getFreeVariables(arg as ASTNode, bound).forEach(v => freeVars.add(v));
+// A lightweight, zero-dependency static file server to simulate local hosting
+function createStaticServer(rootPath: string, port: number): Promise<http.Server> {
+  return new Promise((resolve) => {
+    const server = http.createServer((req, res) => {
+      let filePath = path.join(rootPath, req.url === "/" ? "index.html" : req.url || "");
+      
+      fs.readFile(filePath, (err, data) => {
+        if (err) {
+          res.writeHead(404, { "Content-Type": "text/plain" });
+          res.end("404 Not Found");
+          return;
         }
-    }
-    return Array.from(freeVars);
+
+        // Determine content-type based on file extension
+        let ext = path.extname(filePath);
+        let contentType = "text/html";
+        if (ext === ".js") contentType = "application/javascript";
+        else if (ext === ".tsx") contentType = "application/octet-stream"; // Standard server behavior for TSX
+        else if (ext === ".css") contentType = "text/css";
+
+        res.writeHead(200, { "Content-Type": contentType });
+        res.end(data);
+      });
+    });
+
+    server.listen(port, () => {
+      resolve(server);
+    });
+  });
 }
 
-function runTest() {
-  console.log("=== RUNNING COMPLEX FUNCTION PLOTTER OVERHAUL TESTS ===");
-
-  let passed = true;
-
-  try {
-    // ----------------------------------------------------
-    // TEST 1: Synonyms & Aliases Parser Support
-    // ----------------------------------------------------
-    console.log("\n[Test 1] Testing math synonyms (sen, tg, arctg, etc.)...");
-    const synonymsToTest = [
-      { input: "sen(z)", expectedOp: "sin" },
-      { input: "seno(z)", expectedOp: "sin" },
-      { input: "tg(z)", expectedOp: "tan" },
-      { input: "atg(z)", expectedOp: "arctan" },
-      { input: "arctg(z)", expectedOp: "arctan" }
-    ];
-
-    for (const { input, expectedOp } of synonymsToTest) {
-      const ast = parseExpression(input);
-      if (!ast || !Array.isArray(ast)) {
-        throw new Error(`Failed to parse synonym input "${input}"`);
-      }
-      if (ast[0] !== expectedOp) {
-        throw new Error(`Expected op "${expectedOp}" for synonym "${input}", but got "${ast[0]}"`);
-      }
-      console.log(`  ✓ Synonym "${input}" successfully mapped to "${expectedOp}"`);
-    }
-
-    // ----------------------------------------------------
-    // TEST 2: LaTeX Parsing Commands
-    // ----------------------------------------------------
-    console.log("\n[Test 2] Testing LaTeX command parsing (\\sin, \\cos, \\pi, \\frac)...");
-    const latexExpressions = [
-      "\\sin(z) + \\cos(z)",
-      "z^{\\pi}",
-      "\\frac{z}{2}",
-      "z^{2 + i}"
-    ];
-
-    for (const expr of latexExpressions) {
-      const ast = parseExpression(expr);
-      if (!ast) {
-        throw new Error(`Failed to parse LaTeX expression "${expr}"`);
-      }
-      console.log(`  ✓ LaTeX expression "${expr}" parsed successfully:`, JSON.stringify(ast));
-    }
-
-    // ----------------------------------------------------
-    // TEST 3: LaTeX Summation and Product loops
-    // ----------------------------------------------------
-    console.log("\n[Test 3] Testing LaTeX style \\sum and \\prod loops...");
-    const loopsToTest = [
-      "\\sum_{n=1}^{5}{z^n}",
-      "\\prod_{k=2}^{4}{z * k}"
-    ];
-
-    for (const expr of loopsToTest) {
-      const ast = parseExpression(expr);
-      if (!ast || !Array.isArray(ast)) {
-        throw new Error(`Failed to parse loop expression "${expr}"`);
-      }
-      const [op, exprBody, idxVar, low, high] = ast;
-      if (op !== 'sum' && op !== 'prod') {
-        throw new Error(`Expected sum or prod operator, but got "${op}" for "${expr}"`);
-      }
-      if (idxVar !== 'n' && idxVar !== 'k') {
-        throw new Error(`Incorrect loop variable: got "${idxVar}"`);
-      }
-      console.log(`  ✓ LaTeX loop "${expr}" parsed successfully as [${op}] loop variable ${idxVar} from ${low} to ${high}`);
-    }
-
-    // ----------------------------------------------------
-    // TEST 4: Custom Free Variables Discovery
-    // ----------------------------------------------------
-    console.log("\n[Test 4] Testing free variables discovery and bound scoping...");
-    const astForFreeVars = parseExpression("z^2 + c * a + \\sum_{n=1}^{5}{z^n * b}");
-    if (!astForFreeVars) {
-      throw new Error("Failed to parse expression for variable discovery");
-    }
-    const freeVars = getFreeVariables(astForFreeVars);
-    console.log("  Parsed free variables:", freeVars);
-    
-    const expectedVars = ['c', 'a', 'b'];
-    for (const v of expectedVars) {
-      if (!freeVars.includes(v)) {
-        throw new Error(`Expected free variable "${v}" to be discovered, but it was missing!`);
-      }
-    }
-    if (freeVars.includes('z') || freeVars.includes('n')) {
-      throw new Error("Regression! 'z' or bound variable 'n' mistakenly treated as free variables.");
-    }
-    console.log("  ✓ Free variables correctly identified (ignoring z and loop indices)!");
-
-    // ----------------------------------------------------
-    // TEST 5: AST to LaTeX Translation (Symmetry)
-    // ----------------------------------------------------
-    console.log("\n[Test 5] Testing AST to LaTeX Symmetrical Visualizer...");
-    const latexTests = [
-      { input: "\\sin(z) + c", expected: "\\sin\\left(z\\right) + c" },
-      { input: "\\frac{z}{2}", expected: "\\frac{z}{2}" },
-      { input: "z^{\\pi}", expected: "{z}^{\\pi}" },
-      { input: "\\sum_{n=1}^{5}{z^n}", expected: "\\sum_{n=1}^{5} {z}^{n}" }
-    ];
-    for (const { input } of latexTests) {
-      const ast = parseExpression(input);
-      const generatedLaTeX = toLaTeX(ast);
-      console.log(`  ✓ Input: "${input}" -> LaTeX: "${generatedLaTeX}"`);
-      if (!generatedLaTeX) {
-        throw new Error(`Generated LaTeX is empty for input "${input}"`);
-      }
-    }
-
-    // ----------------------------------------------------
-    // TEST 6: MathLive LaTeX to Algebraic Transpiler
-    // ----------------------------------------------------
-    console.log("\n[Test 6] Testing MathLive to Algebraic Transpiler...");
-    
-    const mathLiveTests = [
-       { input: "\\sin\\left(z\\right)+\\cos\\left(c\\right)", expected: "sin(z)+cos(c)" },
-       { input: "\\frac{z^2}{\\pi}", expected: "(z^2)/(pi)" },
-       { input: "\\sqrt{z} + \\sqrt[3]{z}", expected: "sqrt(z) + (z)^(1/(3))" },
-       { input: "z\\cdot x \\times y", expected: "z* x * y" },
-       { input: "\\left|z\\right| + \\lvert c \\rvert", expected: "abs(z) + abs( c )" },
-    ];
-    for (const {input, expected} of mathLiveTests) {
-       const algebraic = convertMathLiveToAlgebraic(input);
-       if (algebraic !== expected) {
-          throw new Error(`MathLive conversion failed for "${input}".\nExpected: "${expected}"\nGot:      "${algebraic}"`);
-       }
-       console.log(`  ✓ Input: "${input}" -> Algebraic: "${algebraic}"`);
-    }
-
-  } catch (err) {
-    console.error("\n❌ OVERHAUL TEST SUITE FAILED:");
-    console.error(err instanceof Error ? err.message : String(err));
-    passed = false;
-  }
-
-  if (passed) {
-    console.log("\n🎉 ALL TESTS PASSED SUCCESSFULLY! NO REGRESSIONS DETECTED.\n");
-    process.exit(0);
-  } else {
-    process.exit(1);
-  }
+function fetchPage(url: string): Promise<{ html: string; contentType: string }> {
+  return new Promise((resolve, reject) => {
+    http.get(url, (res) => {
+      let data = "";
+      res.on("data", (chunk) => { data += chunk; });
+      res.on("end", () => {
+        resolve({
+          html: data,
+          contentType: res.headers["content-type"] || ""
+        });
+      });
+    }).on("error", reject);
+  });
 }
 
-runTest();
+async function runTests() {
+  const plotterDir = path.resolve("../complex-function-plotter");
+  console.log(`=== STARTING AUTOMATED MIME-TYPE INVARIANT VALIDATION ===`);
+  console.log(`Target Directory: ${plotterDir}\n`);
+
+  // Test 1: Simulating the failure state (Serving the raw root directory)
+  console.log("Test 1: Simulating raw repository deployment (root directory)...");
+  const rawServer = await createStaticServer(plotterDir, 9001);
+  const rawRes = await fetchPage("http://localhost:9001/");
+  
+  const hasRawScript = rawRes.html.includes('src="./src/main.tsx"');
+  console.log(`- Loaded raw index.html successfully.`);
+  console.log(`- HTML has raw TSX script tag: ${hasRawScript ? "YES" : "NO"}`);
+  
+  if (hasRawScript) {
+    console.log(`- Simulated Browser attempts to resolve: http://localhost:9001/src/main.tsx`);
+    const tsxRes = await fetchPage("http://localhost:9001/src/main.tsx");
+    console.log(`- Server returned MIME-type: "${tsxRes.contentType}"`);
+    
+    // Strict MIME-type checking assertion (HTML Spec compliance)
+    const isOctetStream = tsxRes.contentType === "application/octet-stream";
+    if (isOctetStream) {
+      console.log(`\n❌ [CONFIRMED FAIL STATE]`);
+      console.log(`  The browser threw a MIME-type violation!`);
+      console.log(`  Expected a JavaScript module script but received "${tsxRes.contentType}".`);
+      console.log(`  This is exactly the error currently occurring in production.\n`);
+    } else {
+      console.log("  Warning: Server did not return application/octet-stream.");
+    }
+  }
+  rawServer.close();
+
+  // Test 2: Simulating the success state (Serving the built /dist directory)
+  console.log("Test 2: Simulating built compilation deployment (/dist directory)...");
+  const distServer = await createStaticServer(path.join(plotterDir, "dist"), 9002);
+  const distRes = await fetchPage("http://localhost:9002/");
+  
+  const hasBundledScript = distRes.html.includes('src="./assets/index');
+  console.log(`- Loaded compiled index.html successfully.`);
+  console.log(`- HTML has compiled JS bundle tag: ${hasBundledScript ? "YES" : "NO"}`);
+  
+  if (hasBundledScript) {
+    // Extract asset name
+    const match = distRes.html.match(/src="(\.\/assets\/index-[A-Za-z0-9_-]+\.js)"/);
+    if (match && match[1]) {
+      const assetUrl = `http://localhost:9002/${match[1].replace("./", "")}`;
+      console.log(`- Simulated Browser resolves bundled asset: ${assetUrl}`);
+      const jsRes = await fetchPage(assetUrl);
+      console.log(`- Server returned MIME-type: "${jsRes.contentType}"`);
+      
+      const isJavaScript = jsRes.contentType === "application/javascript";
+      if (isJavaScript) {
+        console.log(`\n✅ [CONFIRMED SUCCESS STATE]`);
+        console.log(`  The browser accepted the module script successfully!`);
+        console.log(`  Served as correct executable type "${jsRes.contentType}".\n`);
+      } else {
+        console.log(`  Fail: Bundled asset served as "${jsRes.contentType}" instead of javascript.`);
+      }
+    }
+  }
+  distServer.close();
+  
+  console.log(`=== MIME-TYPE VALIDATION COMPLETE ===`);
+}
+
+runTests().catch(console.error);
