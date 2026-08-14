@@ -573,6 +573,23 @@ function InteractiveTable({ markdown, onUpdate }: InteractiveTableProps) {
 
   const [editValue, setEditValue] = useState("");
 
+  const [mobileMenuCell, setMobileMenuCell] = useState<{
+    rowIdx: number;
+    colIdx: number;
+    x: number;
+    y: number;
+  } | null>(null);
+
+  const touchStartRef = useRef<{
+    rowIdx: number;
+    colIdx: number;
+    timer: any;
+    startX: number;
+    startY: number;
+  } | null>(null);
+
+  const preventContextMenuRef = useRef(false);
+
   if (!tableData) {
     return <div className="text-red-500 font-mono">Erro ao analisar tabela</div>;
   }
@@ -609,9 +626,23 @@ function InteractiveTable({ markdown, onUpdate }: InteractiveTableProps) {
     setEditingCell(null);
   };
 
-  const handleAddRow = () => {
+  const isRowFilled = (rowIdx: number): boolean => {
+    if (rowIdx < 0 || rowIdx >= rows.length) return false;
+    const row = rows[rowIdx];
+    return row.some(cell => cell.trim().length > 0);
+  };
+
+  const isColumnFilled = (colIdx: number): boolean => {
+    if (colIdx < 0 || colIdx >= headers.length) return false;
+    const headerText = headers[colIdx].trim();
+    const isDefaultHeader = /^Col \d+$/i.test(headerText);
+    if (headerText.length > 0 && !isDefaultHeader) return true;
+    return rows.some(row => row[colIdx] && row[colIdx].trim().length > 0);
+  };
+
+  const handleAddRowAt = (rowIdx: number) => {
     const newRow = Array(headers.length).fill("");
-    const insertIdx = selectedCell && selectedCell.rowIdx >= 0 ? selectedCell.rowIdx + 1 : rows.length;
+    const insertIdx = rowIdx + 1;
     const newRows = [...rows];
     newRows.splice(insertIdx, 0, newRow);
 
@@ -625,8 +656,8 @@ function InteractiveTable({ markdown, onUpdate }: InteractiveTableProps) {
     setSelectedCell({ rowIdx: insertIdx, colIdx: selectedCell?.colIdx ?? 0 });
   };
 
-  const handleAddColumn = () => {
-    const insertIdx = selectedCell ? selectedCell.colIdx + 1 : headers.length;
+  const handleAddColumnAt = (colIdx: number) => {
+    const insertIdx = colIdx + 1;
 
     const newHeaders = [...headers];
     newHeaders.splice(insertIdx, 0, `Col ${newHeaders.length + 1}`);
@@ -650,11 +681,15 @@ function InteractiveTable({ markdown, onUpdate }: InteractiveTableProps) {
     setSelectedCell({ rowIdx: selectedCell?.rowIdx ?? -1, colIdx: insertIdx });
   };
 
-  const handleDeleteActiveRow = () => {
+  const handleDeleteRowAt = (rowIdx: number) => {
     if (rows.length <= 1) return;
 
-    const deleteIdx = selectedCell && selectedCell.rowIdx >= 0 ? selectedCell.rowIdx : rows.length - 1;
-    const newRows = rows.filter((_, i) => i !== deleteIdx);
+    if (isRowFilled(rowIdx)) {
+      const confirmDelete = window.confirm("Esta linha contém dados. Tem certeza que deseja excluí-la?");
+      if (!confirmDelete) return;
+    }
+
+    const newRows = rows.filter((_, i) => i !== rowIdx);
 
     const updatedData: TableData = {
       headers,
@@ -664,18 +699,21 @@ function InteractiveTable({ markdown, onUpdate }: InteractiveTableProps) {
 
     onUpdate(serializeMarkdownTable(updatedData));
     
-    const nextRowIdx = Math.min(deleteIdx, newRows.length - 1);
+    const nextRowIdx = Math.min(rowIdx, newRows.length - 1);
     setSelectedCell({ rowIdx: nextRowIdx, colIdx: selectedCell?.colIdx ?? 0 });
   };
 
-  const handleDeleteActiveColumn = () => {
+  const handleDeleteColumnAt = (colIdx: number) => {
     if (headers.length <= 1) return;
 
-    const deleteIdx = selectedCell ? selectedCell.colIdx : headers.length - 1;
+    if (isColumnFilled(colIdx)) {
+      const confirmDelete = window.confirm("Esta coluna contém dados. Tem certeza que deseja excluí-la?");
+      if (!confirmDelete) return;
+    }
 
-    const newHeaders = headers.filter((_, i) => i !== deleteIdx);
-    const newAlignments = alignments.filter((_, i) => i !== deleteIdx);
-    const newRows = rows.map(r => r.filter((_, i) => i !== deleteIdx));
+    const newHeaders = headers.filter((_, i) => i !== colIdx);
+    const newAlignments = alignments.filter((_, i) => i !== colIdx);
+    const newRows = rows.map(r => r.filter((_, i) => i !== colIdx));
 
     const updatedData: TableData = {
       headers: newHeaders,
@@ -685,8 +723,89 @@ function InteractiveTable({ markdown, onUpdate }: InteractiveTableProps) {
 
     onUpdate(serializeMarkdownTable(updatedData));
     
-    const nextColIdx = Math.min(deleteIdx, newHeaders.length - 1);
+    const nextColIdx = Math.min(colIdx, newHeaders.length - 1);
     setSelectedCell({ rowIdx: selectedCell?.rowIdx ?? -1, colIdx: nextColIdx });
+  };
+
+  const handleAddRow = () => {
+    const activeRowIdx = selectedCell && selectedCell.rowIdx >= 0 ? selectedCell.rowIdx : rows.length - 1;
+    handleAddRowAt(activeRowIdx);
+  };
+
+  const handleAddColumn = () => {
+    const activeColIdx = selectedCell ? selectedCell.colIdx : headers.length - 1;
+    handleAddColumnAt(activeColIdx);
+  };
+
+  const handleDeleteActiveRow = () => {
+    const deleteIdx = selectedCell && selectedCell.rowIdx >= 0 ? selectedCell.rowIdx : rows.length - 1;
+    handleDeleteRowAt(deleteIdx);
+  };
+
+  const handleDeleteActiveColumn = () => {
+    const deleteIdx = selectedCell ? selectedCell.colIdx : headers.length - 1;
+    handleDeleteColumnAt(deleteIdx);
+  };
+
+  const handleTouchStart = (rowIdx: number, colIdx: number, e: React.TouchEvent) => {
+    if (editingCell) return;
+
+    const touch = e.touches[0];
+    const startX = touch.clientX;
+    const startY = touch.clientY;
+
+    if (touchStartRef.current?.timer) {
+      clearTimeout(touchStartRef.current.timer);
+    }
+
+    const timer = setTimeout(() => {
+      if (typeof navigator !== "undefined" && navigator.vibrate) {
+        try {
+          navigator.vibrate(50);
+        } catch (err) {
+          // Ignore vibration failures if unsupported or blocked
+        }
+      }
+      
+      setSelectedCell({ rowIdx, colIdx });
+      setMobileMenuCell({
+        rowIdx,
+        colIdx,
+        x: startX,
+        y: startY
+      });
+      
+      preventContextMenuRef.current = true;
+      touchStartRef.current = null;
+    }, 500);
+
+    touchStartRef.current = {
+      rowIdx,
+      colIdx,
+      timer,
+      startX,
+      startY
+    };
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!touchStartRef.current) return;
+
+    const touch = e.touches[0];
+    const diffX = Math.abs(touch.clientX - touchStartRef.current.startX);
+    const diffY = Math.abs(touch.clientY - touchStartRef.current.startY);
+
+    if (diffX > 10 || diffY > 10) {
+      clearTimeout(touchStartRef.current.timer);
+      touchStartRef.current = null;
+    }
+  };
+
+  const handleTouchEnd = () => {
+    if (touchStartRef.current) {
+      clearTimeout(touchStartRef.current.timer);
+      touchStartRef.current = null;
+    }
   };
 
   return (
@@ -754,6 +873,15 @@ function InteractiveTable({ markdown, onUpdate }: InteractiveTableProps) {
                       isSelected ? "bg-emerald-500/5 ring-1 ring-inset ring-emerald-500/20" : "hover:bg-zinc-800/20"
                     }`}
                     onClick={(e) => handleCellClick(-1, cIdx, h, e)}
+                    onTouchStart={(e) => handleTouchStart(-1, cIdx, e)}
+                    onTouchMove={handleTouchMove}
+                    onTouchEnd={handleTouchEnd}
+                    onContextMenu={(e) => {
+                      if (preventContextMenuRef.current) {
+                        e.preventDefault();
+                        preventContextMenuRef.current = false;
+                      }
+                    }}
                   >
                     {isEditing ? (
                       <input
@@ -773,12 +901,45 @@ function InteractiveTable({ markdown, onUpdate }: InteractiveTableProps) {
                         className="w-full bg-zinc-950 text-zinc-50 px-2 py-1 rounded border border-emerald-500 outline-none font-sans text-sm"
                       />
                     ) : (
-                      <div className="min-h-[1.5rem] flex items-center justify-between gap-1 w-full">
+                      <div className="min-h-[1.5rem] flex items-center justify-between gap-1 w-full relative">
                         <span className="flex-1">{parseInlineMarkdown(h)}</span>
                         <span className="text-[8px] font-mono text-zinc-600 opacity-0 group-hover/cell:opacity-100 transition-opacity font-bold uppercase shrink-0">
                           edit
                         </span>
                       </div>
+                    )}
+
+                    {/* Hover insert buttons */}
+                    {!isEditing && (
+                      <>
+                        {/* Vertical insert (+) on the right border */}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleAddColumnAt(cIdx);
+                          }}
+                          className="absolute right-0 top-0 bottom-0 w-4 flex items-center justify-center translate-x-1/2 opacity-0 group-hover/cell:opacity-100 transition-opacity duration-150 z-30 select-none cursor-pointer"
+                          title="Adicionar coluna após"
+                        >
+                          <span className="w-5 h-5 rounded-full bg-emerald-600 hover:bg-emerald-500 text-white flex items-center justify-center text-xs font-bold shadow-md transform hover:scale-110 active:scale-95 transition-all">
+                            +
+                          </span>
+                        </button>
+
+                        {/* Horizontal insert (+) on the bottom border */}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleAddRowAt(-1); // inserts at index 0 (after headers)
+                          }}
+                          className="absolute bottom-0 left-0 right-0 h-4 flex items-center justify-center translate-y-1/2 opacity-0 group-hover/cell:opacity-100 transition-opacity duration-150 z-30 select-none cursor-pointer"
+                          title="Adicionar linha após"
+                        >
+                          <span className="w-5 h-5 rounded-full bg-emerald-600 hover:bg-emerald-500 text-white flex items-center justify-center text-xs font-bold shadow-md transform hover:scale-110 active:scale-95 transition-all">
+                            +
+                          </span>
+                        </button>
+                      </>
                     )}
                   </th>
                 );
@@ -814,6 +975,15 @@ function InteractiveTable({ markdown, onUpdate }: InteractiveTableProps) {
                             : "hover:bg-zinc-900/30"
                         }`}
                         onClick={(e) => handleCellClick(rIdx, cIdx, cell, e)}
+                        onTouchStart={(e) => handleTouchStart(rIdx, cIdx, e)}
+                        onTouchMove={handleTouchMove}
+                        onTouchEnd={handleTouchEnd}
+                        onContextMenu={(e) => {
+                          if (preventContextMenuRef.current) {
+                            e.preventDefault();
+                            preventContextMenuRef.current = false;
+                          }
+                        }}
                       >
                         {isEditing ? (
                           <textarea
@@ -839,12 +1009,45 @@ function InteractiveTable({ markdown, onUpdate }: InteractiveTableProps) {
                             className="w-full bg-zinc-950 text-zinc-100 px-2 py-1 rounded border border-emerald-500 outline-none font-serif text-sm resize-none overflow-hidden"
                           />
                         ) : (
-                          <div className="min-h-[1.5rem] flex items-center justify-between gap-1 w-full">
+                          <div className="min-h-[1.5rem] flex items-center justify-between gap-1 w-full relative">
                             <span className="flex-1">{parseInlineMarkdown(cell)}</span>
                             <span className="text-[8px] font-mono text-zinc-600 opacity-0 group-hover/cell:opacity-100 transition-opacity font-bold uppercase shrink-0">
                               edit
                             </span>
                           </div>
+                        )}
+
+                        {/* Hover insert buttons */}
+                        {!isEditing && (
+                          <>
+                            {/* Vertical insert (+) on the right border */}
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleAddColumnAt(cIdx);
+                              }}
+                              className="absolute right-0 top-0 bottom-0 w-4 flex items-center justify-center translate-x-1/2 opacity-0 group-hover/cell:opacity-100 transition-opacity duration-150 z-30 select-none cursor-pointer"
+                              title="Adicionar coluna após"
+                            >
+                              <span className="w-5 h-5 rounded-full bg-emerald-600 hover:bg-emerald-500 text-white flex items-center justify-center text-xs font-bold shadow-md transform hover:scale-110 active:scale-95 transition-all">
+                                +
+                              </span>
+                            </button>
+
+                            {/* Horizontal insert (+) on the bottom border */}
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleAddRowAt(rIdx);
+                              }}
+                              className="absolute bottom-0 left-0 right-0 h-4 flex items-center justify-center translate-y-1/2 opacity-0 group-hover/cell:opacity-100 transition-opacity duration-150 z-30 select-none cursor-pointer"
+                              title="Adicionar linha após"
+                            >
+                              <span className="w-5 h-5 rounded-full bg-emerald-600 hover:bg-emerald-500 text-white flex items-center justify-center text-xs font-bold shadow-md transform hover:scale-110 active:scale-95 transition-all">
+                                +
+                              </span>
+                            </button>
+                          </>
                         )}
                       </td>
                     );
@@ -855,6 +1058,82 @@ function InteractiveTable({ markdown, onUpdate }: InteractiveTableProps) {
           </tbody>
         </table>
       </div>
+
+      {/* Mobile Long-Press Context Menu Overlay / Bottom Sheet */}
+      {mobileMenuCell && (
+        <div
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-xs select-none"
+          onClick={() => setMobileMenuCell(null)}
+        >
+          <div
+            className="w-full sm:max-w-sm bg-zinc-950 border-t sm:border border-zinc-800 rounded-t-2xl sm:rounded-2xl p-6 shadow-2xl animate-in slide-in-from-bottom duration-200"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-sm font-bold text-zinc-300 font-sans">
+                Ações da Célula ({mobileMenuCell.rowIdx === -1 ? "Cabeçalho" : `Linha ${mobileMenuCell.rowIdx + 1}`}, Col {mobileMenuCell.colIdx + 1})
+              </h3>
+              <button
+                onClick={() => setMobileMenuCell(null)}
+                className="text-zinc-500 hover:text-zinc-300 text-lg font-bold"
+              >
+                &times;
+              </button>
+            </div>
+            <div className="flex flex-col gap-2">
+              <button
+                onClick={() => {
+                  handleAddRowAt(mobileMenuCell.rowIdx);
+                  setMobileMenuCell(null);
+                }}
+                className="w-full text-left px-4 py-3 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded-xl text-zinc-200 text-sm font-semibold flex items-center gap-3 transition-colors"
+              >
+                <span className="text-emerald-500 font-mono font-bold text-base">+</span>
+                <span>Adicionar Linha</span>
+              </button>
+              <button
+                onClick={() => {
+                  handleAddColumnAt(mobileMenuCell.colIdx);
+                  setMobileMenuCell(null);
+                }}
+                className="w-full text-left px-4 py-3 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded-xl text-zinc-200 text-sm font-semibold flex items-center gap-3 transition-colors"
+              >
+                <span className="text-emerald-500 font-mono font-bold text-base">+</span>
+                <span>Adicionar Coluna</span>
+              </button>
+              
+              <div className="h-px bg-zinc-800 my-1" />
+
+              <button
+                onClick={() => {
+                  handleDeleteRowAt(mobileMenuCell.rowIdx);
+                  setMobileMenuCell(null);
+                }}
+                disabled={rows.length <= 1 || mobileMenuCell.rowIdx === -1}
+                className={`w-full text-left px-4 py-3 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded-xl text-red-400 text-sm font-semibold flex items-center gap-3 transition-colors ${
+                  rows.length <= 1 || mobileMenuCell.rowIdx === -1 ? "opacity-30 cursor-not-allowed" : ""
+                }`}
+              >
+                <span className="text-red-500 font-mono font-bold text-base">-</span>
+                <span>Excluir Linha</span>
+              </button>
+              <button
+                onClick={() => {
+                  handleDeleteColumnAt(mobileMenuCell.colIdx);
+                  setMobileMenuCell(null);
+                }}
+                disabled={headers.length <= 1}
+                className={`w-full text-left px-4 py-3 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded-xl text-red-400 text-sm font-semibold flex items-center gap-3 transition-colors ${
+                  headers.length <= 1 ? "opacity-30 cursor-not-allowed" : ""
+                }`}
+              >
+                <span className="text-red-500 font-mono font-bold text-base">-</span>
+                <span>Excluir Coluna</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
