@@ -170,6 +170,7 @@ interface PageProps {
 
 export default function WorkspacePage({ params }: PageProps) {
   const { lang } = React.use(params);
+  const isPt = lang === "pt";
   const [mounted, setMounted] = useState(false);
   const [token, setToken] = useState("");
   const [geminiKey, setGeminiKey] = useState("");
@@ -520,8 +521,30 @@ ${diffText.slice(0, 1500)}`;
                 onChange={(e) => setToken(e.target.value)}
                 className="w-full px-3 py-2 bg-zinc-950 border border-zinc-800 rounded-xl text-sm text-zinc-100 placeholder-zinc-700 focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500"
               />
-              <span className="text-[9px] text-zinc-500 block leading-relaxed mt-1">
-                Gere um token clássico com escopo <code className="text-emerald-400 font-mono">repo</code> ou de grão fino com acesso de escrita ao seu portfólio.
+              <span className="text-[10px] text-zinc-400 block leading-relaxed mt-2 bg-zinc-950 p-3 rounded-xl border border-zinc-850/50">
+                {isPt ? (
+                  <>
+                    💡 <strong>Como obter o seu PAT:</strong>
+                    <ol className="list-decimal list-inside space-y-1 mt-1 text-[9px] text-zinc-500">
+                      <li>Acesse as <a href="https://github.com/settings/tokens?type=beta" target="_blank" rel="noopener noreferrer" className="text-emerald-400 hover:underline font-bold">Configurações de Tokens de Grão Fino</a> do GitHub.</li>
+                      <li>Clique em <strong>Generate new token</strong>.</li>
+                      <li>Dê um nome ao token (ex: <code>blog-cms</code>) e em <strong>Repository access</strong> escolha <strong>Only select repositories</strong>, selecionando o repositório do seu portfólio.</li>
+                      <li>Em <strong>Permissions</strong>, sob <strong>Repository permissions</strong>, selecione <strong>Contents</strong> e mude o nível para <strong>Read and Write</strong>.</li>
+                      <li>Clique em <strong>Generate token</strong> e cole o código resultante acima!</li>
+                    </ol>
+                  </>
+                ) : (
+                  <>
+                    💡 <strong>How to get your PAT:</strong>
+                    <ol className="list-decimal list-inside space-y-1 mt-1 text-[9px] text-zinc-500">
+                      <li>Go to GitHub's <a href="https://github.com/settings/tokens?type=beta" target="_blank" rel="noopener noreferrer" className="text-emerald-400 hover:underline font-bold">Fine-Grained Tokens Settings</a> page.</li>
+                      <li>Click <strong>Generate new token</strong>.</li>
+                      <li>Name your token (e.g., <code>blog-cms</code>) and under <strong>Repository access</strong> select <strong>Only select repositories</strong>, picking your portfolio repository.</li>
+                      <li>In <strong>Permissions</strong>, under <strong>Repository permissions</strong>, select <strong>Contents</strong> and set access to <strong>Read and Write</strong>.</li>
+                      <li>Click <strong>Generate token</strong> and copy-paste the resulting code above!</li>
+                    </ol>
+                  </>
+                )}
               </span>
             </div>
 
