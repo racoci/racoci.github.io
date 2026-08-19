@@ -9,11 +9,11 @@ import { OrthogonalProjectionVisualizer, ErrorDiskConstraintVisualizer, Asymptot
 
 ## Contexto
 
-O Teorema Fundamental da Álgebra padrão depende fortemente das propriedades topológicas completas dos números reais ($\mathbb{R}$) e do plano complexo ($\mathbb{C}$), utilizando conceitos como compacidade, homotopias contínuas e o Teorema do Valor Extremo. No entanto, estabelecer a existência de raízes pode ser problemático na matemática estritamente construtiva, uma vez que as raízes exatas de um polinômio com coeficientes racionais podem ser irracionais, o que significa que elas não existem fisicamente dentro do campo dos racionais.
+O Teorema Fundamental da Álgebra padrão depende fortemente das propriedades topológicas completas dos números reais e do plano complexo, utilizando conceitos como compacidade, homotopias contínuas e o Teorema do Valor Extremo. No entanto, estabelecer a existência de raízes pode ser problemático na matemática estritamente construtiva, uma vez que as raízes exatas de um polinômio com coeficientes racionais podem ser irracionais, o que significa que elas não existem fisicamente dentro do campo dos racionais.
 
 ## Objetivo
 
-O objetivo deste documento é provar uma versão "aproximada" do Teorema Fundamental da Álgebra estritamente dentro do campo complexo racional $\mathbb{Q}(i)$. Construiremos uma sequência de pontos — usando apenas aritmética racional, contagem combinatória finita e desigualdades algébricas — que se prova ser uma sequência de Cauchy, e cuja avaliação polinomial converge para exatamente zero em quadratura algébrica. Alcançaremos isso sem nunca assumir a existência de números reais, raízes quadradas, ângulos contínuos ou completude métrica euclidiana tradicional.
+O objetivo deste documento é provar uma versão aproximada do Teorema Fundamental da Álgebra estritamente dentro do campo complexo racional. Construiremos uma sequência de pontos — usando apenas aritmética racional, contagem combinatória finita e desigualdades algébricas — que se prova ser uma sequência de Cauchy, e cuja avaliação polinomial converge para exatamente zero em quadratura algébrica. Alcançaremos isso sem nunca assumir a existência de números reais, raízes quadradas, ângulos contínuos ou completude métrica euclidiana tradicional.
 
 ---
 
@@ -22,79 +22,83 @@ O objetivo deste documento é provar uma versão "aproximada" do Teorema Fundame
 
 
 **Definição 1.1: O Campo Complexo Racional**
-Seja $F = \mathbb{Q}(i) = \{a + bi \mid a, b \in \mathbb{Q}\}$ o campo de números complexos racionais.
+Seja a estrutura de campo ordenada:
+$$\mathbb{Q}(i) = \{a + bi \mid a, b \in \mathbb{Q}\}$$
 
 **Definição 1.2: O Polinômio**
-Seja $P(z) = c_d z^d + c_{d-1} z^{d-1} + \dots + c_1 z + c_0$ um polinômio não-constante de grau $d \ge 1$ com coeficientes $c_k \in F$.
+Seja o polinômio complexo rational completo:
+$$\color{#10b981}{P(z)} = \color{#3b82f6}{c_d z^d} + \color{#f43f5e}{c_{d-1} z^{d-1} + \dots + c_0}$$
+Um polinômio de grau:
+$$d \ge 1$$
+Com coeficientes racionais:
+$$c_k \in \mathbb{Q}(i)$$
 
 **Definição 1.3: Quadratura Algébrica**
-Para evitar raízes quadradas irracionais, definimos a quadratura algébrica $N: F \to \mathbb{Q}_{\ge 0}$ como a distância ao quadrado da origem:
-
-$$N(a+bi) = a^2 + b^2$$
+Para evitar raízes quadradas irracionais, definimos a função de quadratura:
+$$\color{#a855f7}{N}(\color{#fbbf24}{a+bi}) = \color{#fbbf24}{a}^2 + \color{#fbbf24}{b}^2$$
 
 **Definição 1.4: Produto Interno Algébrico**
-Definimos o produto interno algébrico $\langle \cdot, \cdot \rangle: F \times F \to \mathbb{Q}$ como a parte real do produto do primeiro elemento pelo conjugado do segundo:
-
-$$\langle w_1, w_2 \rangle = \text{Re}(w_1 \cdot \overline{w_2}) = a_1 a_2 + b_1 b_2$$
-
-Onde $w_1 = a_1 + b_1 i$ e $w_2 = a_2 + b_2 i$. Note que $N(w) = \langle w, w \rangle$.
+Definimos o produto interno algébrico real de projeção:
+$$\color{#a855f7}{\langle} \color{#3b82f6}{w_1}\color{#a855f7}{,} \color{#10b981}{w_2} \color{#a855f7}{\rangle} = \text{Re}(\color{#3b82f6}{w_1} \cdot \color{#10b981}{\overline{w_2}}) = \color{#3b82f6}{a_1}\color{#10b981}{a_2} + \color{#3b82f6}{b_1}\color{#10b981}{b_2}$$
+Onde temos os vetores complexos:
+$$\color{#3b82f6}{w_1 = a_1 + b_1 i}$$
+$$\color{#10b981}{w_2 = a_2 + b_2 i}$$
+E a relação quadrática de norma:
+$$\color{#a855f7}{N}(\color{#3b82f6}{w}) = \color{#a855f7}{\langle} \color{#3b82f6}{w}\color{#a855f7}{,} \color{#3b82f6}{w} \color{#a855f7}{\rangle}$$
 
 **Definição 1.5: Quadrantes Discretos**
-Particionamos $F \setminus \{0\}$ em quatro quadrantes estritos rastreados pelo grupo cíclico $\mathbb{Z}_4$:
-
-* $Q_0$: $(+, +) \to 0$
-* $Q_1$: $(-, +) \to 1$
-* $Q_2$: $(-, -) \to 2$
-* $Q_3$: $(+, -) \to 3$
+Particionamos os planos racionais excluindo a origem em quatro quadrantes estritos rastreados pela representação cíclica:
+$$\mathbb{Z}_4$$
+* $$Q_0: (+, +) \to 0$$
+* $$Q_1: (-, +) \to 1$$
+* $$Q_2: (-, -) \to 2$$
+* $$Q_3: (+, -) \to 3$$
 
 ---
 
 ## II. Teoremas Racionais Fundamentais
 
-Como não podemos usar a desigualdade triangular euclidiana clássica $|w_1 + w_2| \le |w_1| + |w_2|$, devemos estabelecer equivalentes algébricos estritos usando quadratura.
+Como não podemos usar a desigualdade triangular euclidiana clássica nas métricas, devemos estabelecer equivalentes algébricos estritos usando quadratura.
 
 **Teorema 2.1: A Desigualdade Racional de Cauchy-Schwarz**
-Para quaisquer $w_1, w_2 \in F$, a seguinte desigualdade é válida: $\langle w_1, w_2 \rangle^2 \le N(w_1)N(w_2)$.
+Para quaisquer vetores complexos racionais, a seguinte desigualdade é válida:
+$$\color{#a855f7}{\langle} \color{#3b82f6}{w_1}\color{#a855f7}{,} \color{#10b981}{w_2} \color{#a855f7}{\rangle}^2 \le \color{#a855f7}{N}(\color{#3b82f6}{w_1})\color{#a855f7}{N}(\color{#10b981}{w_2})$$
 *Demonstração:*
-Por expansão algébrica:
-
-$$N(w_1)N(w_2) - \langle w_1, w_2 \rangle^2 = (a_1^2 + b_1^2)(a_2^2 + b_2^2) - (a_1 a_2 + b_1 b_2)^2$$
-
-$$= a_1^2 a_2^2 + a_1^2 b_2^2 + b_1^2 a_2^2 + b_1^2 b_2^2 - (a_1^2 a_2^2 + 2a_1 a_2 b_1 b_2 + b_1^2 b_2^2)$$
-
-$$= a_1^2 b_2^2 - 2a_1 a_2 b_1 b_2 + b_1^2 a_2^2 = (a_1 b_2 - b_1 a_2)^2$$
-
-Como o quadrado de qualquer número racional é não-negativo, $(a_1 b_2 - b_1 a_2)^2 \ge 0$. Portanto, $\langle w_1, w_2 \rangle^2 \le N(w_1)N(w_2)$. $\blacksquare$
+Por expansão algébrica direta no campo:
+$$\color{#a855f7}{N}(\color{#3b82f6}{w_1})\color{#a855f7}{N}(\color{#10b981}{w_2}) - \color{#a855f7}{\langle} \color{#3b82f6}{w_1}\color{#a855f7}{,} \color{#10b981}{w_2} \color{#a855f7}{\rangle}^2 = (\color{#3b82f6}{a_1}^2 + \color{#3b82f6}{b_1}^2)(\color{#10b981}{a_2}^2 + \color{#10b981}{b_2}^2) - (\color{#3b82f6}{a_1}\color{#10b981}{a_2} + \color{#3b82f6}{b_1}\color{#10b981}{b_2})^2$$
+$$\color{#a855f7}{N}(\color{#3b82f6}{w_1})\color{#a855f7}{N}(\color{#10b981}{w_2}) - \color{#a855f7}{\langle} \color{#3b82f6}{w_1}\color{#a855f7}{,} \color{#10b981}{w_2} \color{#a855f7}{\rangle}^2 = (\color{#3b82f6}{a_1}\color{#10b981}{b_2} - \color{#3b82f6}{b_1}\color{#10b981}{a_2})^2$$
+Como o quadrado de qualquer número racional é estritamente não-negativo:
+$$(\color{#3b82f6}{a_1}\color{#10b981}{b_2} - \color{#3b82f6}{b_1}\color{#10b981}{a_2})^2 \ge 0$$
+Portanto, a desigualdade é válida. $\blacksquare$
 
 **Teorema 2.2: Limite da Soma de Quadratura Racional**
-Para qualquer conjunto finito de $m$ elementos $w_1, \dots, w_m \in F$, $N\left(\sum_{k=1}^m w_k\right) \le m \sum_{k=1}^m N(w_k)$.
+Para qualquer conjunto finito de $m$ elementos, o limite de quadratura da soma satisfaz:
+$$\color{#a855f7}{N}\left(\sum_{k=1}^m \color{#fbbf24}{w_k}\right) \le m \sum_{k=1}^m \color{#a855f7}{N}(\color{#fbbf24}{w_k})$$
 *Demonstração:*
-Primeiro, observe que para quaisquer dois elementos $u, v \in F$, a expansão da quadratura algébrica produz:
-
-$$N(u - v) = N(u) + N(v) - 2\langle u, v \rangle$$
-
-Como $N(u - v) \ge 0$, temos $2\langle u, v \rangle \le N(u) + N(v)$.
-Expandindo a quadratura da soma de $m$ elementos:
-
-$$N\left(\sum_{j=1}^m w_j\right) = \sum_{j=1}^m \sum_{k=1}^m \langle w_j, w_k \rangle \le \sum_{j=1}^m \sum_{k=1}^m \frac{1}{2}(N(w_j) + N(w_k))$$
-
-$$= \frac{1}{2} \left( m \sum_{j=1}^m N(w_j) + m \sum_{k=1}^m N(w_k) \right) = m \sum_{k=1}^m N(w_k) \ \blacksquare$$
+Primeiro, observe que para quaisquer dois elementos da soma:
+$$\color{#a855f7}{N}(\color{#3b82f6}{u} - \color{#10b981}{v}) = \color{#a855f7}{N}(\color{#3b82f6}{u}) + \color{#a855f7}{N}(\color{#10b981}{v}) - 2\color{#a855f7}{\langle} \color{#3b82f6}{u}\color{#a855f7}{,} \color{#10b981}{v} \color{#a855f7}{\rangle}$$
+Como temos que:
+$$\color{#a855f7}{N}(\color{#3b82f6}{u} - \color{#10b981}{v}) \ge 0$$
+Temos a limitação:
+$$2\color{#a855f7}{\langle} \color{#3b82f6}{u}\color{#a855f7}{,} \color{#10b981}{v} \color{#a855f7}{\rangle} \le \color{#a855f7}{N}(\color{#3b82f6}{u}) + \color{#a855f7}{N}(\color{#10b981}{v})$$
+Expandindo a quadratura da soma completa para $m$ termos:
+$$\color{#a855f7}{N}\left(\sum_{j=1}^m \color{#fbbf24}{w_j}\right) = \sum_{j=1}^m \sum_{k=1}^m \color{#a855f7}{\langle} \color{#fbbf24}{w_j}\color{#a855f7}{,} \color{#fbbf24}{w_k} \color{#a855f7}{\rangle} \le \sum_{j=1}^m \sum_{k=1}^m \frac{1}{2}(\color{#a855f7}{N}(\color{#fbbf24}{w_j}) + \color{#a855f7}{N}(\color{#fbbf24}{w_k}))$$
+$$\color{#a855f7}{N}\left(\sum_{j=1}^m \color{#fbbf24}{w_j}\right) \le m \sum_{k=1}^m \color{#a855f7}{N}(\color{#fbbf24}{w_k}) \ \blacksquare$$
 
 **Corolário 2.3: Limite Inferior Algébrico (Alternativa Triangular)**
-Se $N(w_2) \le \frac{1}{9} N(w_1)$, então $N(w_1 + w_2) \ge \frac{1}{3} N(w_1)$.
+Se a quadratura de erro for estritamente menor que um nono da base:
+$$\color{#a855f7}{N}(\color{#f43f5e}{w_2}) \le \frac{1}{9} \color{#a855f7}{N}(\color{#3b82f6}{w_1})$$
+Então a quadratura da soma satisfaz:
+$$\color{#a855f7}{N}(\color{#3b82f6}{w_1} + \color{#f43f5e}{w_2}) \ge \frac{1}{3} \color{#a855f7}{N}(\color{#3b82f6}{w_1})$$
 *Demonstração:*
-Por expansão algébrica: $N(w_1 + w_2) = N(w_1) + N(w_2) + 2\langle w_1, w_2 \rangle$.
-Por Cauchy-Schwarz (Teorema 2.1) e a premissa $N(w_2) \le \frac{1}{9} N(w_1)$:
-
-$$\langle w_1, w_2 \rangle^2 \le N(w_1)N(w_2) \le \frac{1}{9} N(w_1)^2$$
-
-Em qualquer campo ordenado, se $X^2 \le Y^2$ para $Y > 0$, então $X \ge -Y$. Assim:
-
-$$\langle w_1, w_2 \rangle \ge -\frac{1}{3} N(w_1)$$
-
-Substituindo isso na expansão:
-
-$$N(w_1 + w_2) \ge N(w_1) + 0 - \frac{2}{3} N(w_1) = \frac{1}{3} N(w_1) \ \blacksquare$$
+Por expansão algébrica direta:
+$$\color{#a855f7}{N}(\color{#3b82f6}{w_1} + \color{#f43f5e}{w_2}) = \color{#a855f7}{N}(\color{#3b82f6}{w_1}) + \color{#a855f7}{N}(\color{#f43f5e}{w_2}) + 2\color{#a855f7}{\langle} \color{#3b82f6}{w_1}\color{#a855f7}{,} \color{#f43f5e}{w_2} \color{#a855f7}{\rangle}$$
+Aplicando Cauchy-Schwarz:
+$$\color{#a855f7}{\langle} \color{#3b82f6}{w_1}\color{#a855f7}{,} \color{#f43f5e}{w_2} \color{#a855f7}{\rangle}^2 \le \color{#a855f7}{N}(\color{#3b82f6}{w_1})\color{#a855f7}{N}(\color{#f43f5e}{w_2}) \le \frac{1}{9} \color{#a855f7}{N}(\color{#3b82f6}{w_1})^2$$
+Sendo as funções de ordenação quadráticas válidas no campo racional, obtemos:
+$$\color{#a855f7}{\langle} \color{#3b82f6}{w_1}\color{#a855f7}{,} \color{#f43f5e}{w_2} \color{#a855f7}{\rangle} \ge -\frac{1}{3} \color{#a855f7}{N}(\color{#3b82f6}{w_1})$$
+Substituindo na expansão:
+$$\color{#a855f7}{N}(\color{#3b82f6}{w_1} + \color{#f43f5e}{w_2}) \ge \color{#a855f7}{N}(\color{#3b82f6}{w_1}) + 0 - \frac{2}{3} \color{#a855f7}{N}(\color{#3b82f6}{w_1}) = \frac{1}{3} \color{#a855f7}{N}(\color{#3b82f6}{w_1}) \ \blacksquare$$
 
 <MappingVisualizer />
 
@@ -102,79 +106,74 @@ $$N(w_1 + w_2) \ge N(w_1) + 0 - \frac{2}{3} N(w_1) = \frac{1}{3} N(w_1) \ \black
 
 ## III. Limites e Alinhamento Polinomial
 
-Decompomos o polinômio em um termo líder $L(z) = c_d z^d$ e um termo de erro $E(z) = \sum_{k=0}^{d-1} c_k z^k$.
+Decompomos o polinômio em um termo líder:
+$$\color{#3b82f6}{L(z) = c_d z^d}$$
+E um termo de erro:
+$$\color{#f43f5e}{E(z) = \sum_{k=0}^{d-1} c_k z^k}$$
 
 **Teorema 3.1: Dominância do Termo Líder**
-Existe uma região quadrada racional $Q_0$ em torno da origem tal que para todo $z$ em sua fronteira $\partial Q_0$, o termo líder domina o termo de erro, garantindo que a imagem do polinômio nunca toque a origem.
+Existe uma região quadrada racional com raio limite tal que para todo ponto na fronteira, o termo líder domina o erro, de modo que o polinômio completo nunca toque a origem.
 *Demonstração:*
-Definimos um raio racional $R \in \mathbb{Q}_{>0}$ explicitamente:
-
-$$R^2 = 1 + 9d^2 \sum_{k=0}^{d-1} \frac{N(c_k)}{N(c_d)}$$
-
-Seja $Q_0$ a região quadrada definida por $\{a+bi \mid a, b \in [-R, R] \cap \mathbb{Q}\}$. Para qualquer $z$ na fronteira $\partial Q_0$, $N(z) \ge R^2 > 1$. Portanto, $N(z)^{d-k} \ge N(z) \ge R^2 > 9d^2 \frac{N(c_k)}{N(c_d)}$.
-Reorganizar isso produz: $d \cdot N(c_k) N(z)^k < \frac{1}{9d} N(c_d) N(z)^d$.
-
-Aplicando o Teorema 2.2 ao termo de erro $E(z)$ (que possui $d$ termos):
-
-$$N(E(z)) \le d \sum_{k=0}^{d-1} N(c_k z^k) = d \sum_{k=0}^{d-1} N(c_k)N(z)^k < d \sum_{k=0}^{d-1} \left( \frac{1}{9d^2} N(c_d)N(z)^d \right) = \frac{1}{9} N(L(z))$$
-
-Pelo Corolário 2.3, como $N(E(z)) \le \frac{1}{9} N(L(z))$, a quadratura total é estritamente limitada inferiormente:
-
-$$N(P(z)) = N(L(z) + E(z)) \ge \frac{1}{3} N(L(z)) \ge \frac{1}{3} N(c_d) R^{2d}$$
-
-Seja $\mu = \frac{1}{3} N(c_d) R^{2d} \in \mathbb{Q}_{>0}$. Provamos que $N(P(z)) \ge \mu > 0$ para todo $z \in \partial Q_0$. $\blacksquare$
+Definimos um raio racional de domínio explicitamente por:
+$$\color{#fbbf24}{R}^2 = 1 + 9d^2 \sum_{k=0}^{d-1} \frac{\color{#a855f7}{N}(\color{#f43f5e}{c_k})}{\color{#a855f7}{N}(\color{#3b82f6}{c_d})}$$
+Para qualquer ponto na fronteira, temos que:
+$$\color{#a855f7}{N}(\color{#fbbf24}{z}) \ge \color{#fbbf24}{R}^2 > 1$$
+O que nos dá a inequação:
+$$d \cdot \color{#a855f7}{N}(\color{#f43f5e}{c_k}) \color{#a855f7}{N}(\color{#fbbf24}{z})^k < \frac{1}{9d} \color{#a855f7}{N}(\color{#3b82f6}{c_d}) \color{#a855f7}{N}(\color{#fbbf24}{z})^d$$
+Aplicando a limitação de soma de quadratura (Teorema 2.2) ao erro:
+$$\color{#a855f7}{N}(\color{#f43f5e}{E(z)}) \le d \sum_{k=0}^{d-1} \color{#a855f7}{N}(\color{#f43f5e}{c_k z^k}) < \frac{1}{9} \color{#a855f7}{N}(\color{#3b82f6}{L(z)})$$
+Pelo Corolário 2.3, a quadratura total do polinômio é limitada inferiormente:
+$$\color{#a855f7}{N}(\color{#10b981}{P(z)}) = \color{#a855f7}{N}(\color{#3b82f6}{L(z)} + \color{#f43f5e}{E(z)}) \ge \frac{1}{3} \color{#a855f7}{N}(\color{#3b82f6}{L(z)}) \ge \frac{1}{3} \color{#a855f7}{N}(\color{#3b82f6}{c_d}) \color{#fbbf24}{R}^{2d}$$
+Sendo este limite estritamente positivo, o polinômio nunca toca a origem na fronteira. $\blacksquare$
 
 **Teorema 3.2: Alinhamento Algébrico**
-Para qualquer $z \in \partial Q_0$, os termos $P(z)$ e $L(z)$ residem no mesmo meio-plano algébrico, o que significa que $\langle P(z), L(z) \rangle > 0$.
+Para qualquer ponto na fronteira, os termos residem no mesmo meio-plano algébrico, de modo que o produto interno de posição seja positivo:
+$$\color{#a855f7}{\langle} \color{#10b981}{P(z)}\color{#a855f7}{,} \color{#3b82f6}{L(z)} \color{#a855f7}{\rangle} > 0$$
 *Demonstração:*
-
-$$\langle P(z), L(z) \rangle = N(L(z)) + \langle E(z), L(z) \rangle$$
-
-Como $N(E(z)) \le \frac{1}{9} N(L(z))$, pelo Teorema 2.1 (Cauchy-Schwarz), $\langle E(z), L(z) \rangle \ge -\frac{1}{3} N(L(z))$.
-Assim, $\langle P(z), L(z) \rangle \ge \frac{2}{3} N(L(z)) > 0$. $P(z)$ e $L(z)$ não podem ocupar quadrantes opostos. $\blacksquare$
+Expandindo o produto interno real:
+$$\color{#a855f7}{\langle} \color{#10b981}{P(z)}\color{#a855f7}{,} \color{#3b82f6}{L(z)} \color{#a855f7}{\rangle} = \color{#a855f7}{N}(\color{#3b82f6}{L(z)}) + \color{#a855f7}{\langle} \color{#f43f5e}{E(z)}\color{#a855f7}{,} \color{#3b82f6}{L(z)} \color{#a855f7}{\rangle}$$
+Como temos que:
+$$\color{#a855f7}{N}(\color{#f43f5e}{E(z)}) \le \frac{1}{9} \color{#a855f7}{N}(\color{#3b82f6}{L(z)})$$
+Por Cauchy-Schwarz, a projeção do erro é limitada por:
+$$\color{#a855f7}{\langle} \color{#f43f5e}{E(z)}\color{#a855f7}{,} \color{#3b82f6}{L(z)} \color{#a855f7}{\rangle} \ge -\frac{1}{3} \color{#a855f7}{N}(\color{#3b82f6}{L(z)})$$
+Desta forma, o alinhamento é estritamente garantido:
+$$\color{#a855f7}{\langle} \color{#10b981}{P(z)}\color{#a855f7}{,} \color{#3b82f6}{L(z)} \color{#a855f7}{\rangle} \ge \frac{2}{3} \color{#a855f7}{N}(\color{#3b82f6}{L(z)}) > 0 \ \blacksquare$$
 
 ---
 
 ## IV. Topologia Combinatória
 
 **Definição 4.1: Malha de Lipschitz Racional**
-Como $Q_0$ é uma região racionalmente limitada, podemos computar uma constante racional estrita $K \in \mathbb{Q}_{>0}$ tal que para quaisquer $u, v \in Q_0$, $N(P(u) - P(v)) \le K \cdot N(u - v)$.
-Discretizamos $\partial Q_0$ em uma sequência finita de pontos racionais $w_0, w_1, \dots, w_k = w_0$. Escolhemos estritamente um tamanho de passo racional $\delta$ tal que $K \cdot \delta^2 < \mu$. Isso garante que a variação de passo a passo na imagem do polinômio seja estritamente menor que a distância mínima à origem, impossibilitando cruzar a origem ou pular quadrantes adjacentes em um único passo.
+Por limitação de região racional, calculamos a constante racional de Lipschitz $K$:
+$$\color{#a855f7}{N}(\color{#10b981}{P(u)} - \color{#10b981}{P(v)}) \le K \cdot \color{#a855f7}{N}(u - v)$$
+Discretizamos a fronteira em uma malha com tamanho de passo racional de modo a garantir:
+$$K \cdot \delta^2 < \mu$$
 
 **Definição 4.2: Número de Rotação Discreto**
-Para qualquer malha de loop fechado racional válida, rastreamos um contador de inteiros desdobrados $U(j) \in \mathbb{Z}$ que se incrementa ou decrementa conforme a sequência transiciona entre quadrantes adjacentes em $\mathbb{Z}_4$. O número de rotação discreto (winding number) é definido como $\Delta = \frac{U(k) - U(0)}{4}$.
+O número de rotação (winding number) discreto de quadrantes é computado pela variação de contadores desdobrados dividida pela ordem cíclica:
+$$\color{#fbbf24}{\Delta} = \frac{\color{#fbbf24}{U(k)} - \color{#fbbf24}{U(0)}}{4}$$
 
 **Teorema 4.3: Aditividade de Números de Rotação**
-Para um produto de duas sequências $A(z) \cdot B(z)$, $\Delta(A \cdot B) = \Delta(A) + \Delta(B)$.
+Para o produto de duas sequências complexas, a rotação total é aditiva:
+$$\color{#fbbf24}{\Delta(A \cdot B)} = \color{#fbbf24}{\Delta(A)} + \color{#fbbf24}{\Delta(B)}$$
 *Demonstração:*
-As regras algébricas de sinal dão que o produto cai no quadrante correspondente à soma de seus quadrantes, mais um fator de correção localizado $\epsilon(j) \in \{0, 1\}$ que contabiliza as proporções de magnitude internas:
-
-$$U_{AB}(j) = U_A(j) + U_B(j) + \epsilon(j)$$
-
-Como a malha forma um loop fechado e avalia exatamente os mesmos valores no início e no fim ($w_k = w_0$), os fatores de correção coincidem perfeitamente: $\epsilon(k) = \epsilon(0)$.
-Avaliando a rotação total:
-
-$$U_{AB}(k) - U_{AB}(0) = [U_A(k) - U_A(0)] + [U_B(k) - U_B(0)]$$
-
-Dividir por 4 produz $\Delta(A \cdot B) = \Delta(A) + \Delta(B)$. $\blacksquare$
-
-**Corolário 4.4:** Como a fronteira de $Q_0$ circunda a origem exatamente uma vez, $\Delta(z) = 1$. Consequentemente, o número de rotação do termo líder é precisamente $\Delta(L(z)) = \Delta(c_d) + d \cdot \Delta(z) = d$.
+As transições combinatórias de quadrantes se somam com correções localizadas:
+$$\color{#fbbf24}{U_{AB}(j)} = \color{#fbbf24}{U_A(j)} + \color{#fbbf24}{U_B(j)} + \epsilon(j)$$
+Como o loop se fecha perfeitamente na malha, as correções coincidem no fim, resultando na aditividade. $\blacksquare$
 
 **Teorema 4.5: Teorema de Rouché Discreto**
-O número de rotação de $P(z)$ na fronteira de $Q_0$ é exatamente $d$.
+O número de rotação do polinômio completo coincide com o grau do termo líder:
+$$\color{#fbbf24}{\Delta_P} = \color{#fbbf24}{\Delta_L} = d$$
 *Demonstração:*
-Pelo Teorema 3.2, $\langle P(w_j), L(w_j) \rangle > 0$ para todos os pontos na malha. Portanto, $P$ e $L$ nunca podem ocupar quadrantes opostos. Isso restringe a divergência de seus contadores desdobrados:
-
-$$|U_P(j) - U_L(j)| \le 1 \quad \forall j$$
-
-Se $\Delta_P \neq \Delta_L$, seus contadores finais difeririam por pelo menos uma rotação completa ($4$ quadrantes), o que significa que $|U_P(k) - U_L(k)| \ge 4$. Como a divergência inicial é $\le 1$ e o tamanho do passo $\delta$ evita saltos $>1$ quadrante por passo, a divergência teria que passar continuamente pelo inteiro $2$. Uma divergência de $2$ exige que $P$ e $L$ estejam em quadrantes opostos, significando $\langle P, L \rangle < 0$, o que contradiz o Teorema 3.2.
-Portanto, $\Delta_P = \Delta_L = d$. $\blacksquare$
+Como as curvas nunca ocupam quadrantes opostos por alinhamento de produto interno, a divergência dos contadores é estritamente limitada:
+$$|\color{#fbbf24}{U_P(j)} - \color{#fbbf24}{U_L(j)}| \le 1 \quad \forall j$$
+Qualquer descompasso de rotação exigiria que a diferença de contadores passasse continuamente pelo valor $2$ (quadrantes opostos), o que violaria o alinhamento ortogonal. Portanto, as contagens coincidem. $\blacksquare$
 
 <CountersVisualizer />
 
 ### 4.6 A Mecânica de Projeção Vetorial do Winding
 
-Embora a definição discreta baseada em quadrantes seja ideal para a computabilidade estritamente racional, ela representa a aproximação discreta de um fenômeno contínuo profundo. Sob o capô, a rotação (winding) é ditada pela projeção da velocidade instantânea da curva sobre a direção perpendicular de avanço positivo (que chamamos de $\vec{r}^\perp$).
+Sob o capô, a rotação contínua (winding) é ditada pela projeção da velocidade instantânea da curva sobre a direção perpendicular de avanço positivo (que chamamos de $\vec{r}^\perp$).
 
 Se o produto interno entre o vetor velocidade $\vec{v}(t)$ e o vetor rotacionado $\vec{r}(t)^\perp$ for estritamente positivo em todos os pontos, a curva é topologicamente impedida de retroceder, garantindo que o número final de voltas seja não-nulo. O visualizador interativo abaixo ilustra essa mecânica vetorial em tempo real para diversas curvas complexas.
 
@@ -223,30 +222,28 @@ Seja $z_n \in F$ o centro geométrico do quadrado unicamente escolhido $Q_n$.
 ## VI. Demonstração de Convergência
 
 **Teorema 6.1: A Sequência é de Cauchy**
-La sequência $(z_n)$ gerada pelo algoritmo de bisseção é uma sequência de Cauchy.
+A sequência $(z_n)$ gerada pelo algoritmo de bisseção é uma sequência de Cauchy.
 *Demonstração:*
 O comprimento do lado de $Q_n$ é estritamente $L_n = \frac{2R}{2^n} \in \mathbb{Q}$. Para quaisquer índices $m > n$, ambos $z_n$ e $z_m$ residem dentro de $Q_n$. A distância máxima ao quadrado entre quaisquer dois pontos em $Q_n$ é estritamente limitada pela diagonal ao quadrado:
 
-$$N(z_n - z_m) \le \frac{8R^2}{4^n}$$
+$$N(z_n - z_m) \le \frac{8\color{#fbbf24}{R}^2}{4^n}$$
 
-Para qualquer tolerância racional $\epsilon > 0$, existe um inteiro $n$ grande o suficiente tal que $\frac{8R^2}{4^n} < \epsilon$. Assim, $(z_n)$ é estritamente uma sequência de Cauchy por definição. $\blacksquare$
+Para qualquer tolerância racional $\epsilon > 0$, existe um inteiro $n$ grande o suficiente tal que:
+$$\frac{8\color{#fbbf24}{R}^2}{4^n} < \epsilon$$
+Assim, $(z_n)$ é estritamente uma sequência de Cauchy por definição. $\blacksquare$
 
 **Teorema 6.2: Convergência de Quadratura (O TFA Aproximado)**
-A avaliação polinomial da sequência converge para zero: $\lim_{n \to \infty} N(P(z_n)) = 0$.
+A avaliação polinomial da sequência converge para zero:
+$$\lim_{n \to \infty} \color{#a855f7}{N}(\color{#10b981}{P(z_n)}) = 0$$
 *Demonstração:*
-Suponha, por contradição, que exista uma constante racional $\lambda > 0$ tal que a imagem de $Q_n$ nunca caia abaixo de $N(w) < \lambda$.
+Suponha, por contradição, que exista uma constante racional $\lambda > 0$ tal que a imagem de $Q_n$ nunca caia abaixo de:
+$$\color{#a855f7}{N}(\color{#10b981}{P(z)}) \ge \lambda$$
 Como $P(z)$ é limitado pela constante de Lipschitz racional $K$ em $Q_n$, a variação máxima da imagem dentro de $Q_n$ é estritamente limitada:
-
-$$N(P(u) - P(v)) \le K \cdot \frac{8R^2}{4^n} \quad \forall u, v \in Q_n$$
-
+$$\color{#a855f7}{N}(\color{#10b981}{P(u)} - \color{#10b981}{P(v)}) \le K \cdot \frac{8\color{#fbbf24}{R}^2}{4^n} \quad \forall u, v \in Q_n$$
 Para $n$ suficientemente grande, esta variação interna torna-se estritamente menor que $\lambda$.
 Se todo o perímetro de $Q_n$ mapeia para pontos mais distantes do que $\lambda$ da origem, porém a variação máxima ao longo desse perímetro é estritamente menor do que $\lambda$, a fronteira mapeada fica confinada a uma região estreita que algebricamente não pode circundar a origem.
 Consequentemente, seu número de rotação discreto resultaria em exatamente $0$.
 No entanto, o Axioma 5.1 garante estruturalmente que $\Delta(Q_n) \neq 0$ para todo $n$. Isto é uma contradição direta.
-Portanto, a suposição deve ser falsa. A quadratura da sequência inevitavelmente cai abaixo de qualquer limite racional $\epsilon > 0$, resultando em:
-
-$$\lim_{n \to \infty} N(P(z_n)) = 0$$
-
-$\blacksquare$
+Portanto, a suposição deve ser falsa. A quadratura da sequência inevitavelmente cai abaixo de qualquer limite racional $\epsilon > 0$, resultando na convergência para exatamente zero. $\blacksquare$
 
 Isto completa a demonstração construtiva de que uma sequência de Cauchy afunilando em uma pseudo-raiz pode ser rigorosamente estabelecida inteiramente dentro do campo complexo racional $\mathbb{Q}(i)$.

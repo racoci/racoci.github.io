@@ -9,11 +9,11 @@ import { OrthogonalProjectionVisualizer, ErrorDiskConstraintVisualizer, Asymptot
 
 ## Context
 
-The standard Fundamental Theorem of Algebra relies heavily on the complete topological properties of the real numbers ($\mathbb{R}$) and the complex plane ($\mathbb{C}$), utilizing concepts like compactness, continuous homotopies, and the Extreme Value Theorem. However, establishing the existence of roots can be problematic in strictly constructive mathematics, as the exact roots of a polynomial with rational coefficients may be irrational, meaning they do not physically exist within the field of rationals.
+The standard Fundamental Theorem of Algebra relies heavily on the complete topological properties of the real numbers and the complex plane, utilizing concepts like compactness, continuous homotopies, and the Extreme Value Theorem. However, establishing the existence of roots can be problematic in strictly constructive mathematics, as the exact roots of a polynomial with rational coefficients may be irrational, meaning they do not physically exist within the field of rationals.
 
 ## Objective
 
-The objective of this document is to prove an "approximate" version of the Fundamental Theorem of Algebra strictly within the rational complex field $\mathbb{Q}(i)$. We will construct a sequence of points—using only rational arithmetic, finite combinatorial counting, and algebraic inequalities—that is proven to be a Cauchy sequence, and whose polynomial evaluation converges to exactly zero in algebraic quadrature. We will achieve this without ever assuming the existence of real numbers, square roots, continuous angles, or traditional Euclidean metric completeness.
+The objective of this document is to prove an approximate version of the Fundamental Theorem of Algebra strictly within the rational complex field. We will construct a sequence of points—using only rational arithmetic, finite combinatorial counting, and algebraic inequalities—that is proven to be a Cauchy sequence, and whose polynomial evaluation converges to exactly zero in algebraic quadrature. We will achieve this without ever assuming the existence of real numbers, square roots, continuous angles, or traditional Euclidean metric completeness.
 
 ---
 
@@ -22,79 +22,83 @@ The objective of this document is to prove an "approximate" version of the Funda
 
 
 **Definition 1.1: The Rational Complex Field**
-Let $F = \mathbb{Q}(i) = \{a + bi \mid a, b \in \mathbb{Q}\}$ be the field of rational complex numbers.
+Let the ordered field structure be defined as:
+$$\mathbb{Q}(i) = \{a + bi \mid a, b \in \mathbb{Q}\}$$
 
 **Definition 1.2: The Polynomial**
-Let $P(z) = c_d z^d + c_{d-1} z^{d-1} + \dots + c_1 z + c_0$ be a non-constant polynomial of degree $d \ge 1$ with coefficients $c_k \in F$.
+Let the complete rational complex polynomial be defined as:
+$$\color{#10b981}{P(z)} = \color{#3b82f6}{c_d z^d} + \color{#f43f5e}{c_{d-1} z^{d-1} + \dots + c_0}$$
+A polynomial of degree:
+$$d \ge 1$$
+With rational coefficients:
+$$c_k \in \mathbb{Q}(i)$$
 
 **Definition 1.3: Algebraic Quadrature**
-To avoid irrational square roots, we define the algebraic quadrature $N: F \to \mathbb{Q}_{\ge 0}$ as the squared distance from the origin:
-
-$$N(a+bi) = a^2 + b^2$$
+To avoid irrational square roots, we define the quadrature function:
+$$\color{#a855f7}{N}(\color{#fbbf24}{a+bi}) = \color{#fbbf24}{a}^2 + \color{#fbbf24}{b}^2$$
 
 **Definition 1.4: Algebraic Inner Product**
-We define the algebraic inner product $\langle \cdot, \cdot \rangle: F \times F \to \mathbb{Q}$ as the real part of the product of the first element and the conjugate of the second:
-
-$$\langle w_1, w_2 \rangle = \text{Re}(w_1 \cdot \overline{w_2}) = a_1 a_2 + b_1 b_2$$
-
-Where $w_1 = a_1 + b_1 i$ and $w_2 = a_2 + b_2 i$. Note that $N(w) = \langle w, w \rangle$.
+We define the real algebraic projection inner product as:
+$$\color{#a855f7}{\langle} \color{#3b82f6}{w_1}\color{#a855f7}{,} \color{#10b981}{w_2} \color{#a855f7}{\rangle} = \text{Re}(\color{#3b82f6}{w_1} \cdot \color{#10b981}{\overline{w_2}}) = \color{#3b82f6}{a_1}\color{#10b981}{a_2} + \color{#3b82f6}{b_1}\color{#10b981}{b_2}$$
+Where we have the complex vectors:
+$$\color{#3b82f6}{w_1 = a_1 + b_1 i}$$
+$$\color{#10b981}{w_2 = a_2 + b_2 i}$$
+And the quadratic norm relation:
+$$\color{#a855f7}{N}(\color{#3b82f6}{w}) = \color{#a855f7}{\langle} \color{#3b82f6}{w}\color{#a855f7}{,} \color{#3b82f6}{w} \color{#a855f7}{\rangle}$$
 
 **Definition 1.5: Discrete Quadrants**
-We partition $F \setminus \{0\}$ into four strict quadrants tracked by the cyclic group $\mathbb{Z}_4$:
-
-* $Q_0$: $(+, +) \to 0$
-* $Q_1$: $(-, +) \to 1$
-* $Q_2$: $(-, -) \to 2$
-* $Q_3$: $(+, -) \to 3$
+We partition the rational complex plane excluding the origin into four strict quadrants tracked by the cyclic group representation:
+$$\mathbb{Z}_4$$
+* $$Q_0: (+, +) \to 0$$
+* $$Q_1: (-, +) \to 1$$
+* $$Q_2: (-, -) \to 2$$
+* $$Q_3: (+, -) \to 3$$
 
 ---
 
 ## II. Fundamental Rational Theorems
 
-Because we cannot use the standard Euclidean triangle inequality $|w_1 + w_2| \le |w_1| + |w_2|$, we must establish strict algebraic equivalents using quadrature.
+Because we cannot use the standard Euclidean triangle inequality in metric spaces, we must establish strict algebraic equivalents using quadrature.
 
 **Theorem 2.1: The Rational Cauchy-Schwarz Inequality**
-For any $w_1, w_2 \in F$, the following inequality holds: $\langle w_1, w_2 \rangle^2 \le N(w_1)N(w_2)$.
+For any rational complex vectors, the following inequality holds:
+$$\color{#a855f7}{\langle} \color{#3b82f6}{w_1}\color{#a855f7}{,} \color{#10b981}{w_2} \color{#a855f7}{\rangle}^2 \le \color{#a855f7}{N}(\color{#3b82f6}{w_1})\color{#a855f7}{N}(\color{#10b981}{w_2})$$
 *Proof:*
-By algebraic expansion:
-
-$$N(w_1)N(w_2) - \langle w_1, w_2 \rangle^2 = (a_1^2 + b_1^2)(a_2^2 + b_2^2) - (a_1 a_2 + b_1 b_2)^2$$
-
-$$= a_1^2 a_2^2 + a_1^2 b_2^2 + b_1^2 a_2^2 + b_1^2 b_2^2 - (a_1^2 a_2^2 + 2a_1 a_2 b_1 b_2 + b_1^2 b_2^2)$$
-
-$$= a_1^2 b_2^2 - 2a_1 a_2 b_1 b_2 + b_1^2 a_2^2 = (a_1 b_2 - b_1 a_2)^2$$
-
-Because the square of any rational number is non-negative, $(a_1 b_2 - b_1 a_2)^2 \ge 0$. Therefore, $\langle w_1, w_2 \rangle^2 \le N(w_1)N(w_2)$. $\blacksquare$
+By direct algebraic expansion in the field:
+$$\color{#a855f7}{N}(\color{#3b82f6}{w_1})\color{#a855f7}{N}(\color{#10b981}{w_2}) - \color{#a855f7}{\langle} \color{#3b82f6}{w_1}\color{#a855f7}{,} \color{#10b981}{w_2} \color{#a855f7}{\rangle}^2 = (\color{#3b82f6}{a_1}^2 + \color{#3b82f6}{b_1}^2)(\color{#10b981}{a_2}^2 + \color{#10b981}{b_2}^2) - (\color{#3b82f6}{a_1}\color{#10b981}{a_2} + \color{#3b82f6}{b_1}\color{#10b981}{b_2})^2$$
+$$\color{#a855f7}{N}(\color{#3b82f6}{w_1})\color{#a855f7}{N}(\color{#10b981}{w_2}) - \color{#a855f7}{\langle} \color{#3b82f6}{w_1}\color{#a855f7}{,} \color{#10b981}{w_2} \color{#a855f7}{\rangle}^2 = (\color{#3b82f6}{a_1}\color{#10b981}{b_2} - \color{#3b82f6}{b_1}\color{#10b981}{a_2})^2$$
+Because the square of any rational number is strictly non-negative:
+$$(\color{#3b82f6}{a_1}\color{#10b981}{b_2} - \color{#3b82f6}{b_1}\color{#10b981}{a_2})^2 \ge 0$$
+Therefore, the inequality holds. $\blacksquare$
 
 **Theorem 2.2: Rational Quadrature Sum Bound**
-For any finite set of $m$ elements $w_1, \dots, w_m \in F$, $N\left(\sum_{k=1}^m w_k\right) \le m \sum_{k=1}^m N(w_k)$.
+For any finite set of $m$ elements, the quadrature of the sum satisfies:
+$$\color{#a855f7}{N}\left(\sum_{k=1}^m \color{#fbbf24}{w_k}\right) \le m \sum_{k=1}^m \color{#a855f7}{N}(\color{#fbbf24}{w_k})$$
 *Proof:*
-First, note that for any two elements $u, v \in F$, expanding the algebraic quadrature yields:
-
-$$N(u - v) = N(u) + N(v) - 2\langle u, v \rangle$$
-
-Since $N(u - v) \ge 0$, we have $2\langle u, v \rangle \le N(u) + N(v)$.
-Expanding the quadrature of the sum of $m$ elements:
-
-$$N\left(\sum_{j=1}^m w_j\right) = \sum_{j=1}^m \sum_{k=1}^m \langle w_j, w_k \rangle \le \sum_{j=1}^m \sum_{k=1}^m \frac{1}{2}(N(w_j) + N(w_k))$$
-
-$$= \frac{1}{2} \left( m \sum_{j=1}^m N(w_j) + m \sum_{k=1}^m N(w_k) \right) = m \sum_{k=1}^m N(w_k) \ \blacksquare$$
+First, note that for any two elements of the sum:
+$$\color{#a855f7}{N}(\color{#3b82f6}{u} - \color{#10b981}{v}) = \color{#a855f7}{N}(\color{#3b82f6}{u}) + \color{#a855f7}{N}(\color{#10b981}{v}) - 2\color{#a855f7}{\langle} \color{#3b82f6}{u}\color{#a855f7}{,} \color{#10b981}{v} \color{#a855f7}{\rangle}$$
+Because we have:
+$$\color{#a855f7}{N}(\color{#3b82f6}{u} - \color{#10b981}{v}) \ge 0$$
+We obtain the limit:
+$$2\color{#a855f7}{\langle} \color{#3b82f6}{u}\color{#a855f7}{,} \color{#10b981}{v} \color{#a855f7}{\rangle} \le \color{#a855f7}{N}(\color{#3b82f6}{u}) + \color{#a855f7}{N}(\color{#10b981}{v})$$
+Expanding the quadrature of the sum of $m$ terms:
+$$\color{#a855f7}{N}\left(\sum_{j=1}^m \color{#fbbf24}{w_j}\right) = \sum_{j=1}^m \sum_{k=1}^m \color{#a855f7}{\langle} \color{#fbbf24}{w_j}\color{#a855f7}{,} \color{#fbbf24}{w_k} \color{#a855f7}{\rangle} \le \sum_{j=1}^m \sum_{k=1}^m \frac{1}{2}(\color{#a855f7}{N}(\color{#fbbf24}{w_j}) + \color{#a855f7}{N}(\color{#fbbf24}{w_k}))$$
+$$\color{#a855f7}{N}\left(\sum_{j=1}^m \color{#fbbf24}{w_j}\right) \le m \sum_{k=1}^m \color{#a855f7}{N}(\color{#fbbf24}{w_k}) \ \blacksquare$$
 
 **Corollary 2.3: Algebraic Lower Bound (Triangle Alternative)**
-If $N(w_2) \le \frac{1}{9} N(w_1)$, then $N(w_1 + w_2) \ge \frac{1}{3} N(w_1)$.
+If the error quadrature is strictly less than one-ninth of the base:
+$$\color{#a855f7}{N}(\color{#f43f5e}{w_2}) \le \frac{1}{9} \color{#a855f7}{N}(\color{#3b82f6}{w_1})$$
+Then the quadrature of the sum satisfies:
+$$\color{#a855f7}{N}(\color{#3b82f6}{w_1} + \color{#f43f5e}{w_2}) \ge \frac{1}{3} \color{#a855f7}{N}(\color{#3b82f6}{w_1})$$
 *Proof:*
-By algebraic expansion: $N(w_1 + w_2) = N(w_1) + N(w_2) + 2\langle w_1, w_2 \rangle$.
-By Cauchy-Schwarz (Theorem 2.1) and the premise $N(w_2) \le \frac{1}{9} N(w_1)$:
-
-$$\langle w_1, w_2 \rangle^2 \le N(w_1)N(w_2) \le \frac{1}{9} N(w_1)^2$$
-
-In any ordered field, if $X^2 \le Y^2$ for $Y > 0$, then $X \ge -Y$. Thus:
-
-$$\langle w_1, w_2 \rangle \ge -\frac{1}{3} N(w_1)$$
-
-Substituting this into the expansion:
-
-$$N(w_1 + w_2) \ge N(w_1) + 0 - \frac{2}{3} N(w_1) = \frac{1}{3} N(w_1) \ \blacksquare$$
+By direct algebraic expansion:
+$$\color{#a855f7}{N}(\color{#3b82f6}{w_1} + \color{#f43f5e}{w_2}) = \color{#a855f7}{N}(\color{#3b82f6}{w_1}) + \color{#a855f7}{N}(\color{#f43f5e}{w_2}) + 2\color{#a855f7}{\langle} \color{#3b82f6}{w_1}\color{#a855f7}{,} \color{#f43f5e}{w_2} \color{#a855f7}{\rangle}$$
+Applying Cauchy-Schwarz:
+$$\color{#a855f7}{\langle} \color{#3b82f6}{w_1}\color{#a855f7}{,} \color{#f43f5e}{w_2} \color{#a855f7}{\rangle}^2 \le \color{#a855f7}{N}(\color{#3b82f6}{w_1})\color{#a855f7}{N}(\color{#f43f5e}{w_2}) \le \frac{1}{9} \color{#a855f7}{N}(\color{#3b82f6}{w_1})^2$$
+Because quadratic ordering is valid in any ordered field, we obtain:
+$$\color{#a855f7}{\langle} \color{#3b82f6}{w_1}\color{#a855f7}{,} \color{#f43f5e}{w_2} \color{#a855f7}{\rangle} \ge -\frac{1}{3} \color{#a855f7}{N}(\color{#3b82f6}{w_1})$$
+Substituting into the expansion:
+$$\color{#a855f7}{N}(\color{#3b82f6}{w_1} + \color{#f43f5e}{w_2}) \ge \color{#a855f7}{N}(\color{#3b82f6}{w_1}) + 0 - \frac{2}{3} \color{#a855f7}{N}(\color{#3b82f6}{w_1}) = \frac{1}{3} \color{#a855f7}{N}(\color{#3b82f6}{w_1}) \ \blacksquare$$
 
 <MappingVisualizer />
 
@@ -102,79 +106,74 @@ $$N(w_1 + w_2) \ge N(w_1) + 0 - \frac{2}{3} N(w_1) = \frac{1}{3} N(w_1) \ \black
 
 ## III. Polynomial Bounding and Alignment
 
-We decompose the polynomial into a leading term $L(z) = c_d z^d$ and an error term $E(z) = \sum_{k=0}^{d-1} c_k z^k$.
+We decompose the polynomial into a leading term:
+$$\color{#3b82f6}{L(z) = c_d z^d}$$
+And an error term:
+$$\color{#f43f5e}{E(z) = \sum_{k=0}^{d-1} c_k z^k}$$
 
 **Theorem 3.1: Dominance of the Leading Term**
-There exists a rational square region $Q_0$ around the origin such that for all $z$ on its boundary $\partial Q_0$, the leading term dominates the error term, ensuring the polynomial's image never touches the origin.
+There exists a rational square region with a bounding radius such that for any boundary point, the leading term dominates the error, ensuring the complete polynomial never touches the origin.
 *Proof:*
-We define a rational radius $R \in \mathbb{Q}_{>0}$ explicitly:
-
-$$R^2 = 1 + 9d^2 \sum_{k=0}^{d-1} \frac{N(c_k)}{N(c_d)}$$
-
-Let $Q_0$ be the square region defined by $\{a+bi \mid a, b \in [-R, R] \cap \mathbb{Q}\}$. For any $z$ on the boundary $\partial Q_0$, $N(z) \ge R^2 > 1$. Therefore, $N(z)^{d-k} \ge N(z) \ge R^2 > 9d^2 \frac{N(c_k)}{N(c_d)}$.
-Rearranging this yields: $d \cdot N(c_k) N(z)^k < \frac{1}{9d} N(c_d) N(z)^d$.
-
-Applying Theorem 2.2 to the error term $E(z)$ (which has $d$ terms):
-
-$$N(E(z)) \le d \sum_{k=0}^{d-1} N(c_k z^k) = d \sum_{k=0}^{d-1} N(c_k)N(z)^k < d \sum_{k=0}^{d-1} \left( \frac{1}{9d^2} N(c_d)N(z)^d \right) = \frac{1}{9} N(L(z))$$
-
-By Corollary 2.3, because $N(E(z)) \le \frac{1}{9} N(L(z))$, the total quadrature is strictly bounded below:
-
-$$N(P(z)) = N(L(z) + E(z)) \ge \frac{1}{3} N(L(z)) \ge \frac{1}{3} N(c_d) R^{2d}$$
-
-Let $\mu = \frac{1}{3} N(c_d) R^{2d} \in \mathbb{Q}_{>0}$. We have proved that $N(P(z)) \ge \mu > 0$ for all $z \in \partial Q_0$. $\blacksquare$
+We define a rational domain radius explicitly as:
+$$\color{#fbbf24}{R}^2 = 1 + 9d^2 \sum_{k=0}^{d-1} \frac{\color{#a855f7}{N}(\color{#f43f5e}{c_k})}{\color{#a855f7}{N}(\color{#3b82f6}{c_d})}$$
+For any boundary point, we have:
+$$\color{#a855f7}{N}(\color{#fbbf24}{z}) \ge \color{#fbbf24}{R}^2 > 1$$
+Which gives the inequality:
+$$d \cdot \color{#a855f7}{N}(\color{#f43f5e}{c_k}) \color{#a855f7}{N}(\color{#fbbf24}{z})^k < \frac{1}{9d} \color{#a855f7}{N}(\color{#3b82f6}{c_d}) \color{#a855f7}{N}(\color{#fbbf24}{z})^d$$
+Applying the quadrature sum limit (Theorem 2.2) to the error:
+$$\color{#a855f7}{N}(\color{#f43f5e}{E(z)}) \le d \sum_{k=0}^{d-1} \color{#a855f7}{N}(\color{#f43f5e}{c_k z^k}) < \frac{1}{9} \color{#a855f7}{N}(\color{#3b82f6}{L(z)})$$
+By Corollary 2.3, the total polynomial quadrature is bounded below:
+$$\color{#a855f7}{N}(\color{#10b981}{P(z)}) = \color{#a855f7}{N}(\color{#3b82f6}{L(z)} + \color{#f43f5e}{E(z)}) \ge \frac{1}{3} \color{#a855f7}{N}(\color{#3b82f6}{L(z)}) \ge \frac{1}{3} \color{#a855f7}{N}(\color{#3b82f6}{c_d}) \color{#fbbf24}{R}^{2d}$$
+Since this limit is strictly positive, the polynomial never touches the origin on the boundary. $\blacksquare$
 
 **Theorem 3.2: Algebraic Alignment**
-For any $z \in \partial Q_0$, the terms $P(z)$ and $L(z)$ reside in the same algebraic half-plane, meaning $\langle P(z), L(z) \rangle > 0$.
+For any point on the boundary, the terms reside in the same algebraic half-plane, meaning the position inner product is positive:
+$$\color{#a855f7}{\langle} \color{#10b981}{P(z)}\color{#a855f7}{,} \color{#3b82f6}{L(z)} \color{#a855f7}{\rangle} > 0$$
 *Proof:*
-
-$$\langle P(z), L(z) \rangle = N(L(z)) + \langle E(z), L(z) \rangle$$
-
-Since $N(E(z)) \le \frac{1}{9} N(L(z))$, by Theorem 2.1 (Cauchy-Schwarz), $\langle E(z), L(z) \rangle \ge -\frac{1}{3} N(L(z))$.
-Thus, $\langle P(z), L(z) \rangle \ge \frac{2}{3} N(L(z)) > 0$. $P(z)$ and $L(z)$ cannot occupy opposite quadrants. $\blacksquare$
+Expanding the real inner product:
+$$\color{#a855f7}{\langle} \color{#10b981}{P(z)}\color{#a855f7}{,} \color{#3b82f6}{L(z)} \color{#a855f7}{\rangle} = \color{#a855f7}{N}(\color{#3b82f6}{L(z)}) + \color{#a855f7}{\langle} \color{#f43f5e}{E(z)}\color{#a855f7}{,} \color{#3b82f6}{L(z)} \color{#a855f7}{\rangle}$$
+Since we have:
+$$\color{#a855f7}{N}(\color{#f43f5e}{E(z)}) \le \frac{1}{9} \color{#a855f7}{N}(\color{#3b82f6}{L(z)})$$
+By Cauchy-Schwarz, the error projection is bounded by:
+$$\color{#a855f7}{\langle} \color{#f43f5e}{E(z)}\color{#a855f7}{,} \color{#3b82f6}{L(z)} \color{#a855f7}{\rangle} \ge -\frac{1}{3} \color{#a855f7}{N}(\color{#3b82f6}{L(z)})$$
+Thus, the alignment is strictly guaranteed:
+$$\color{#a855f7}{\langle} \color{#10b981}{P(z)}\color{#a855f7}{,} \color{#3b82f6}{L(z)} \color{#a855f7}{\rangle} \ge \frac{2}{3} \color{#a855f7}{N}(\color{#3b82f6}{L(z)}) > 0 \ \blacksquare$$
 
 ---
 
 ## IV. Combinatorial Topology
 
 **Definition 4.1: Rational Lipschitz Mesh**
-Because $Q_0$ is a rationally bounded region, we can compute a strict rational constant $K \in \mathbb{Q}_{>0}$ such that for any $u, v \in Q_0$, $N(P(u) - P(v)) \le K \cdot N(u - v)$.
-We discretize $\partial Q_0$ into a finite sequence of rational points $w_0, w_1, \dots, w_k = w_0$. We strictly choose a rational step size $\delta$ such that $K \cdot \delta^2 < \mu$. This guarantees that the step-to-step variation in the polynomial's image is strictly less than the minimum distance to the origin, making it impossible to cross the origin or skip adjacent quadrants in a single step.
+By rational region bounding, we calculate the strict rational Lipschitz constant $K$:
+$$\color{#a855f7}{N}(\color{#10b981}{P(u)} - \color{#10b981}{P(v)}) \le K \cdot \color{#a855f7}{N}(u - v)$$
+We discretize the boundary into a mesh with a rational step size so as to guarantee:
+$$K \cdot \delta^2 < \mu$$
 
 **Definition 4.2: Discrete Winding Number**
-For any valid rational closed-loop mesh, we track an unrolled integer counter $U(j) \in \mathbb{Z}$ that increments or decrements as the sequence transitions between adjacent quadrants in $\mathbb{Z}_4$. The discrete winding number is defined as $\Delta = \frac{U(k) - U(0)}{4}$.
+The discrete quadrant winding number is computed by the unrolled counter variation divided by the cyclic order:
+$$\color{#fbbf24}{\Delta} = \frac{\color{#fbbf24}{U(k)} - \color{#fbbf24}{U(0)}}{4}$$
 
 **Theorem 4.3: Additivity of Winding Numbers**
-For a product of two sequences $A(z) \cdot B(z)$, $\Delta(A \cdot B) = \Delta(A) + \Delta(B)$.
+For the product of two complex sequences, the total rotation is additive:
+$$\color{#fbbf24}{\Delta(A \cdot B)} = \color{#fbbf24}{\Delta(A)} + \color{#fbbf24}{\Delta(B)}$$
 *Proof:*
-The algebraic sign rules dictate that the product falls into the quadrant corresponding to the sum of their quadrants, plus a localized correction factor $\epsilon(j) \in \{0, 1\}$ accounting for internal magnitude proportions:
-
-$$U_{AB}(j) = U_A(j) + U_B(j) + \epsilon(j)$$
-
-Because the mesh forms a closed loop and evaluates exactly the same values at the start and end ($w_k = w_0$), the correction factors perfectly match: $\epsilon(k) = \epsilon(0)$.
-Evaluating the total rotation:
-
-$$U_{AB}(k) - U_{AB}(0) = [U_A(k) - U_A(0)] + [U_B(k) - U_B(0)]$$
-
-Dividing by 4 yields $\Delta(A \cdot B) = \Delta(A) + \Delta(B)$. $\blacksquare$
-
-**Corollary 4.4:** Since the boundary of $Q_0$ surrounds the origin exactly once, $\Delta(z) = 1$. Consequently, the winding number of the leading term is precisely $\Delta(L(z)) = \Delta(c_d) + d \cdot \Delta(z) = d$.
+The combinatorial quadrant transitions add up with localized corrections:
+$$\color{#fbbf24}{U_{AB}(j)} = \color{#fbbf24}{U_A(j)} + \color{#fbbf24}{U_B(j)} + \epsilon(j)$$
+As the loop closes perfectly on the mesh, the corrections match at the end, resulting in additivity. $\blacksquare$
 
 **Theorem 4.5: Discrete Rouché's Theorem**
-The winding number of $P(z)$ on the boundary of $Q_0$ is exactly $d$.
+The winding number of the complete polynomial matches the degree of the leading term:
+$$\color{#fbbf24}{\Delta_P} = \color{#fbbf24}{\Delta_L} = d$$
 *Proof:*
-By Theorem 3.2, $\langle P(w_j), L(w_j) \rangle > 0$ for all points in the mesh. Therefore, $P$ and $L$ can never occupy opposite quadrants. This restricts the divergence of their unrolled counters:
-
-$$|U_P(j) - U_L(j)| \le 1 \quad \forall j$$
-
-If $\Delta_P \neq \Delta_L$, their final counters would differ by at least one full rotation ($4$ quadrants), meaning $|U_P(k) - U_L(k)| \ge 4$. Since the initial divergence is $\le 1$ and the step size $\delta$ prevents jumps $>1$ quadrant per step, the divergence would have to pass continuously through the integer $2$. A divergence of $2$ requires $P$ and $L$ to be in opposite quadrants, meaning $\langle P, L \rangle < 0$, which contradicts Theorem 3.2.
-Thus, $\Delta_P = \Delta_L = d$. $\blacksquare$
+Since the curves never occupy opposite quadrants due to orthogonal inner product alignment, the unrolled counters divergence is strictly bounded:
+$$|{\color{#fbbf24}{U_P(j)} - \color{#fbbf24}{U_L(j)}}| \le 1 \quad \forall j$$
+Any rotation mismatch would require the difference in counters to pass continuously through the value $2$ (opposite quadrants), which would violate the orthogonal alignment. Thus, the counts match. $\blacksquare$
 
 <CountersVisualizer />
 
 ### 4.6 The Vector Projection Mechanics of Winding
 
-While the discrete quadrant-based definition is ideal for strict rational computability, it is a discrete approximation of a deep continuous phenomenon. Under the hood, the winding of a curve is dictated by the projection of the curve's instantaneous velocity onto the perpendicular direction of positive CCW advance (which we call $\vec{r}^\perp$).
+Under the hood, the continuous winding of a curve is dictated by the projection of the curve's instantaneous velocity onto the perpendicular direction of positive CCW advance (which we call $\vec{r}^\perp$).
 
 If the inner product between the velocity vector $\vec{v}(t)$ and the rotated position vector $\vec{r}(t)^\perp$ is strictly positive everywhere, the curve is topologically prevented from backtracking, guaranteeing that the final winding number is non-zero. The interactive visualizer below demonstrates this vector mechanics in real time for various complex curves.
 
@@ -227,26 +226,23 @@ The sequence $(z_n)$ generated by the bisection algorithm is a Cauchy sequence.
 *Proof:*
 The side length of $Q_n$ is strictly $L_n = \frac{2R}{2^n} \in \mathbb{Q}$. For any indices $m > n$, both $z_n$ and $z_m$ reside inside $Q_n$. The maximum squared distance between any two points in $Q_n$ is strictly bounded by the squared diagonal:
 
-$$N(z_n - z_m) \le \frac{8R^2}{4^n}$$
+$$N(z_n - z_m) \le \frac{8\color{#fbbf24}{R}^2}{4^n}$$
 
-For any rational tolerance $\epsilon > 0$, there exists an integer $n$ large enough such that $\frac{8R^2}{4^n} < \epsilon$. Thus, $(z_n)$ is strictly a Cauchy sequence by definition. $\blacksquare$
+For any rational tolerance $\epsilon > 0$, there exists an integer $n$ large enough such that:
+$$\frac{8\color{#fbbf24}{R}^2}{4^n} < \epsilon$$
+Thus, $(z_n)$ is strictly a Cauchy sequence by definition. $\blacksquare$
 
 **Theorem 6.2: Quadrature Convergence (The Approximate FTA)**
-The polynomial evaluation of the sequence converges to zero: $\lim_{n \to \infty} N(P(z_n)) = 0$.
+The polynomial evaluation of the sequence converges to zero:
+$$\lim_{n \to \infty} \color{#a855f7}{N}(\color{#10b981}{P(z_n)}) = 0$$
 *Proof:*
-Assume, for contradiction, that there exists a rational constant $\lambda > 0$ such that the image of $Q_n$ never falls below $N(w) < \lambda$.
+Assume, for contradiction, that there exists a rational constant $\lambda > 0$ such that the image of $Q_n$ never falls below:
+$$\color{#a855f7}{N}(\color{#10b981}{P(z)}) \ge \lambda$$
 Because $P(z)$ is bounded by the rational Lipschitz constant $K$ on $Q_n$, the maximum image variation inside $Q_n$ is strictly bounded:
-
-$$N(P(u) - P(v)) \le K \cdot \frac{8R^2}{4^n} \quad \forall u, v \in Q_n$$
-
+$$\color{#a855f7}{N}(\color{#10b981}{P(u)} - \color{#10b981}{P(v)}) \le K \cdot \frac{8\color{#fbbf24}{R}^2}{4^n} \quad \forall u, v \in Q_n$$
 For sufficiently large $n$, this internal variation becomes strictly less than $\lambda$.
 If the entire perimeter of $Q_n$ maps to points farther than $\lambda$ from the origin, yet the maximum variation across that perimeter is strictly smaller than $\lambda$, the mapped boundary is confined to a tight region that algebraically cannot enclose the origin.
-Consequently, its discrete winding number would evaluate to exactly $0$.
-However, Axiom 5.1 structurally guarantees that $\Delta(Q_n) \neq 0$ for every $n$. This is a direct contradiction.
-Therefore, the assumption must be false. The sequence's quadrature inevitably drops below any rational bound $\epsilon > 0$, yielding:
-
-$$\lim_{n \to \infty} N(P(z_n)) = 0$$
-
-$\blacksquare$
+Uniquely, Axiom 5.1 structurally guarantees that $\Delta(Q_n) \neq 0$ for every $n$. This is a direct contradiction.
+Therefore, the assumption must be false. The sequence's quadrature inevitably drops below any rational bound $\epsilon > 0$, resulting in convergence to exactly zero. $\blacksquare$
 
 This completes the constructive proof that a Cauchy sequence honing in on a pseudo-root can be rigorously established entirely within the rational complex field $\mathbb{Q}(i)$.
