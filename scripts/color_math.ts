@@ -60,7 +60,14 @@ export function colorizeMath(tex: string): string {
       const v = varMatch[0];
       const color = colorRules[v];
       if (color) {
-        out += `\\textcolor{${color}}{${v}}`;
+        // Strict guard: if this colored token is preceded directly by ^ or _,
+        // we MUST wrap it in curly braces to ensure valid KaTeX parsing!
+        const isExpOrSub = out.endsWith('^') || out.endsWith('_');
+        if (isExpOrSub) {
+          out += `{\\textcolor{${color}}{${v}}}`;
+        } else {
+          out += `\\textcolor{${color}}{${v}}`;
+        }
       } else {
         out += v;
       }
@@ -92,6 +99,27 @@ export function processMarkdown(md: string): string {
   });
   
   return out;
+}
+
+// Strictly validates that the generated markdown contains zero unbraced LaTeX commands under ^ or _
+export function validateMDXMath(content: string, filePath: string) {
+  const badExponents = /(\^|_)(\\textcolor|\\color|\\mathbb|\\mathrm|\\text)/;
+  const lines = content.split('\n');
+  let hasErrors = false;
+
+  lines.forEach((line, idx) => {
+    const match = line.match(badExponents);
+    if (match) {
+      console.error(`❌ KaTeX Syntax Error on ${path.basename(filePath)}:line ${idx + 1}`);
+      console.error(`   Found unbraced command under exponent/subscript: "${line.trim()}"`);
+      console.error(`   Fix: Wrap the command in curly braces, e.g., ^{${match[2]}...}`);
+      hasErrors = true;
+    }
+  });
+
+  if (hasErrors) {
+    throw new Error(`Validation failed for ${path.basename(filePath)}: Unbraced KaTeX exponents found!`);
+  }
 }
 
 async function runTests() {
@@ -130,6 +158,17 @@ async function runTests() {
       '\\text{Re}(\\textcolor{#fbbf24}{w_1})'
     );
   });
+
+  test('Wraps colored exponents and subscripts in braces', () => {
+    assert.strictEqual(
+      colorizeMath('z^d'),
+      '\\textcolor{#fbbf24}{z}^{\\textcolor{#3b82f6}{d}}'
+    );
+    assert.strictEqual(
+      colorizeMath('N(z)^d'),
+      '\\textcolor{#a855f7}{N}(\\textcolor{#fbbf24}{z})^{\\textcolor{#3b82f6}{d}}'
+    );
+  });
 }
 
 function processFiles() {
@@ -142,8 +181,12 @@ function processFiles() {
     console.log(`Processing ${file}...`);
     const content = fs.readFileSync(file, 'utf-8');
     const updated = processMarkdown(content);
+    
+    // Run pre-deploy static syntax validations
+    validateMDXMath(updated, file);
+    
     fs.writeFileSync(file, updated, 'utf-8');
-    console.log(`✅ Updated ${path.basename(file)}`);
+    console.log(`✅ Updated and validated ${path.basename(file)}`);
   });
 }
 
