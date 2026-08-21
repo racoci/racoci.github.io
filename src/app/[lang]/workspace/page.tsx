@@ -1479,6 +1479,177 @@ function splitTokenList(
   return result;
 }
 
+const colorRules: Record<string, string> = {
+  // Polynomial (Green)
+  'P': '#10b981',
+  
+  // Leading Term & Associated (Blue)
+  'L': '#3b82f6', 
+  'c_d': '#3b82f6', 
+  'd': '#3b82f6', 
+  'i': '#3b82f6',
+
+  // Error Term & Lower Coeffs (Rose)
+  'E': '#f43f5e', 
+  'c_k': '#f43f5e', 
+  'c_0': '#f43f5e', 
+  'c_{d-1}': '#f43f5e',
+
+  // Variables, Domain, Iterators (Amber)
+  'z': '#fbbf24', 'z_n': '#fbbf24', 'z_m': '#fbbf24',
+  'R': '#fbbf24', 
+  'w': '#fbbf24', 'w_1': '#fbbf24', 'w_2': '#fbbf24', 'w_k': '#fbbf24', 'w_j': '#fbbf24',
+  'u': '#fbbf24', 'v': '#fbbf24',
+  'a': '#fbbf24', 'a_1': '#fbbf24', 'a_2': '#fbbf24',
+  'b': '#fbbf24', 'b_1': '#fbbf24', 'b_2': '#fbbf24',
+  'U': '#fbbf24', 'U_P': '#fbbf24', 'U_L': '#fbbf24',
+  '\\Delta_P': '#fbbf24', '\\Delta_L': '#fbbf24', '\\Delta': '#fbbf24',
+
+  // Operators / Functions (Purple)
+  'N': '#a855f7'
+};
+
+const vars = Object.keys(colorRules).sort((a, b) => b.length - a.length);
+const varsPattern = vars.map(v => v.replace(/\\/g, '\\\\').replace(/\{/g, '\\{').replace(/\}/g, '\\}')).join('|');
+const varRegex = new RegExp(`^(${varsPattern})(?![a-zA-Z])`);
+
+function colorizeMath(tex: string): string {
+  // 1. Clean existing manual colors completely
+  tex = tex.replace(/\\textcolor\{#[a-fA-F0-9]+\}\{([^}]+)\}/g, '$1');
+  tex = tex.replace(/\\color\{#[a-fA-F0-9]+\}\{([^}]+)\}/g, '$1');
+  tex = tex.replace(/\\color\{#[a-fA-F0-9]+\}\s*/g, '');
+
+  let out = "";
+  let i = 0;
+  while (i < tex.length) {
+    // Protected blocks
+    const protectedMatch = tex.slice(i).match(/^\\(mathbb|text|mathrm|mathbf)\{[^}]+\}/);
+    if (protectedMatch) {
+      out += protectedMatch[0];
+      i += protectedMatch[0].length;
+      continue;
+    }
+
+    // Variables matching
+    const varMatch = tex.slice(i).match(varRegex);
+    if (varMatch) {
+      const v = varMatch[0];
+      const color = colorRules[v];
+      if (color) {
+        // Strict guard: if this colored token is preceded directly by ^ or _,
+        // we MUST wrap it in curly braces to ensure valid KaTeX parsing!
+        const isExpOrSub = out.endsWith('^') || out.endsWith('_');
+        if (isExpOrSub) {
+          out += `{\\textcolor{${color}}{${v}}}`;
+        } else {
+          out += `\\textcolor{${color}}{${v}}`;
+        }
+      } else {
+        out += v;
+      }
+      i += v.length;
+      continue;
+    }
+
+    // LaTeX Commands
+    const cmdMatch = tex.slice(i).match(/^\\[a-zA-Z]+/);
+    if (cmdMatch) {
+      out += cmdMatch[0];
+      i += cmdMatch[0].length;
+      continue;
+    }
+
+    out += tex[i];
+    i++;
+  }
+  return out;
+}
+
+function cleanLatex(latex: string): string {
+  let cleaned = latex.trim();
+  if (cleaned.startsWith("$$")) {
+    cleaned = cleaned.substring(2);
+  }
+  if (cleaned.endsWith("$$")) {
+    cleaned = cleaned.substring(0, cleaned.length - 2);
+  }
+  cleaned = cleaned.trim();
+
+  // Clean existing manual colors completely
+  cleaned = cleaned.replace(/\\textcolor\{#[a-fA-F0-9]+\}\{([^}]+)\}/g, '$1');
+  cleaned = cleaned.replace(/\\color\{#[a-fA-F0-9]+\}\{([^}]+)\}/g, '$1');
+  cleaned = cleaned.replace(/\\color\{#[a-fA-F0-9]+\}\s*/g, '');
+
+  return cleaned;
+}
+
+interface MathBlockEditorProps {
+  initialValue: string;
+  onChange: (val: string) => void;
+  onBlur: () => void;
+  className?: string;
+}
+
+function MathBlockEditor({
+  initialValue,
+  onChange,
+  onBlur,
+  className,
+}: MathBlockEditorProps) {
+  const mathFieldRef = useRef<any>(null);
+
+  useEffect(() => {
+    const mathfield = mathFieldRef.current;
+    if (mathfield) {
+      const cleaned = cleanLatex(initialValue);
+      mathfield.value = cleaned;
+
+      const timer = setTimeout(() => {
+        mathfield.focus();
+      }, 50);
+
+      const handleInput = (e: Event) => {
+        const rawLatex = (e.target as any).value || "";
+        const colored = colorizeMath(rawLatex);
+        onChange(`$$\n${colored}\n$$`);
+      };
+
+      const handleBlur = () => {
+        onBlur();
+      };
+
+      mathfield.addEventListener("input", handleInput);
+      mathfield.addEventListener("blur", handleBlur);
+
+      return () => {
+        clearTimeout(timer);
+        mathfield.removeEventListener("input", handleInput);
+        mathfield.removeEventListener("blur", handleBlur);
+      };
+    }
+  }, [initialValue, onChange, onBlur]);
+
+  return (
+    <div className={className}>
+      <math-field
+        ref={mathFieldRef}
+        math-virtual-keyboard-policy="manual"
+        style={{
+          display: "block",
+          width: "100%",
+          padding: "12px",
+          borderRadius: "8px",
+          border: "1px solid #10b981",
+          background: "#09090b",
+          color: "#f4f4f5",
+          outline: "none",
+          fontSize: "1.125rem",
+        }}
+      />
+    </div>
+  );
+}
+
 interface PageProps {
   params: Promise<{ lang: string }>;
 }
@@ -2117,6 +2288,15 @@ ${editorText}`;
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true);
+
+    import("mathlive")
+      .then(() => {
+        // Automatically registers <math-field> on the client-side
+      })
+      .catch((err) => {
+        console.error("Failed to load MathLive:", err);
+      });
+
     const cachedToken = localStorage.getItem("GITHUB_PAT") || "";
     const cachedGemini = localStorage.getItem("GEMINI_API_KEY") || "";
     const cachedRepo = localStorage.getItem("WORKSPACE_REPO") || "racoci/racoci.github.io";
@@ -2542,6 +2722,27 @@ ${editorText}`;
                       const isEditingThisBlock = editingBlockIndex === blockIdx;
 
                       if (isEditingThisBlock) {
+                        const isMathBlock = blockText.trim().startsWith("$$") && blockText.trim().endsWith("$$");
+
+                        if (isMathBlock) {
+                          return (
+                            <div key={blockIdx} className="my-4 border border-emerald-500/40 bg-zinc-950 p-4 rounded-xl flex flex-col gap-2" onClick={(e) => e.stopPropagation()}>
+                              <MathBlockEditor
+                                initialValue={blockText}
+                                onChange={(val) => {
+                                  handleBlockChange(blockIdx, val);
+                                }}
+                                onBlur={() => setEditingBlockIndex(null)}
+                                className="w-full"
+                              />
+                              <div className="flex justify-between items-center text-[9px] font-mono text-zinc-500 px-1">
+                                <span>Pressione <kbd className="bg-zinc-900 px-1.5 py-0.5 rounded text-emerald-400">Clique fora</kbd> ou desfocar para salvar e compilar</span>
+                                <span className="uppercase text-emerald-500 font-bold">Editando Fórmula Matemática</span>
+                              </div>
+                            </div>
+                          );
+                        }
+
                         return (
                           <div key={blockIdx} className="my-4 border border-emerald-500/40 bg-zinc-950 p-4 rounded-xl flex flex-col gap-2" onClick={(e) => e.stopPropagation()}>
                             <AutosizingBlockTextarea
@@ -2614,6 +2815,27 @@ ${editorText}`;
                     const isEditingThisBlock = editingBlockIndex === blockIdx;
 
                     if (isEditingThisBlock) {
+                      const isMathBlock = blockText.trim().startsWith("$$") && blockText.trim().endsWith("$$");
+
+                      if (isMathBlock) {
+                        return (
+                          <div key={blockIdx} className="my-4 border border-emerald-500/40 bg-zinc-950 p-4 rounded-xl flex flex-col gap-2" onClick={(e) => e.stopPropagation()}>
+                            <MathBlockEditor
+                              initialValue={blockText}
+                              onChange={(val) => {
+                                handleBlockChange(blockIdx, val);
+                              }}
+                              onBlur={() => setEditingBlockIndex(null)}
+                              className="w-full"
+                            />
+                            <div className="flex justify-between items-center text-[9px] font-mono text-zinc-500 px-1">
+                              <span>Pressione <kbd className="bg-zinc-900 px-1.5 py-0.5 rounded text-emerald-400">Clique fora</kbd> ou desfocar para salvar e compilar</span>
+                              <span className="uppercase text-emerald-500 font-bold">Editando Fórmula Matemática</span>
+                            </div>
+                          </div>
+                        );
+                      }
+
                       return (
                         <div key={blockIdx} className="my-4 border border-emerald-500/40 bg-zinc-950 p-4 rounded-xl flex flex-col gap-2">
                           <AutosizingBlockTextarea
