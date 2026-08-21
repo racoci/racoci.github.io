@@ -98,7 +98,7 @@ function PlantUMLRenderer({ code }: { code: string }) {
 }
 
 interface InlineToken {
-  type: "text" | "strong" | "em" | "code" | "link";
+  type: "text" | "strong" | "em" | "code" | "link" | "math_block" | "math_inline";
   content: string;
   href?: string;
 }
@@ -139,6 +139,18 @@ function splitInlineTokens(
 function parseInlineMarkdown(inputText: string): React.ReactNode[] {
   let tokens: InlineToken[] = [{ type: "text", content: inputText }];
 
+  // 0.1 Split by Block Math ($$ ... $$)
+  tokens = splitInlineTokens(tokens, /\$\$([\s\S]+?)\$\$/g, (match) => ({
+    type: "math_block",
+    content: match[1],
+  }));
+
+  // 0.2 Split by Inline Math ($ ... $)
+  tokens = splitInlineTokens(tokens, /(?<!\$)\$([^$\n]+?)\$(?!\$)/g, (match) => ({
+    type: "math_inline",
+    content: match[1],
+  }));
+
   // 1. Split by Bold (**text**)
   tokens = splitInlineTokens(tokens, /\*\*([\s\S]*?)\*\*/g, (match) => ({
     type: "strong",
@@ -169,6 +181,8 @@ function parseInlineMarkdown(inputText: string): React.ReactNode[] {
     if (tok.type === "em") return <em key={idx} className="italic text-zinc-300">{tok.content}</em>;
     if (tok.type === "code") return <code key={idx} className="font-mono text-[12px] text-emerald-400 bg-zinc-900/80 border border-zinc-850 px-1.5 py-0.5 rounded-md">{tok.content}</code>;
     if (tok.type === "link") return <a key={idx} href={tok.href} target="_blank" rel="noopener noreferrer" className="text-emerald-400 hover:underline font-bold">{tok.content}</a>;
+    if (tok.type === "math_block") return <div key={idx} className="my-1.5 text-center block w-full"><BlockMath math={tok.content} /></div>;
+    if (tok.type === "math_inline") return <span key={idx} className="inline-block mx-1 align-middle"><InlineMath math={tok.content} /></span>;
     return tok.content;
   });
 }
@@ -861,7 +875,7 @@ function InteractiveTable({ markdown, onUpdate }: InteractiveTableProps) {
         </button>
       </div>
 
-      <div className="overflow-x-auto rounded-lg">
+      <div className="overflow-visible w-full">
         <table className="min-w-full divide-y divide-zinc-800 text-sm border-collapse">
           <thead>
             <tr className="bg-zinc-900/40">
@@ -875,7 +889,7 @@ function InteractiveTable({ markdown, onUpdate }: InteractiveTableProps) {
                 return (
                   <th
                     key={cIdx}
-                    className={`px-4 py-3 relative border-r border-zinc-800 last:border-none font-bold font-sans text-zinc-300 cursor-pointer group/cell select-text ${alignmentClass} ${
+                    className={`px-4 py-3 relative border-r border-zinc-800 last:border-none font-bold font-sans text-zinc-300 cursor-pointer group/cell select-text whitespace-normal break-words ${alignmentClass} ${
                       isSelected ? "bg-emerald-500/5 ring-1 ring-inset ring-emerald-500/20" : "hover:bg-zinc-800/20"
                     }`}
                     onClick={(e) => handleCellClick(-1, cIdx, h, e)}
@@ -973,7 +987,7 @@ function InteractiveTable({ markdown, onUpdate }: InteractiveTableProps) {
                     return (
                       <td
                         key={cIdx}
-                        className={`px-4 py-3 relative border-r border-zinc-800 last:border-none font-serif text-zinc-400 cursor-pointer group/cell select-text ${alignmentClass} ${
+                        className={`px-4 py-3 relative border-r border-zinc-800 last:border-none font-serif text-zinc-400 cursor-pointer group/cell select-text whitespace-normal break-words ${alignmentClass} ${
                           isSelected
                             ? "bg-emerald-500/10 ring-1 ring-inset ring-emerald-500/40"
                             : isRowSelected || selectedCell?.colIdx === cIdx
