@@ -1540,6 +1540,7 @@ function WorkspaceDashboard({ params }: PageProps) {
   const [slug, setSlug] = useState("");
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [syncStatus, setSyncStatus] = useState<"saved" | "unsaved" | "syncing" | "error">("saved");
+  const [isTokenExpired, setIsTokenExpired] = useState(false);
 
   // Autocomplete ref & states for the Split view code editor
   const mainTextareaRef = useRef<HTMLTextAreaElement>(null);
@@ -1646,6 +1647,7 @@ function WorkspaceDashboard({ params }: PageProps) {
       localStorage.setItem("GEMINI_API_KEY", geminiKey);
       localStorage.setItem("WORKSPACE_REPO", repo);
       setIsAuthenticated(true);
+      setIsTokenExpired(false);
       fetchDraftsList(token, repo);
     } catch (err) {
       setLoginError("Token inválido ou sem permissões de acesso ao repositório.");
@@ -1667,15 +1669,26 @@ function WorkspaceDashboard({ params }: PageProps) {
         headers: { Authorization: `Bearer ${authToken}` },
       });
 
+      if (branchRes.status === 401) {
+        setIsTokenExpired(true);
+        setIsAuthenticated(false);
+        return;
+      }
+
       if (branchRes.status === 404) {
         const mainRes = await fetch(`https://api.github.com/repos/${targetRepo}/branches/main`, {
           headers: { Authorization: `Bearer ${authToken}` },
         });
+        if (mainRes.status === 401) {
+          setIsTokenExpired(true);
+          setIsAuthenticated(false);
+          return;
+        }
         if (!mainRes.ok) throw new Error("Branch principal não encontrada.");
         const mainData = await mainRes.json();
         const sha = mainData.commit.sha;
 
-        await fetch(`https://api.github.com/repos/${targetRepo}/git/refs`, {
+        const createRefRes = await fetch(`https://api.github.com/repos/${targetRepo}/git/refs`, {
           method: "POST",
           headers: {
             Authorization: `Bearer ${authToken}`,
@@ -1683,11 +1696,22 @@ function WorkspaceDashboard({ params }: PageProps) {
           },
           body: JSON.stringify({ ref: "refs/heads/notes-drafts", sha }),
         });
+        if (createRefRes.status === 401) {
+          setIsTokenExpired(true);
+          setIsAuthenticated(false);
+          return;
+        }
       }
 
       const contentRes = await fetch(`https://api.github.com/repos/${targetRepo}/contents/src/content/drafts?ref=notes-drafts`, {
         headers: { Authorization: `Bearer ${authToken}` },
       });
+
+      if (contentRes.status === 401) {
+        setIsTokenExpired(true);
+        setIsAuthenticated(false);
+        return;
+      }
 
       if (contentRes.status === 404) {
         setDrafts([]);
@@ -1836,6 +1860,12 @@ ${diffText.slice(0, 1500)}`;
           }),
         });
 
+        if (createRes.status === 401) {
+          setIsTokenExpired(true);
+          setIsAuthenticated(false);
+          return;
+        }
+
         if (!createRes.ok) throw new Error("Failed to create new file during rename");
         const createData = await createRes.json();
         const newSha = createData.content.sha;
@@ -1853,6 +1883,12 @@ ${diffText.slice(0, 1500)}`;
             branch: "notes-drafts",
           }),
         });
+
+        if (deleteRes.status === 401) {
+          setIsTokenExpired(true);
+          setIsAuthenticated(false);
+          return;
+        }
 
         if (!deleteRes.ok) throw new Error("Failed to delete old file during rename");
 
@@ -1892,6 +1928,12 @@ ${diffText.slice(0, 1500)}`;
             branch: "notes-drafts",
           }),
         });
+
+        if (res.status === 401) {
+          setIsTokenExpired(true);
+          setIsAuthenticated(false);
+          return;
+        }
 
         if (!res.ok) throw new Error();
         const data = await res.json();
@@ -2134,6 +2176,16 @@ ${editorText}`;
               Faça login com seu GitHub PAT para acessar o painel de criação e edição.
             </p>
           </div>
+
+          {isTokenExpired && (
+            <div className="p-3 bg-red-950/40 border border-red-500/50 rounded-xl text-xs text-red-200 text-center font-medium animate-pulse leading-relaxed">
+              {isPt ? (
+                <span>⚠️ Seu Token do GitHub (PAT) expirou ou é inválido! Por favor, gere um novo token e configure-o abaixo para continuar.</span>
+              ) : (
+                <span>⚠️ Your GitHub Token (PAT) has expired or is invalid! Please generate a new token and configure it below to continue.</span>
+              )}
+            </div>
+          )}
 
           <form onSubmit={handleLogin} className="space-y-4">
             <div className="space-y-1">
