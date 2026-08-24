@@ -12,6 +12,7 @@ import NodeGraftViewer from "../../../components/NodeGraftViewer";
 import B3Screener from "../../../components/B3Screener";
 import SudokuViewer from "../../../components/SudokuViewer";
 import SudokuMiniWidget from "../../../components/SudokuMiniWidget";
+import PasswordManagerWidget from "../../../components/PasswordManagerWidget";
 import QuadtreeVisualizer from "../../../components/fta/QuadtreeVisualizer";
 import MappingVisualizer from "../../../components/fta/MappingVisualizer";
 import CountersVisualizer from "../../../components/fta/CountersVisualizer";
@@ -326,7 +327,8 @@ const WIDGET_SUGGESTIONS = [
   "InnerProductWindingVisualizer",
   "OrthogonalProjectionVisualizer",
   "ErrorDiskConstraintVisualizer",
-  "AsymptoticScalingVisualizer"
+  "AsymptoticScalingVisualizer",
+  "PasswordManagerWidget"
 ];
 
 function getCaretCoordinates(textarea: HTMLTextAreaElement, position: number) {
@@ -377,6 +379,7 @@ interface AutosizingBlockTextareaProps {
   onSave: (val: string) => void;
   onCancel: () => void;
   className?: string;
+  onTriggerMath?: (isBlock: boolean) => void;
 }
 
 function AutosizingBlockTextarea({
@@ -384,6 +387,7 @@ function AutosizingBlockTextarea({
   onSave,
   onCancel,
   className,
+  onTriggerMath,
 }: AutosizingBlockTextareaProps) {
   const [val, setVal] = useState(defaultValue);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -481,7 +485,17 @@ function AutosizingBlockTextarea({
         ref={textareaRef}
         value={val}
         onChange={(e) => {
-          setVal(e.target.value);
+          const value = e.target.value;
+          setVal(value);
+          if (onTriggerMath) {
+            if (value === "$$ ") {
+              onTriggerMath(true);
+              return;
+            } else if (value === "$ ") {
+              onTriggerMath(false);
+              return;
+            }
+          }
           checkAutocomplete(e.currentTarget);
         }}
         onKeyUp={(e) => checkAutocomplete(e.currentTarget)}
@@ -573,6 +587,105 @@ function AutosizingBlockTextarea({
   );
 }
 
+interface CellMathEditorProps {
+  initialValue: string;
+  isBlock: boolean;
+  onChange: (val: string) => void;
+  onBlur: () => void;
+  onCancel?: () => void;
+}
+
+function CellMathEditor({
+  initialValue,
+  isBlock,
+  onChange,
+  onBlur,
+  onCancel,
+}: CellMathEditorProps) {
+  const mathFieldRef = useRef<any>(null);
+
+  useEffect(() => {
+    const mathfield = mathFieldRef.current;
+    if (mathfield) {
+      let cleaned = initialValue.trim();
+      if (cleaned.startsWith("$$")) {
+        cleaned = cleaned.substring(2);
+      } else if (cleaned.startsWith("$")) {
+        cleaned = cleaned.substring(1);
+      }
+      if (cleaned.endsWith("$$")) {
+        cleaned = cleaned.substring(0, cleaned.length - 2);
+      } else if (cleaned.endsWith("$")) {
+        cleaned = cleaned.substring(0, cleaned.length - 1);
+      }
+      cleaned = cleaned.trim();
+      
+      // Clean existing manual colors completely
+      cleaned = cleaned.replace(/\\textcolor\{#[a-fA-F0-9]+\}\{([^}]+)\}/g, '$1');
+      cleaned = cleaned.replace(/\\color\{#[a-fA-F0-9]+\}\{([^}]+)\}/g, '$1');
+      cleaned = cleaned.replace(/\\color\{#[a-fA-F0-9]+\}\s*/g, '');
+
+      if (mathfield.value !== cleaned) {
+        mathfield.value = cleaned;
+      }
+
+      const timer = setTimeout(() => {
+        mathfield.focus();
+      }, 50);
+
+      const handleInput = (e: Event) => {
+        const rawLatex = (e.target as any).value || "";
+        onChange(rawLatex);
+      };
+
+      const handleBlur = () => {
+        onBlur();
+      };
+
+      const handleKeyDown = (e: KeyboardEvent) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          mathfield.blur();
+        } else if (e.key === "Escape") {
+          e.preventDefault();
+          if (onCancel) onCancel();
+        }
+      };
+
+      mathfield.addEventListener("input", handleInput);
+      mathfield.addEventListener("blur", handleBlur);
+      mathfield.addEventListener("keydown", handleKeyDown);
+
+      return () => {
+        clearTimeout(timer);
+        mathfield.removeEventListener("input", handleInput);
+        mathfield.removeEventListener("blur", handleBlur);
+        mathfield.removeEventListener("keydown", handleKeyDown);
+      };
+    }
+  }, [initialValue, onChange, onBlur, onCancel]);
+
+  return (
+    <div className="w-full relative" onClick={(e) => e.stopPropagation()}>
+      <math-field
+        ref={mathFieldRef}
+        math-virtual-keyboard-policy="manual"
+        style={{
+          display: "block",
+          width: "100%",
+          padding: "6px 8px",
+          borderRadius: "6px",
+          border: "1px solid #10b981",
+          background: "#09090b",
+          color: "#f4f4f5",
+          outline: "none",
+          fontSize: "0.875rem",
+        }}
+      />
+    </div>
+  );
+}
+
 interface InteractiveTableProps {
   markdown: string;
   onUpdate: (newMarkdown: string) => void;
@@ -592,6 +705,8 @@ function InteractiveTable({ markdown, onUpdate }: InteractiveTableProps) {
   } | null>(null);
 
   const [editValue, setEditValue] = useState("");
+  const [isCellMath, setIsCellMath] = useState(false);
+  const [isCellBlockMath, setIsCellBlockMath] = useState(false);
 
   const [mobileMenuCell, setMobileMenuCell] = useState<{
     rowIdx: number;
@@ -621,6 +736,28 @@ function InteractiveTable({ markdown, onUpdate }: InteractiveTableProps) {
     setSelectedCell({ rowIdx, colIdx });
     setEditingCell({ rowIdx, colIdx });
     setEditValue(currentVal);
+
+    const trimmed = currentVal.trim();
+    if (trimmed.startsWith("$$") && trimmed.endsWith("$$")) {
+      setIsCellMath(true);
+      setIsCellBlockMath(true);
+    } else if (trimmed.startsWith("$") && trimmed.endsWith("$")) {
+      setIsCellMath(true);
+      setIsCellBlockMath(false);
+    } else {
+      setIsCellMath(false);
+      setIsCellBlockMath(false);
+    }
+  };
+
+  const handleCellInputChange = (val: string) => {
+    if (val === "$$ " || val === "$ ") {
+      setIsCellMath(true);
+      setIsCellBlockMath(val === "$$ ");
+      setEditValue("");
+    } else {
+      setEditValue(val);
+    }
   };
 
   const saveActiveCell = () => {
@@ -630,10 +767,17 @@ function InteractiveTable({ markdown, onUpdate }: InteractiveTableProps) {
     const newHeaders = [...headers];
     const newRows = rows.map(r => [...r]);
 
+    let finalValue = editValue;
+    if (isCellMath) {
+      const cleaned = cleanLatex(editValue);
+      const colored = colorizeMath(cleaned);
+      finalValue = isCellBlockMath ? `$$\n${colored}\n$$` : `$${colored}$`;
+    }
+
     if (rowIdx === -1) {
-      newHeaders[colIdx] = editValue;
+      newHeaders[colIdx] = finalValue;
     } else {
-      newRows[rowIdx][colIdx] = editValue;
+      newRows[rowIdx][colIdx] = finalValue;
     }
 
     const updatedData: TableData = {
@@ -644,6 +788,8 @@ function InteractiveTable({ markdown, onUpdate }: InteractiveTableProps) {
 
     onUpdate(serializeMarkdownTable(updatedData));
     setEditingCell(null);
+    setIsCellMath(false);
+    setIsCellBlockMath(false);
   };
 
   const isRowFilled = (rowIdx: number): boolean => {
@@ -904,22 +1050,38 @@ function InteractiveTable({ markdown, onUpdate }: InteractiveTableProps) {
                     }}
                   >
                     {isEditing ? (
-                      <input
-                        type="text"
-                        value={editValue}
-                        autoFocus
-                        onChange={(e) => setEditValue(e.target.value)}
-                        onBlur={saveActiveCell}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") {
-                            saveActiveCell();
-                          } else if (e.key === "Escape") {
+                      isCellMath ? (
+                        <CellMathEditor
+                          initialValue={editValue}
+                          isBlock={isCellBlockMath}
+                          onChange={(val) => setEditValue(val)}
+                          onBlur={saveActiveCell}
+                          onCancel={() => {
                             setEditingCell(null);
-                          }
-                        }}
-                        onClick={(e) => e.stopPropagation()}
-                        className="w-full bg-zinc-950 text-zinc-50 px-2 py-1 rounded border border-emerald-500 outline-none font-sans text-sm"
-                      />
+                            setIsCellMath(false);
+                            setIsCellBlockMath(false);
+                          }}
+                        />
+                      ) : (
+                        <input
+                          type="text"
+                          value={editValue}
+                          autoFocus
+                          onChange={(e) => handleCellInputChange(e.target.value)}
+                          onBlur={saveActiveCell}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              saveActiveCell();
+                            } else if (e.key === "Escape") {
+                              setEditingCell(null);
+                              setIsCellMath(false);
+                              setIsCellBlockMath(false);
+                            }
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                          className="w-full bg-zinc-950 text-zinc-50 px-2 py-1 rounded border border-emerald-500 outline-none font-sans text-sm"
+                        />
+                      )
                     ) : (
                       <div className="min-h-[1.5rem] flex items-center justify-between gap-1 w-full relative">
                         <span className="flex-1">{parseInlineMarkdown(h)}</span>
@@ -1006,28 +1168,45 @@ function InteractiveTable({ markdown, onUpdate }: InteractiveTableProps) {
                         }}
                       >
                         {isEditing ? (
-                          <textarea
-                            value={editValue}
-                            autoFocus
-                            rows={1}
-                            onChange={(e) => {
-                              setEditValue(e.target.value);
-                              const target = e.target as HTMLTextAreaElement;
-                              target.style.height = "auto";
-                              target.style.height = `${target.scrollHeight}px`;
-                            }}
-                            onBlur={saveActiveCell}
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter" && !e.shiftKey) {
-                                e.preventDefault();
-                                saveActiveCell();
-                              } else if (e.key === "Escape") {
+                          isCellMath ? (
+                            <CellMathEditor
+                              initialValue={editValue}
+                              isBlock={isCellBlockMath}
+                              onChange={(val) => setEditValue(val)}
+                              onBlur={saveActiveCell}
+                              onCancel={() => {
                                 setEditingCell(null);
-                              }
-                            }}
-                            onClick={(e) => e.stopPropagation()}
-                            className="w-full bg-zinc-950 text-zinc-100 px-2 py-1 rounded border border-emerald-500 outline-none font-serif text-sm resize-none overflow-hidden"
-                          />
+                                setIsCellMath(false);
+                                setIsCellBlockMath(false);
+                              }}
+                            />
+                          ) : (
+                            <textarea
+                              value={editValue}
+                              autoFocus
+                              rows={1}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                handleCellInputChange(val);
+                                const target = e.target as HTMLTextAreaElement;
+                                target.style.height = "auto";
+                                target.style.height = `${target.scrollHeight}px`;
+                              }}
+                              onBlur={saveActiveCell}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter" && !e.shiftKey) {
+                                  e.preventDefault();
+                                  saveActiveCell();
+                                } else if (e.key === "Escape") {
+                                  setEditingCell(null);
+                                  setIsCellMath(false);
+                                  setIsCellBlockMath(false);
+                                }
+                              }}
+                              onClick={(e) => e.stopPropagation()}
+                              className="w-full bg-zinc-950 text-zinc-100 px-2 py-1 rounded border border-emerald-500 outline-none font-serif text-sm resize-none overflow-hidden"
+                            />
+                          )
                         ) : (
                           <div className="min-h-[1.5rem] flex items-center justify-between gap-1 w-full relative">
                             <span className="flex-1">{parseInlineMarkdown(cell)}</span>
@@ -1274,6 +1453,7 @@ function BlockContentRenderer({
               {token.widgetName === "OrthogonalProjectionVisualizer" && <OrthogonalProjectionVisualizer />}
               {token.widgetName === "ErrorDiskConstraintVisualizer" && <ErrorDiskConstraintVisualizer />}
               {token.widgetName === "AsymptoticScalingVisualizer" && <AsymptoticScalingVisualizer />}
+              {token.widgetName === "PasswordManagerWidget" && <PasswordManagerWidget />}
             </div>
           );
         }
@@ -1449,7 +1629,7 @@ function parseMDXContent(text: string): Token[] {
   // 4. Split by Interactive Widgets
   tokens = splitTokenList(
     tokens,
-    /<(ComplexPlotter|NodeGraftViewer|B3Screener|SudokuViewer|SudokuMiniWidget|QuadtreeVisualizer|MappingVisualizer|CountersVisualizer|PolynomialEditor|InnerProductWindingVisualizer|OrthogonalProjectionVisualizer|ErrorDiskConstraintVisualizer|AsymptoticScalingVisualizer)\s*\/>/g,
+    /<(ComplexPlotter|NodeGraftViewer|B3Screener|SudokuViewer|SudokuMiniWidget|QuadtreeVisualizer|MappingVisualizer|CountersVisualizer|PolynomialEditor|InnerProductWindingVisualizer|OrthogonalProjectionVisualizer|ErrorDiskConstraintVisualizer|AsymptoticScalingVisualizer|PasswordManagerWidget)\s*\/>/g,
     (match) => ({
       type: "widget",
       widgetName: match[1],
@@ -2766,6 +2946,10 @@ ${editorText}`;
                                 setEditingBlockIndex(null);
                               }}
                               onCancel={() => setEditingBlockIndex(null)}
+                              onTriggerMath={(isBlock) => {
+                                const newVal = isBlock ? "$$\n\n$$" : "$$  $$";
+                                handleBlockChange(blockIdx, newVal);
+                              }}
                               className="w-full p-2 bg-zinc-950 text-zinc-100 font-mono text-sm leading-relaxed outline-none border-none resize-none overflow-hidden"
                             />
                             <div className="flex justify-between items-center text-[9px] font-mono text-zinc-500 px-1">
@@ -2859,6 +3043,10 @@ ${editorText}`;
                               setEditingBlockIndex(null);
                             }}
                             onCancel={() => setEditingBlockIndex(null)}
+                            onTriggerMath={(isBlock) => {
+                              const newVal = isBlock ? "$$\n\n$$" : "$$  $$";
+                              handleBlockChange(blockIdx, newVal);
+                            }}
                             className="w-full p-2 bg-zinc-950 text-zinc-100 font-mono text-sm leading-relaxed outline-none border-none resize-none overflow-hidden"
                           />
                           <div className="flex justify-between items-center text-[9px] font-mono text-zinc-500 px-1">
