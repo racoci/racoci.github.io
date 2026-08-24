@@ -1,0 +1,95 @@
+import { GaussianQuadratureVisualizer } from "../../../components/pythagorean/GaussianQuadratureVisualizer";
+import { SternBrocotVisualizer } from "../../../components/pythagorean/SternBrocotVisualizer";
+import { BarningHallTreeVisualizer } from "../../../components/pythagorean/BarningHallTreeVisualizer";
+
+# The Topology of Pythagorean Triples: Gaussian Quadrature and Infinite Trees
+
+The Pythagorean theorem, $\textcolor{#10b981}{a}^2 + \textcolor{#3b82f6}{b}^2 = \textcolor{#f43f5e}{c}^2$, is arguably the most famous equation in elementary geometry. However, when we restrict $\textcolor{#10b981}{a}$, $\textcolor{#3b82f6}{b}$, and $\textcolor{#f43f5e}{c}$ to be strictly positive integers—forming what is known as a **Primitive Pythagorean Triple**—the problem transcends geometry and enters the realm of Diophantine equations and discrete topology.
+
+How are these triples distributed? Can we generate all of them without duplicates? By utilizing the quadrature of Gaussian integers and mapping them to fractal data structures, we can navigate the infinite space of right-angled triangles using matrix transformations.
+
+---
+
+## I. Gaussian Quadrature
+
+The most elegant way to generate a Pythagorean triple is to step out of the real number line and into the complex plane using **Gaussian Integers** $\mathbb{Z}[\textcolor{#3b82f6}{i}]$.
+
+Let $\textcolor{#fbbf24}{z} = \textcolor{#fbbf24}{m} + n\textcolor{#3b82f6}{i}$ be a complex number where $\textcolor{#fbbf24}{m}$ and $\textcolor{#fbbf24}{n}$ are strictly positive, coprime integers, and exactly one of them is even (to ensure the resulting triple is primitive).
+
+If we square this complex number, we obtain:
+$$
+\textcolor{#fbbf24}{z}^2 = (\textcolor{#fbbf24}{m} + n\textcolor{#3b82f6}{i})^2 = (\textcolor{#fbbf24}{m}^2 - \textcolor{#fbbf24}{n}^2) + \textcolor{#3b82f6}{i}(2m\textcolor{#fbbf24}{n})
+$$
+
+Let the real part be $\textcolor{#10b981}{a}$ and the imaginary part be $\textcolor{#3b82f6}{b}$:
+$$
+\textcolor{#10b981}{a} = \textcolor{#fbbf24}{m}^2 - \textcolor{#fbbf24}{n}^2
+$$
+$$
+\textcolor{#3b82f6}{b} = 2m\textcolor{#fbbf24}{n}
+$$
+
+Because the square of the complex magnitude is preserved ($|\textcolor{#fbbf24}{z}^2| = |\textcolor{#fbbf24}{z}|^2$), the distance to the origin squared yields the hypotenuse $\textcolor{#f43f5e}{c}$:
+$$
+\textcolor{#f43f5e}{c} = \textcolor{#fbbf24}{m}^2 + \textcolor{#fbbf24}{n}^2
+$$
+
+This proves algebraically that:
+$$
+\textcolor{#10b981}{a}^2 + \textcolor{#3b82f6}{b}^2 = \textcolor{#f43f5e}{c}^2
+$$
+
+<GaussianQuadratureVisualizer />
+
+---
+
+## II. The Stern-Brocot Tree
+
+Since every primitive Pythagorean triple depends strictly on a coprime pair $(\textcolor{#fbbf24}{m}, \textcolor{#fbbf24}{n})$, finding all triples is mathematically equivalent to finding all irreducible rational fractions $\frac{\textcolor{#fbbf24}{m}}{\textcolor{#fbbf24}{n}}$.
+
+The **Stern-Brocot Tree** is an elegant binary data structure that generates every strictly positive rational number exactly once, in its most simplified (irreducible) form.
+
+The tree is constructed using the concept of a **Mediant**. Given two bounding fractions $\frac{\textcolor{#fbbf24}{m_1}}{\textcolor{#fbbf24}{n_1}}$ and $\frac{\textcolor{#fbbf24}{m_2}}{\textcolor{#fbbf24}{n_2}}$, the mediant is formed by summing their numerators and denominators:
+$$
+\text{Mediant} = \frac{\textcolor{#fbbf24}{m_1} + \textcolor{#fbbf24}{m_2}}{\textcolor{#fbbf24}{n_1} + \textcolor{#fbbf24}{n_2}}
+$$
+
+In linear algebra, we can track the state of the bounds using a $2 \times 2$ matrix:
+$$
+\textcolor{#a855f7}{M} = \begin{pmatrix} \textcolor{#fbbf24}{m_1} & \textcolor{#fbbf24}{m_2} \\ \textcolor{#fbbf24}{n_1} & \textcolor{#fbbf24}{n_2} \end{pmatrix}
+$$
+
+Navigating down the tree to the left or right is completely isomorphic to multiplying the current state matrix by constant transformation matrices $\textcolor{#3b82f6}{L}$ and $\textcolor{#fbbf24}{R}$:
+$$
+\textcolor{#3b82f6}{L} = \begin{pmatrix} 1 & 0 \\ 1 & 1 \end{pmatrix} \quad \textcolor{#fbbf24}{R} = \begin{pmatrix} 1 & 1 \\ 0 & 1 \end{pmatrix}
+$$
+
+Because the Stern-Brocot tree contains *all* rational numbers, we can use it to find extremely precise fractional approximations of irrational limits like $\textcolor{#fbbf24}{\pi}$.
+
+<SternBrocotVisualizer />
+
+---
+
+## III. The Barning-Hall Tree
+
+If the 2D matrices of the Stern-Brocot tree generate all $(\textcolor{#fbbf24}{m}, \textcolor{#fbbf24}{n})$ pairs, and the Gaussian quadrature maps those pairs into 3D triples $(\textcolor{#10b981}{a}, \textcolor{#3b82f6}{b}, \textcolor{#f43f5e}{c})$, can we bypass the complex plane entirely and generate triples directly?
+
+In 1934, Barning discovered that the linear 2D transformations of the Stern-Brocot tree induce strictly orthogonal 3D transformations on the resulting Pythagorean triples. This forms the **Barning-Hall Tree**, an infinite ternary tree (each node has 3 children) that generates every single primitive Pythagorean triple exactly once!
+
+Instead of $2 \times 2$ matrices on $\textcolor{#fbbf24}{m}$ and $\textcolor{#fbbf24}{n}$, we use $3 \times 3$ matrices acting directly on the column vector $\begin{pmatrix} \textcolor{#10b981}{a} \\ \textcolor{#3b82f6}{b} \\ \textcolor{#f43f5e}{c} \end{pmatrix}$:
+
+$$
+\textcolor{#a855f7}{U} = \begin{pmatrix} 1 & -2 & 2 \\ 2 & -1 & 2 \\ 2 & -2 & 3 \end{pmatrix}
+$$
+
+$$
+\textcolor{#a855f7}{A} = \begin{pmatrix} 1 & 2 & 2 \\ 2 & 1 & 2 \\ 2 & 2 & 3 \end{pmatrix}
+$$
+
+$$
+\textcolor{#a855f7}{D} = \begin{pmatrix} -1 & 2 & 2 \\ -2 & 1 & 2 \\ -2 & 2 & 3 \end{pmatrix}
+$$
+
+Starting strictly from the root triangle $(3, 4, 5)$, applying these three matrices recursively will map out the entire infinite fractal topology of right-angled triangles.
+
+<BarningHallTreeVisualizer />

@@ -24,13 +24,22 @@ const colorRules: Record<string, string> = {
   'R': '#fbbf24', 
   'w': '#fbbf24', 'w_1': '#fbbf24', 'w_2': '#fbbf24', 'w_k': '#fbbf24', 'w_j': '#fbbf24',
   'u': '#fbbf24', 'v': '#fbbf24',
-  'a': '#fbbf24', 'a_1': '#fbbf24', 'a_2': '#fbbf24',
-  'b': '#fbbf24', 'b_1': '#fbbf24', 'b_2': '#fbbf24',
-  'U': '#fbbf24', 'U_P': '#fbbf24', 'U_L': '#fbbf24',
+  'a_1': '#fbbf24', 'a_2': '#fbbf24',
+  'b_1': '#fbbf24', 'b_2': '#fbbf24',
+  'U_P': '#fbbf24', 'U_L': '#fbbf24',
   '\\Delta_P': '#fbbf24', '\\Delta_L': '#fbbf24', '\\Delta': '#fbbf24',
 
-  // Operators / Functions (Purple)
-  'N': '#a855f7'
+  // Pythagorean Variables
+  'a': '#10b981',
+  'b': '#3b82f6',
+  'c': '#f43f5e',
+  'm': '#fbbf24', 'n': '#fbbf24', 'm_1': '#fbbf24', 'm_2': '#fbbf24', 'n_1': '#fbbf24', 'n_2': '#fbbf24',
+  '\\pi': '#fbbf24',
+
+  // Operators / Functions / Matrices (Purple)
+  'N': '#a855f7',
+  'M': '#a855f7', 
+  'U': '#a855f7', 'A': '#a855f7', 'D': '#a855f7', 'T': '#a855f7'
 };
 
 const vars = Object.keys(colorRules).sort((a, b) => b.length - a.length);
@@ -174,7 +183,9 @@ async function runTests() {
 function processFiles() {
   const files = [
     path.resolve(__dirname, '../src/content/essays/fta/pt.mdx'),
-    path.resolve(__dirname, '../src/content/essays/fta/en.mdx')
+    path.resolve(__dirname, '../src/content/essays/fta/en.mdx'),
+    path.resolve(__dirname, '../src/content/essays/pythagorean-trees/pt.mdx'),
+    path.resolve(__dirname, '../src/content/essays/pythagorean-trees/en.mdx')
   ];
 
   files.forEach(file => {

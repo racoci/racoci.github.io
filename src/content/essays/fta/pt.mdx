@@ -24,7 +24,7 @@ O objetivo deste documento é provar uma versão aproximada do Teorema Fundament
 **Definição 1.1: O Campo Complexo Racional**
 Seja a estrutura de campo ordenada definida pela notação displaystyle:
 $$
-\mathbb{Q}(\textcolor{#3b82f6}{i}) = \{ \textcolor{#fbbf24}{a} + b\textcolor{#3b82f6}{i} \mid \textcolor{#fbbf24}{a}, \textcolor{#fbbf24}{b} \in \mathbb{Q} \}
+\mathbb{Q}(\textcolor{#3b82f6}{i}) = \{ \textcolor{#10b981}{a} + b\textcolor{#3b82f6}{i} \mid \textcolor{#10b981}{a}, \textcolor{#3b82f6}{b} \in \mathbb{Q} \}
 $$
 
 **Definição 1.2: O Polinômio**
@@ -36,13 +36,13 @@ $$
 **Definição 1.3: Quadratura Algébrica**
 Para evitar raízes quadradas irracionais, definimos a função de quadratura como a distância ao quadrado da origem:
 $$
-\textcolor{#a855f7}{N}(\textcolor{#fbbf24}{a} + b\textcolor{#3b82f6}{i}) = \textcolor{#fbbf24}{a}^2 + \textcolor{#fbbf24}{b}^2
+\textcolor{#a855f7}{N}(\textcolor{#10b981}{a} + b\textcolor{#3b82f6}{i}) = \textcolor{#10b981}{a}^2 + \textcolor{#3b82f6}{b}^2
 $$
 
 **Definição 1.4: Produto Interno Algébrico**
 Definimos o produto interno algébrico real de projeção entre dois vetores complexos $\textcolor{#fbbf24}{w_1} = \textcolor{#fbbf24}{a_1} + \textcolor{#fbbf24}{b_1} \textcolor{#3b82f6}{i}$ e $\textcolor{#fbbf24}{w_2} = \textcolor{#fbbf24}{a_2} + \textcolor{#fbbf24}{b_2} \textcolor{#3b82f6}{i}$ por:
 $$
-\langle \textcolor{#fbbf24}{w_1}, \textcolor{#fbbf24}{w_2} \rangle = \text{Re}(\textcolor{#fbbf24}{w_1} \cdot \overline{\textcolor{#fbbf24}{w_2}}) = \textcolor{#fbbf24}{a}_1\textcolor{#fbbf24}{a_2} + \textcolor{#fbbf24}{b}_1\textcolor{#fbbf24}{b_2}
+\langle \textcolor{#fbbf24}{w_1}, \textcolor{#fbbf24}{w_2} \rangle = \text{Re}(\textcolor{#fbbf24}{w_1} \cdot \overline{\textcolor{#fbbf24}{w_2}}) = \textcolor{#10b981}{a}_1\textcolor{#fbbf24}{a_2} + \textcolor{#3b82f6}{b}_1\textcolor{#fbbf24}{b_2}
 $$
 E a relação quadrática de norma:
 $$
@@ -70,17 +70,17 @@ $$
 *Demonstração:*
 Por expansão algébrica direta no campo:
 $$
-\textcolor{#a855f7}{N}(\textcolor{#fbbf24}{w_1})\textcolor{#a855f7}{N}(\textcolor{#fbbf24}{w_2}) - \langle \textcolor{#fbbf24}{w_1}, \textcolor{#fbbf24}{w_2} \rangle^2 = (\textcolor{#fbbf24}{a_1}^2 + \textcolor{#fbbf24}{b_1}^2)(\textcolor{#fbbf24}{a_2}^2 + \textcolor{#fbbf24}{b_2}^2) - (\textcolor{#fbbf24}{a}_1\textcolor{#fbbf24}{a_2} + \textcolor{#fbbf24}{b}_1\textcolor{#fbbf24}{b_2})^2
+\textcolor{#a855f7}{N}(\textcolor{#fbbf24}{w_1})\textcolor{#a855f7}{N}(\textcolor{#fbbf24}{w_2}) - \langle \textcolor{#fbbf24}{w_1}, \textcolor{#fbbf24}{w_2} \rangle^2 = (\textcolor{#fbbf24}{a_1}^2 + \textcolor{#fbbf24}{b_1}^2)(\textcolor{#fbbf24}{a_2}^2 + \textcolor{#fbbf24}{b_2}^2) - (\textcolor{#10b981}{a}_1\textcolor{#fbbf24}{a_2} + \textcolor{#3b82f6}{b}_1\textcolor{#fbbf24}{b_2})^2
 $$
 $$
-\textcolor{#a855f7}{N}(\textcolor{#fbbf24}{w_1})\textcolor{#a855f7}{N}(\textcolor{#fbbf24}{w_2}) - \langle \textcolor{#fbbf24}{w_1}, \textcolor{#fbbf24}{w_2} \rangle^2 = (\textcolor{#fbbf24}{a}_1\textcolor{#fbbf24}{b_2} - \textcolor{#fbbf24}{b}_1\textcolor{#fbbf24}{a_2})^2
+\textcolor{#a855f7}{N}(\textcolor{#fbbf24}{w_1})\textcolor{#a855f7}{N}(\textcolor{#fbbf24}{w_2}) - \langle \textcolor{#fbbf24}{w_1}, \textcolor{#fbbf24}{w_2} \rangle^2 = (\textcolor{#10b981}{a}_1\textcolor{#fbbf24}{b_2} - \textcolor{#3b82f6}{b}_1\textcolor{#fbbf24}{a_2})^2
 $$
-Como o quadrado de qualquer número racional é estritamente não-negativo, $(\textcolor{#fbbf24}{a}_1\textcolor{#fbbf24}{b_2} - \textcolor{#fbbf24}{b}_1\textcolor{#fbbf24}{a_2})^2 \ge 0$. Portanto, a desigualdade é válida. $\blacksquare$
+Como o quadrado de qualquer número racional é estritamente não-negativo, $(\textcolor{#10b981}{a}_1\textcolor{#fbbf24}{b_2} - \textcolor{#3b82f6}{b}_1\textcolor{#fbbf24}{a_2})^2 \ge 0$. Portanto, a desigualdade é válida. $\blacksquare$
 
 **Teorema 2.2: Limite da Soma de Quadratura Racional**
-Para qualquer conjunto finito de $m$ elementos, o limite de quadratura da soma satisfaz:
+Para qualquer conjunto finito de $\textcolor{#fbbf24}{m}$ elementos, o limite de quadratura da soma satisfaz:
 $$
-\textcolor{#a855f7}{N}\left(\sum_{k=1}^m \textcolor{#fbbf24}{w_k}\right) \le m \sum_{k=1}^m \textcolor{#a855f7}{N}(\textcolor{#fbbf24}{w_k})
+\textcolor{#a855f7}{N}\left(\sum_{k=1}^{\textcolor{#fbbf24}{m}} \textcolor{#fbbf24}{w_k}\right) \le \textcolor{#fbbf24}{m} \sum_{k=1}^{\textcolor{#fbbf24}{m}} \textcolor{#a855f7}{N}(\textcolor{#fbbf24}{w_k})
 $$
 *Demonstração:*
 Primeiro, observe que para quaisquer dois elementos da soma:
@@ -91,12 +91,12 @@ Como temos que $\textcolor{#a855f7}{N}(\textcolor{#fbbf24}{u} - \textcolor{#fbbf
 $$
 2\langle \textcolor{#fbbf24}{u}, \textcolor{#fbbf24}{v} \rangle \le \textcolor{#a855f7}{N}(\textcolor{#fbbf24}{u}) + \textcolor{#a855f7}{N}(\textcolor{#fbbf24}{v})
 $$
-Expandindo a quadratura da soma completa para $m$ termos:
+Expandindo a quadratura da soma completa para $\textcolor{#fbbf24}{m}$ termos:
 $$
-\textcolor{#a855f7}{N}\left(\sum_{j=1}^m \textcolor{#fbbf24}{w_j}\right) = \sum_{j=1}^m \sum_{k=1}^m \langle \textcolor{#fbbf24}{w_j}, \textcolor{#fbbf24}{w_k} \rangle \le \sum_{j=1}^m \sum_{k=1}^m \frac{1}{2}(\textcolor{#a855f7}{N}(\textcolor{#fbbf24}{w_j}) + \textcolor{#a855f7}{N}(\textcolor{#fbbf24}{w_k}))
+\textcolor{#a855f7}{N}\left(\sum_{j=1}^{\textcolor{#fbbf24}{m}} \textcolor{#fbbf24}{w_j}\right) = \sum_{j=1}^{\textcolor{#fbbf24}{m}} \sum_{k=1}^{\textcolor{#fbbf24}{m}} \langle \textcolor{#fbbf24}{w_j}, \textcolor{#fbbf24}{w_k} \rangle \le \sum_{j=1}^{\textcolor{#fbbf24}{m}} \sum_{k=1}^{\textcolor{#fbbf24}{m}} \frac{1}{2}(\textcolor{#a855f7}{N}(\textcolor{#fbbf24}{w_j}) + \textcolor{#a855f7}{N}(\textcolor{#fbbf24}{w_k}))
 $$
 $$
-\textcolor{#a855f7}{N}\left(\sum_{j=1}^m \textcolor{#fbbf24}{w_j}\right) \le m \sum_{k=1}^m \textcolor{#a855f7}{N}(\textcolor{#fbbf24}{w_k}) \ \blacksquare
+\textcolor{#a855f7}{N}\left(\sum_{j=1}^{\textcolor{#fbbf24}{m}} \textcolor{#fbbf24}{w_j}\right) \le \textcolor{#fbbf24}{m} \sum_{k=1}^{\textcolor{#fbbf24}{m}} \textcolor{#a855f7}{N}(\textcolor{#fbbf24}{w_k}) \ \blacksquare
 $$
 
 **Corolário 2.3: Limite Inferior Algébrico (Alternativa Triangular)**
@@ -198,18 +198,18 @@ $$
 **Definição 4.2: Número de Rotação Discreto**
 O número de rotação (winding number) discreto de quadrantes é computado pela variação de contadores desdobrados dividida pela ordem cíclica:
 $$
-\textcolor{#fbbf24}{\Delta} = \frac{\textcolor{#fbbf24}{U}(k) - \textcolor{#fbbf24}{U}(0)}{4}
+\textcolor{#fbbf24}{\Delta} = \frac{\textcolor{#a855f7}{U}(k) - \textcolor{#a855f7}{U}(0)}{4}
 $$
 
 **Teorema 4.3: Aditividade de Números de Rotação**
 Para o produto de duas sequências complexas, a rotação total é aditiva:
 $$
-\textcolor{#fbbf24}{\Delta}(A \cdot B) = \textcolor{#fbbf24}{\Delta}(A) + \textcolor{#fbbf24}{\Delta}(B)
+\textcolor{#fbbf24}{\Delta}(\textcolor{#a855f7}{A} \cdot B) = \textcolor{#fbbf24}{\Delta}(\textcolor{#a855f7}{A}) + \textcolor{#fbbf24}{\Delta}(B)
 $$
 *Demonstração:*
 As transições combinatórias de quadrantes se somam com correções localizadas:
 $$
-\textcolor{#fbbf24}{U}_{AB}(j) = \textcolor{#fbbf24}{U}_A(j) + \textcolor{#fbbf24}{U}_B(j) + \epsilon(j)
+\textcolor{#a855f7}{U}_{AB}(j) = \textcolor{#a855f7}{U}_{\textcolor{#a855f7}{A}}(j) + \textcolor{#a855f7}{U}_B(j) + \epsilon(j)
 $$
 Como o loop se fecha perfeitamente na malha, as correções coincidem no fim, resultando na aditividade. $\blacksquare$
 
@@ -237,7 +237,7 @@ Se o produto interno entre o vetor velocidade $\vec{\textcolor{#fbbf24}{v}}(t)$ 
 
 ### 4.7 As Três Invariantes Geométricas de Rouché
 
-Para provar de forma geométrica direta que o polinômio completo $\textcolor{#10b981}{P}(\textcolor{#fbbf24}{z})$ e o termo líder $\textcolor{#3b82f6}{L}(\textcolor{#fbbf24}{z}) = \textcolor{#fbbf24}{a}_n \textcolor{#fbbf24}{z}^n$ se alinham topologicamente, analisamos as relações vetoriais e de desigualdade de Cauchy-Schwarz conforme o domínio de raio $\textcolor{#fbbf24}{R}$ se estende.
+Para provar de forma geométrica direta que o polinômio completo $\textcolor{#10b981}{P}(\textcolor{#fbbf24}{z})$ e o termo líder $\textcolor{#3b82f6}{L}(\textcolor{#fbbf24}{z}) = \textcolor{#10b981}{a}_{\textcolor{#fbbf24}{n}} \textcolor{#fbbf24}{z}^{\textcolor{#fbbf24}{n}}$ se alinham topologicamente, analisamos as relações vetoriais e de desigualdade de Cauchy-Schwarz conforme o domínio de raio $\textcolor{#fbbf24}{R}$ se estende.
 
 #### 4.7.1 A Invariante da Projeção Ortogonal
 A condição matemática para que $\textcolor{#10b981}{P}(t)$ e $\textcolor{#3b82f6}{L}(t)$ compartilhem o mesmo winding number é que o ângulo entre eles permaneça estritamente agudo ($< 90^\circ$). Isto é garantido se o produto interno $\langle \textcolor{#3b82f6}{L}(t), \textcolor{#10b981}{P}(t) \rangle$ for maior que zero, forçando $\textcolor{#10b981}{P}(t)$ a habitar o mesmo semiplano positivo ortogonal de $\textcolor{#3b82f6}{L}(t)$.
@@ -250,7 +250,7 @@ Como $\textcolor{#10b981}{P}(t) = \textcolor{#3b82f6}{L}(t) + \textcolor{#f43f5e
 <ErrorDiskConstraintVisualizer />
 
 #### 4.7.3 Convergência Assintótica pelo Crescimento de Potências
-Conforme o raio do plano complexo $\textcolor{#fbbf24}{R}$ cresce, a norma do termo dominante $\|\textcolor{#3b82f6}{L}(t)\|$ cresce a uma taxa polinomial de ordem superior ($\textcolor{#fbbf24}{R}^n$), enquanto o raio do disco de erro $\|\textcolor{#f43f5e}{E}(t)\|$ cresce em uma taxa de ordem menor ($\textcolor{#fbbf24}{R}^{n-1}$). Isso força o descolamento definitivo do disco de erro em relação à origem $(0,0)$, trancando o vetor $\textcolor{#10b981}{P}(t)$ no alinhamento do winding do termo dominante.
+Conforme o raio do plano complexo $\textcolor{#fbbf24}{R}$ cresce, a norma do termo dominante $\|\textcolor{#3b82f6}{L}(t)\|$ cresce a uma taxa polinomial de ordem superior ($\textcolor{#fbbf24}{R}^{\textcolor{#fbbf24}{n}}$), enquanto o raio do disco de erro $\|\textcolor{#f43f5e}{E}(t)\|$ cresce em uma taxa de ordem menor ($\textcolor{#fbbf24}{R}^{\textcolor{#fbbf24}{n}-1}$). Isso força o descolamento definitivo do disco de erro em relação à origem $(0,0)$, trancando o vetor $\textcolor{#10b981}{P}(t)$ no alinhamento do winding do termo dominante.
 
 <AsymptoticScalingVisualizer />
 
@@ -260,16 +260,16 @@ Conforme o raio do plano complexo $\textcolor{#fbbf24}{R}$ cresce, a norma do te
 
 Construímos iterativamente nossa sequência de Cauchy começando com $Q_0$ (onde $\textcolor{#fbbf24}{\Delta}(Q_0) = \textcolor{#3b82f6}{d} \neq 0$).
 
-A cada passo $n$:
+A cada passo $\textcolor{#fbbf24}{n}$:
 
-1. Bisseccionamos $Q_n$ em seus pontos médios racionais em 4 subquadrados menores: $Q_{n,1}$ (Nordeste), $Q_{n,2}$ (Noroeste), $Q_{n,3}$ (Sudoeste), $Q_{n,4}$ (Sudeste).
-2. Por conservação combinatória, as transições de malha internas se avaliam em direções opostas e se cancelam. Assim, $\sum_{\textcolor{#3b82f6}{i}=1}^4 \textcolor{#fbbf24}{\Delta}(Q_{n,\textcolor{#3b82f6}{i}}) = \textcolor{#fbbf24}{\Delta}(Q_n)$.
-3. Como $\textcolor{#fbbf24}{\Delta}(Q_n) \neq 0$, pelo menos um subquadrado deve possuir um número de rotação diferente de zero.
+1. Bisseccionamos $Q_{\textcolor{#fbbf24}{n}}$ em seus pontos médios racionais em 4 subquadrados menores: $Q_{\textcolor{#fbbf24}{n},1}$ (Nordeste), $Q_{\textcolor{#fbbf24}{n},2}$ (Noroeste), $Q_{\textcolor{#fbbf24}{n},3}$ (Sudoeste), $Q_{\textcolor{#fbbf24}{n},4}$ (Sudeste).
+2. Por conservação combinatória, as transições de malha internas se avaliam em direções opostas e se cancelam. Assim, $\sum_{\textcolor{#3b82f6}{i}=1}^4 \textcolor{#fbbf24}{\Delta}(Q_{\textcolor{#fbbf24}{n},\textcolor{#3b82f6}{i}}) = \textcolor{#fbbf24}{\Delta}(Q_{\textcolor{#fbbf24}{n}})$.
+3. Como $\textcolor{#fbbf24}{\Delta}(Q_{\textcolor{#fbbf24}{n}}) \neq 0$, pelo menos um subquadrado deve possuir um número de rotação diferente de zero.
 
 **Axioma 5.1: Regra de Seleção Determinística**
-Um polinômio de grau $\textcolor{#3b82f6}{d}$ pode possuir múltiplas raízes, o que significa que múltiplos subquadrados poderiam exibir simultaneamente números de rotação não-nulos. Para construir uma sequência singular e inequívoca visando exatamente uma pseudo-raiz, definimos $Q_{n+1}$ as o **primeiro** subquadrado na lista ordenada canônica $(Q_{n,1}, Q_{n,2}, Q_{n,3}, Q_{n,4})$ que satisfaz $\textcolor{#fbbf24}{\Delta}(Q_{n,\textcolor{#3b82f6}{i}}) \neq 0$.
+Um polinômio de grau $\textcolor{#3b82f6}{d}$ pode possuir múltiplas raízes, o que significa que múltiplos subquadrados poderiam exibir simultaneamente números de rotação não-nulos. Para construir uma sequência singular e inequívoca visando exatamente uma pseudo-raiz, definimos $Q_{\textcolor{#fbbf24}{n}+1}$ as o **primeiro** subquadrado na lista ordenada canônica $(Q_{\textcolor{#fbbf24}{n},1}, Q_{\textcolor{#fbbf24}{n},2}, Q_{\textcolor{#fbbf24}{n},3}, Q_{\textcolor{#fbbf24}{n},4})$ que satisfaz $\textcolor{#fbbf24}{\Delta}(Q_{\textcolor{#fbbf24}{n},\textcolor{#3b82f6}{i}}) \neq 0$.
 
-Seja $\textcolor{#fbbf24}{z_n} \in F$ o centro geométrico do quadrado unicamente escolhido $Q_n$.
+Seja $\textcolor{#fbbf24}{z_n} \in F$ o centro geométrico do quadrado unicamente escolhido $Q_{\textcolor{#fbbf24}{n}}$.
 
 <QuadtreeVisualizer />
 
@@ -280,36 +280,36 @@ Seja $\textcolor{#fbbf24}{z_n} \in F$ o centro geométrico do quadrado unicament
 **Teorema 6.1: A Sequência é de Cauchy**
 A sequência $(\textcolor{#fbbf24}{z_n})$ gerada pelo algoritmo de bisseção é uma sequência de Cauchy.
 *Demonstração:*
-O comprimento do lado de $Q_n$ é estritamente $\textcolor{#3b82f6}{L}_n = \frac{2\textcolor{#fbbf24}{R}}{2^n} \in \mathbb{Q}$. Para quaisquer índices $m > n$, ambos $\textcolor{#fbbf24}{z_n}$ e $\textcolor{#fbbf24}{z_m}$ residem dentro de $Q_n$. A distância máxima ao quadrado entre quaisquer dois pontos em $Q_n$ é estritamente limitada pela diagonal ao quadrado:
+O comprimento do lado de $Q_{\textcolor{#fbbf24}{n}}$ é estritamente $\textcolor{#3b82f6}{L}_{\textcolor{#fbbf24}{n}} = \frac{2\textcolor{#fbbf24}{R}}{2^{\textcolor{#fbbf24}{n}}} \in \mathbb{Q}$. Para quaisquer índices $\textcolor{#fbbf24}{m} > \textcolor{#fbbf24}{n}$, ambos $\textcolor{#fbbf24}{z_n}$ e $\textcolor{#fbbf24}{z_m}$ residem dentro de $Q_{\textcolor{#fbbf24}{n}}$. A distância máxima ao quadrado entre quaisquer dois pontos em $Q_{\textcolor{#fbbf24}{n}}$ é estritamente limitada pela diagonal ao quadrado:
 
 $$
-\textcolor{#a855f7}{N}(\textcolor{#fbbf24}{z_n} - \textcolor{#fbbf24}{z_m}) \le \frac{8\textcolor{#fbbf24}{R}^2}{4^n}
+\textcolor{#a855f7}{N}(\textcolor{#fbbf24}{z_n} - \textcolor{#fbbf24}{z_m}) \le \frac{8\textcolor{#fbbf24}{R}^2}{4^{\textcolor{#fbbf24}{n}}}
 $$
 
-Para qualquer tolerância racional $\epsilon > 0$, existe um inteiro $n$ grande o suficiente tal que:
+Para qualquer tolerância racional $\epsilon > 0$, existe um inteiro $\textcolor{#fbbf24}{n}$ grande o suficiente tal que:
 $$
-\frac{8\textcolor{#fbbf24}{R}^2}{4^n} < \epsilon
+\frac{8\textcolor{#fbbf24}{R}^2}{4^{\textcolor{#fbbf24}{n}}} < \epsilon
 $$
 Assim, $(\textcolor{#fbbf24}{z_n})$ é estritamente uma sequência de Cauchy por definição. $\blacksquare$
 
 **Teorema 6.2: Convergência de Quadratura (O TFA Aproximado)**
 A avaliação polinomial da sequência converge para zero:
 $$
-\lim_{n \to \infty} \textcolor{#a855f7}{N}(\textcolor{#10b981}{P}(\textcolor{#fbbf24}{z_n})) = 0
+\lim_{\textcolor{#fbbf24}{n} \to \infty} \textcolor{#a855f7}{N}(\textcolor{#10b981}{P}(\textcolor{#fbbf24}{z_n})) = 0
 $$
 *Demonstração:*
-Suponha, por contradição, que exista uma constante racional $\lambda > 0$ tal que a imagem de $Q_n$ nunca caia abaixo de:
+Suponha, por contradição, que exista uma constante racional $\lambda > 0$ tal que a imagem de $Q_{\textcolor{#fbbf24}{n}}$ nunca caia abaixo de:
 $$
 \textcolor{#a855f7}{N}(\textcolor{#10b981}{P}(\textcolor{#fbbf24}{z})) \ge \lambda
 $$
-Como $\textcolor{#10b981}{P}(\textcolor{#fbbf24}{z})$ é limitado pela constante de Lipschitz racional $K$ em $Q_n$, a variação máxima da imagem dentro de $Q_n$ é estritamente limitada:
+Como $\textcolor{#10b981}{P}(\textcolor{#fbbf24}{z})$ é limitado pela constante de Lipschitz racional $K$ em $Q_{\textcolor{#fbbf24}{n}}$, a variação máxima da imagem dentro de $Q_{\textcolor{#fbbf24}{n}}$ é estritamente limitada:
 $$
-\textcolor{#a855f7}{N}(\textcolor{#10b981}{P}(\textcolor{#fbbf24}{u}) - \textcolor{#10b981}{P}(\textcolor{#fbbf24}{v})) \le K \cdot \frac{8\textcolor{#fbbf24}{R}^2}{4^n} \quad \forall \textcolor{#fbbf24}{u}, \textcolor{#fbbf24}{v} \in Q_n
+\textcolor{#a855f7}{N}(\textcolor{#10b981}{P}(\textcolor{#fbbf24}{u}) - \textcolor{#10b981}{P}(\textcolor{#fbbf24}{v})) \le K \cdot \frac{8\textcolor{#fbbf24}{R}^2}{4^{\textcolor{#fbbf24}{n}}} \quad \forall \textcolor{#fbbf24}{u}, \textcolor{#fbbf24}{v} \in Q_{\textcolor{#fbbf24}{n}}
 $$
-Para $n$ suficientemente grande, esta variação interna torna-se estritamente menor que $\lambda$.
-If the entire perimeter of $Q_n$ maps to points farther than $\lambda$ from the origin, yet the maximum variation across that perimeter is strictly smaller than $\lambda$, the mapped boundary is confined to a tight region that algebraically cannot enclose the origin.
+Para $\textcolor{#fbbf24}{n}$ suficientemente grande, esta variação interna torna-se estritamente menor que $\lambda$.
+If the entire perimeter of $Q_{\textcolor{#fbbf24}{n}}$ maps to points farther than $\lambda$ from the origin, yet the maximum variation across that perimeter is strictly smaller than $\lambda$, the mapped boundary is confined to a tight region that algebraically cannot enclose the origin.
 Consequentemente, seu número de rotação discreto resultaria em exatamente $0$.
-No entanto, o Axioma 5.1 garante estruturalmente que $\textcolor{#fbbf24}{\Delta}(Q_n) \neq 0$ for every $n$. Isto é uma contradição direta.
+No entanto, o Axioma 5.1 garante estruturalmente que $\textcolor{#fbbf24}{\Delta}(Q_{\textcolor{#fbbf24}{n}}) \neq 0$ for every $\textcolor{#fbbf24}{n}$. Isto é uma contradição direta.
 Portanto, a suposição deve ser falsa. A quadratura da sequência inevitavelmente cai abaixo de qualquer limite racional $\epsilon > 0$, resultando na convergência para exatamente zero. $\blacksquare$
 
 Isto completa a demonstração construtiva de que uma sequência de Cauchy afunilando em uma pseudo-raiz pode ser rigorosamente estabelecida inteiramente dentro do campo complexo racional $\mathbb{Q}(\textcolor{#3b82f6}{i})$.

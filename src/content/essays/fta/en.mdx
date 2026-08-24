@@ -24,13 +24,13 @@ The objective of this document is to prove an approximate version of the Fundame
 **Definition 1.1: The Rational Complex Field**
 Let the ordered field structure be defined as:
 $$
-\mathbb{Q}(\textcolor{#3b82f6}{i}) = \{\textcolor{#fbbf24}{a} + b\textcolor{#3b82f6}{i} \mid \textcolor{#fbbf24}{a}, \textcolor{#fbbf24}{b} \in \mathbb{Q}\}
+\mathbb{Q}(\textcolor{#3b82f6}{i}) = \{\textcolor{#10b981}{a} + b\textcolor{#3b82f6}{i} \mid \textcolor{#10b981}{a}, \textcolor{#3b82f6}{b} \in \mathbb{Q}\}
 $$
 
 **Definition 1.2: The Polynomial**
 Let the complete rational complex polynomial be defined as:
 $$
-\textcolor{#10b981}{P}(\textcolor{#fbbf24}{z}) = \textcolor{#3b82f6}{c_d} \textcolor{#fbbf24}{z}^{\textcolor{#3b82f6}{d}} + c_{\textcolor{#3b82f6}{d}-1 \textcolor{#fbbf24}{z}^{\textcolor{#3b82f6}{d}-1} + \dots + \textcolor{#f43f5e}{c_0}}
+\textcolor{#10b981}{P}(\textcolor{#fbbf24}{z}) = \textcolor{#3b82f6}{c_d} \textcolor{#fbbf24}{z}^{\textcolor{#3b82f6}{d}} + \textcolor{#f43f5e}{c}_{\textcolor{#3b82f6}{d}-1 \textcolor{#fbbf24}{z}^{\textcolor{#3b82f6}{d}-1} + \dots + \textcolor{#f43f5e}{c_0}}
 $$
 A polynomial of degree:
 $$
@@ -44,13 +44,13 @@ $$
 **Definition 1.3: Algebraic Quadrature**
 To avoid irrational square roots, we define the quadrature function:
 $$
-\textcolor{#a855f7}{N}(\textcolor{#fbbf24}{a}+b\textcolor{#3b82f6}{i}) = \textcolor{#fbbf24}{a}^2 + \textcolor{#fbbf24}{b}^2
+\textcolor{#a855f7}{N}(\textcolor{#10b981}{a}+b\textcolor{#3b82f6}{i}) = \textcolor{#10b981}{a}^2 + \textcolor{#3b82f6}{b}^2
 $$
 
 **Definition 1.4: Algebraic Inner Product**
 We define the real algebraic projection inner product as:
 $$
-\langle \textcolor{#fbbf24}{w_1}, \textcolor{#fbbf24}{w_2} \rangle = \text{Re}(\textcolor{#fbbf24}{w_1} \cdot \overline{\textcolor{#fbbf24}{w_2}}) = \textcolor{#fbbf24}{a}_1\textcolor{#fbbf24}{a_2} + \textcolor{#fbbf24}{b}_1\textcolor{#fbbf24}{b_2}
+\langle \textcolor{#fbbf24}{w_1}, \textcolor{#fbbf24}{w_2} \rangle = \text{Re}(\textcolor{#fbbf24}{w_1} \cdot \overline{\textcolor{#fbbf24}{w_2}}) = \textcolor{#10b981}{a}_1\textcolor{#fbbf24}{a_2} + \textcolor{#3b82f6}{b}_1\textcolor{#fbbf24}{b_2}
 $$
 Where we have the complex vectors:
 $$
@@ -96,21 +96,21 @@ $$
 *Proof:*
 By direct algebraic expansion in the field:
 $$
-\textcolor{#a855f7}{N}(\textcolor{#fbbf24}{w_1})\textcolor{#a855f7}{N}(\textcolor{#fbbf24}{w_2}) - \langle \textcolor{#fbbf24}{w_1}, \textcolor{#fbbf24}{w_2} \rangle^2 = (\textcolor{#fbbf24}{a_1}^2 + \textcolor{#fbbf24}{b_1}^2)(\textcolor{#fbbf24}{a_2}^2 + \textcolor{#fbbf24}{b_2}^2) - (\textcolor{#fbbf24}{a}_1\textcolor{#fbbf24}{a_2} + \textcolor{#fbbf24}{b}_1\textcolor{#fbbf24}{b_2})^2
+\textcolor{#a855f7}{N}(\textcolor{#fbbf24}{w_1})\textcolor{#a855f7}{N}(\textcolor{#fbbf24}{w_2}) - \langle \textcolor{#fbbf24}{w_1}, \textcolor{#fbbf24}{w_2} \rangle^2 = (\textcolor{#fbbf24}{a_1}^2 + \textcolor{#fbbf24}{b_1}^2)(\textcolor{#fbbf24}{a_2}^2 + \textcolor{#fbbf24}{b_2}^2) - (\textcolor{#10b981}{a}_1\textcolor{#fbbf24}{a_2} + \textcolor{#3b82f6}{b}_1\textcolor{#fbbf24}{b_2})^2
 $$
 $$
-\textcolor{#a855f7}{N}(\textcolor{#fbbf24}{w_1})\textcolor{#a855f7}{N}(\textcolor{#fbbf24}{w_2}) - \langle \textcolor{#fbbf24}{w_1}, \textcolor{#fbbf24}{w_2} \rangle^2 = (\textcolor{#fbbf24}{a}_1\textcolor{#fbbf24}{b_2} - \textcolor{#fbbf24}{b}_1\textcolor{#fbbf24}{a_2})^2
+\textcolor{#a855f7}{N}(\textcolor{#fbbf24}{w_1})\textcolor{#a855f7}{N}(\textcolor{#fbbf24}{w_2}) - \langle \textcolor{#fbbf24}{w_1}, \textcolor{#fbbf24}{w_2} \rangle^2 = (\textcolor{#10b981}{a}_1\textcolor{#fbbf24}{b_2} - \textcolor{#3b82f6}{b}_1\textcolor{#fbbf24}{a_2})^2
 $$
 Because the square of any rational number is strictly non-negative:
 $$
-(\textcolor{#fbbf24}{a}_1\textcolor{#fbbf24}{b_2} - \textcolor{#fbbf24}{b}_1\textcolor{#fbbf24}{a_2})^2 \ge 0
+(\textcolor{#10b981}{a}_1\textcolor{#fbbf24}{b_2} - \textcolor{#3b82f6}{b}_1\textcolor{#fbbf24}{a_2})^2 \ge 0
 $$
 Therefore, the inequality holds. $\blacksquare$
 
 **Theorem 2.2: Rational Quadrature Sum Bound**
-For any finite set of $m$ elements, the quadrature of the sum satisfies:
+For any finite set of $\textcolor{#fbbf24}{m}$ elements, the quadrature of the sum satisfies:
 $$
-\textcolor{#a855f7}{N}\left(\sum_{k=1}^m \textcolor{#fbbf24}{w_k}\right) \le m \sum_{k=1}^m \textcolor{#a855f7}{N}(\textcolor{#fbbf24}{w_k})
+\textcolor{#a855f7}{N}\left(\sum_{k=1}^{\textcolor{#fbbf24}{m}} \textcolor{#fbbf24}{w_k}\right) \le \textcolor{#fbbf24}{m} \sum_{k=1}^{\textcolor{#fbbf24}{m}} \textcolor{#a855f7}{N}(\textcolor{#fbbf24}{w_k})
 $$
 *Proof:*
 First, note that for any two elements of the sum:
@@ -125,12 +125,12 @@ We obtain the limit:
 $$
 2\langle \textcolor{#fbbf24}{u}, \textcolor{#fbbf24}{v} \rangle \le \textcolor{#a855f7}{N}(\textcolor{#fbbf24}{u}) + \textcolor{#a855f7}{N}(\textcolor{#fbbf24}{v})
 $$
-Expanding the quadrature of the sum of $m$ terms:
+Expanding the quadrature of the sum of $\textcolor{#fbbf24}{m}$ terms:
 $$
-\textcolor{#a855f7}{N}\left(\sum_{j=1}^m \textcolor{#fbbf24}{w_j}\right) = \sum_{j=1}^m \sum_{k=1}^m \langle \textcolor{#fbbf24}{w_j}, \textcolor{#fbbf24}{w_k} \rangle \le \sum_{j=1}^m \sum_{k=1}^m \frac{1}{2}(\textcolor{#a855f7}{N}(\textcolor{#fbbf24}{w_j}) + \textcolor{#a855f7}{N}(\textcolor{#fbbf24}{w_k}))
+\textcolor{#a855f7}{N}\left(\sum_{j=1}^{\textcolor{#fbbf24}{m}} \textcolor{#fbbf24}{w_j}\right) = \sum_{j=1}^{\textcolor{#fbbf24}{m}} \sum_{k=1}^{\textcolor{#fbbf24}{m}} \langle \textcolor{#fbbf24}{w_j}, \textcolor{#fbbf24}{w_k} \rangle \le \sum_{j=1}^{\textcolor{#fbbf24}{m}} \sum_{k=1}^{\textcolor{#fbbf24}{m}} \frac{1}{2}(\textcolor{#a855f7}{N}(\textcolor{#fbbf24}{w_j}) + \textcolor{#a855f7}{N}(\textcolor{#fbbf24}{w_k}))
 $$
 $$
-\textcolor{#a855f7}{N}\left(\sum_{j=1}^m \textcolor{#fbbf24}{w_j}\right) \le m \sum_{k=1}^m \textcolor{#a855f7}{N}(\textcolor{#fbbf24}{w_k}) \ \blacksquare
+\textcolor{#a855f7}{N}\left(\sum_{j=1}^{\textcolor{#fbbf24}{m}} \textcolor{#fbbf24}{w_j}\right) \le \textcolor{#fbbf24}{m} \sum_{k=1}^{\textcolor{#fbbf24}{m}} \textcolor{#a855f7}{N}(\textcolor{#fbbf24}{w_k}) \ \blacksquare
 $$
 
 **Corollary 2.3: Algebraic Lower Bound (Triangle Alternative)**
@@ -240,18 +240,18 @@ $$
 **Definition 4.2: Discrete Winding Number**
 The discrete quadrant winding number is computed by the unrolled counter variation divided by the cyclic order:
 $$
-\textcolor{#fbbf24}{\Delta} = \frac{\textcolor{#fbbf24}{U}(k) - \textcolor{#fbbf24}{U}(0)}{4}
+\textcolor{#fbbf24}{\Delta} = \frac{\textcolor{#a855f7}{U}(k) - \textcolor{#a855f7}{U}(0)}{4}
 $$
 
 **Theorem 4.3: Additivity of Winding Numbers**
 For the product of two complex sequences, the total rotation is additive:
 $$
-\textcolor{#fbbf24}{\Delta}(A \cdot B) = \textcolor{#fbbf24}{\Delta}(A) + \textcolor{#fbbf24}{\Delta}(B)
+\textcolor{#fbbf24}{\Delta}(\textcolor{#a855f7}{A} \cdot B) = \textcolor{#fbbf24}{\Delta}(\textcolor{#a855f7}{A}) + \textcolor{#fbbf24}{\Delta}(B)
 $$
 *Proof:*
 The combinatorial quadrant transitions add up with localized corrections:
 $$
-\textcolor{#fbbf24}{U}_{AB(j)} = \textcolor{#fbbf24}{U}_A(j) + \textcolor{#fbbf24}{U}_B(j) + \epsilon(j)
+\textcolor{#a855f7}{U}_{AB(j)} = \textcolor{#a855f7}{U}_{\textcolor{#a855f7}{A}}(j) + \textcolor{#a855f7}{U}_B(j) + \epsilon(j)
 $$
 As the loop closes perfectly on the mesh, the corrections match at the end, resulting in additivity. $\blacksquare$
 
@@ -279,7 +279,7 @@ If the inner product between the velocity vector $\vec{\textcolor{#fbbf24}{v}}(t
 
 ### 4.7 The Three Geometric Invariants of Rouché
 
-To prove geometrically and directly that the complete polynomial $\textcolor{#10b981}{P}(\textcolor{#fbbf24}{z})$ and the leading term $\textcolor{#3b82f6}{L}(\textcolor{#fbbf24}{z}) = \textcolor{#fbbf24}{a}_n \textcolor{#fbbf24}{z}^n$ topologically align, we analyze their vector relationships and the Cauchy-Schwarz inequality as the domain radius $\textcolor{#fbbf24}{R}$ expands.
+To prove geometrically and directly that the complete polynomial $\textcolor{#10b981}{P}(\textcolor{#fbbf24}{z})$ and the leading term $\textcolor{#3b82f6}{L}(\textcolor{#fbbf24}{z}) = \textcolor{#10b981}{a}_{\textcolor{#fbbf24}{n}} \textcolor{#fbbf24}{z}^{\textcolor{#fbbf24}{n}}$ topologically align, we analyze their vector relationships and the Cauchy-Schwarz inequality as the domain radius $\textcolor{#fbbf24}{R}$ expands.
 
 #### 4.7.1 The Orthogonal Projection Invariant
 The mathematical condition for $\textcolor{#10b981}{P}(t)$ and $\textcolor{#3b82f6}{L}(t)$ to share the same winding number is that the angle between them remains strictly acute ($< 90^\circ$). This is guaranteed if the inner product $\langle \textcolor{#3b82f6}{L}(t), \textcolor{#10b981}{P}(t) \rangle$ is strictly positive, forcing $\textcolor{#10b981}{P}(t)$ to lie entirely inside the positive orthogonal half-plane of $\textcolor{#3b82f6}{L}(t)$.
@@ -292,7 +292,7 @@ Since $\textcolor{#10b981}{P}(t) = \textcolor{#3b82f6}{L}(t) + \textcolor{#f43f5
 <ErrorDiskConstraintVisualizer />
 
 #### 4.7.3 Asymptotic Scaling and Radius Convergence
-As the complex plane radius $\textcolor{#fbbf24}{R}$ grows, the norm of the dominant term $\|\textcolor{#3b82f6}{L}(t)\|$ grows at a higher-order polynomial rate ($\textcolor{#fbbf24}{R}^n$), while the error disk radius $\|\textcolor{#f43f5e}{E}(t)\|$ grows at a lower-order rate ($\textcolor{#fbbf24}{R}^{n-1}$). This asymptotically forces the entire error disk away from the origin $(0,0)$, locking the vector $\textcolor{#10b981}{P}(t)$ within the positive half-plane and aligning its winding number with the leading term.
+As the complex plane radius $\textcolor{#fbbf24}{R}$ grows, the norm of the dominant term $\|\textcolor{#3b82f6}{L}(t)\|$ grows at a higher-order polynomial rate ($\textcolor{#fbbf24}{R}^{\textcolor{#fbbf24}{n}}$), while the error disk radius $\|\textcolor{#f43f5e}{E}(t)\|$ grows at a lower-order rate ($\textcolor{#fbbf24}{R}^{\textcolor{#fbbf24}{n}-1}$). This asymptotically forces the entire error disk away from the origin $(0,0)$, locking the vector $\textcolor{#10b981}{P}(t)$ within the positive half-plane and aligning its winding number with the leading term.
 
 <AsymptoticScalingVisualizer />
 
@@ -302,16 +302,16 @@ As the complex plane radius $\textcolor{#fbbf24}{R}$ grows, the norm of the domi
 
 We iteratively construct our Cauchy sequence starting with $Q_0$ (where $\textcolor{#fbbf24}{\Delta}(Q_0) = \textcolor{#3b82f6}{d} \neq 0$).
 
-At each step $n$:
+At each step $\textcolor{#fbbf24}{n}$:
 
-1. We bisect $Q_n$ at its rational midpoints into 4 smaller sub-squares: $Q_{n,1}$ (Top-Right), $Q_{n,2}$ (Top-Left), $Q_{n,3}$ (Bottom-Left), $Q_{n,4}$ (Bottom-Right).
-2. By combinatorial conservation, the internal mesh transitions evaluate in opposite directions and cancel out. Thus, $\sum_{\textcolor{#3b82f6}{i}=1}^4 \textcolor{#fbbf24}{\Delta}(Q_{n,\textcolor{#3b82f6}{i}}) = \textcolor{#fbbf24}{\Delta}(Q_n)$.
-3. Because $\textcolor{#fbbf24}{\Delta}(Q_n) \neq 0$, at least one sub-square must possess a non-zero winding number.
+1. We bisect $Q_{\textcolor{#fbbf24}{n}}$ at its rational midpoints into 4 smaller sub-squares: $Q_{\textcolor{#fbbf24}{n},1}$ (Top-Right), $Q_{\textcolor{#fbbf24}{n},2}$ (Top-Left), $Q_{\textcolor{#fbbf24}{n},3}$ (Bottom-Left), $Q_{\textcolor{#fbbf24}{n},4}$ (Bottom-Right).
+2. By combinatorial conservation, the internal mesh transitions evaluate in opposite directions and cancel out. Thus, $\sum_{\textcolor{#3b82f6}{i}=1}^4 \textcolor{#fbbf24}{\Delta}(Q_{\textcolor{#fbbf24}{n},\textcolor{#3b82f6}{i}}) = \textcolor{#fbbf24}{\Delta}(Q_{\textcolor{#fbbf24}{n}})$.
+3. Because $\textcolor{#fbbf24}{\Delta}(Q_{\textcolor{#fbbf24}{n}}) \neq 0$, at least one sub-square must possess a non-zero winding number.
 
 **Axiom 5.1: Deterministic Selection Rule**
-A polynomial of degree $\textcolor{#3b82f6}{d}$ may possess multiple roots, meaning multiple sub-squares could simultaneously exhibit non-zero winding numbers. To construct a singular, unambiguous sequence targeting exactly one pseudo-root, we define $Q_{n+1}$ as the **first** sub-square in the canonical ordered list $(Q_{n,1}, Q_{n,2}, Q_{n,3}, Q_{n,4})$ that satisfies $\textcolor{#fbbf24}{\Delta}(Q_{n,\textcolor{#3b82f6}{i}}) \neq 0$.
+A polynomial of degree $\textcolor{#3b82f6}{d}$ may possess multiple roots, meaning multiple sub-squares could simultaneously exhibit non-zero winding numbers. To construct a singular, unambiguous sequence targeting exactly one pseudo-root, we define $Q_{\textcolor{#fbbf24}{n}+1}$ as the **first** sub-square in the canonical ordered list $(Q_{\textcolor{#fbbf24}{n},1}, Q_{\textcolor{#fbbf24}{n},2}, Q_{\textcolor{#fbbf24}{n},3}, Q_{\textcolor{#fbbf24}{n},4})$ that satisfies $\textcolor{#fbbf24}{\Delta}(Q_{\textcolor{#fbbf24}{n},\textcolor{#3b82f6}{i}}) \neq 0$.
 
-Let $\textcolor{#fbbf24}{z_n} \in F$ be the geometric center of the uniquely chosen square $Q_n$.
+Let $\textcolor{#fbbf24}{z_n} \in F$ be the geometric center of the uniquely chosen square $Q_{\textcolor{#fbbf24}{n}}$.
 
 <QuadtreeVisualizer />
 
@@ -322,35 +322,35 @@ Let $\textcolor{#fbbf24}{z_n} \in F$ be the geometric center of the uniquely cho
 **Theorem 6.1: The Sequence is Cauchy**
 The sequence $(\textcolor{#fbbf24}{z_n})$ generated by the bisection algorithm is a Cauchy sequence.
 *Proof:*
-The side length of $Q_n$ is strictly $\textcolor{#3b82f6}{L}_n = \frac{2\textcolor{#fbbf24}{R}}{2^n} \in \mathbb{Q}$. For any indices $m > n$, both $\textcolor{#fbbf24}{z_n}$ and $\textcolor{#fbbf24}{z_m}$ reside inside $Q_n$. The maximum squared distance between any two points in $Q_n$ is strictly bounded by the squared diagonal:
+The side length of $Q_{\textcolor{#fbbf24}{n}}$ is strictly $\textcolor{#3b82f6}{L}_{\textcolor{#fbbf24}{n}} = \frac{2\textcolor{#fbbf24}{R}}{2^{\textcolor{#fbbf24}{n}}} \in \mathbb{Q}$. For any indices $\textcolor{#fbbf24}{m} > \textcolor{#fbbf24}{n}$, both $\textcolor{#fbbf24}{z_n}$ and $\textcolor{#fbbf24}{z_m}$ reside inside $Q_{\textcolor{#fbbf24}{n}}$. The maximum squared distance between any two points in $Q_{\textcolor{#fbbf24}{n}}$ is strictly bounded by the squared diagonal:
 
 $$
-\textcolor{#a855f7}{N}(\textcolor{#fbbf24}{z_n} - \textcolor{#fbbf24}{z_m}) \le \frac{8\textcolor{#fbbf24}{R}^2}{4^n}
+\textcolor{#a855f7}{N}(\textcolor{#fbbf24}{z_n} - \textcolor{#fbbf24}{z_m}) \le \frac{8\textcolor{#fbbf24}{R}^2}{4^{\textcolor{#fbbf24}{n}}}
 $$
 
-For any rational tolerance $\epsilon > 0$, there exists an integer $n$ large enough such that:
+For any rational tolerance $\epsilon > 0$, there exists an integer $\textcolor{#fbbf24}{n}$ large enough such that:
 $$
-\frac{8\textcolor{#fbbf24}{R}^2}{4^n} < \epsilon
+\frac{8\textcolor{#fbbf24}{R}^2}{4^{\textcolor{#fbbf24}{n}}} < \epsilon
 $$
 Thus, $(\textcolor{#fbbf24}{z_n})$ is strictly a Cauchy sequence by definition. $\blacksquare$
 
 **Theorem 6.2: Quadrature Convergence (The Approximate FTA)**
 The polynomial evaluation of the sequence converges to zero:
 $$
-\lim_{n \to \infty} \textcolor{#a855f7}{N}(\textcolor{#10b981}{P}(\textcolor{#fbbf24}{z_n})) = 0
+\lim_{\textcolor{#fbbf24}{n} \to \infty} \textcolor{#a855f7}{N}(\textcolor{#10b981}{P}(\textcolor{#fbbf24}{z_n})) = 0
 $$
 *Proof:*
-Assume, for contradiction, that there exists a rational constant $\lambda > 0$ such that the image of $Q_n$ never falls below:
+Assume, for contradiction, that there exists a rational constant $\lambda > 0$ such that the image of $Q_{\textcolor{#fbbf24}{n}}$ never falls below:
 $$
 \textcolor{#a855f7}{N}(\textcolor{#10b981}{P}(\textcolor{#fbbf24}{z})) \ge \lambda
 $$
-Because $\textcolor{#10b981}{P}(\textcolor{#fbbf24}{z})$ is bounded by the rational Lipschitz constant $K$ on $Q_n$, the maximum image variation inside $Q_n$ is strictly bounded:
+Because $\textcolor{#10b981}{P}(\textcolor{#fbbf24}{z})$ is bounded by the rational Lipschitz constant $K$ on $Q_{\textcolor{#fbbf24}{n}}$, the maximum image variation inside $Q_{\textcolor{#fbbf24}{n}}$ is strictly bounded:
 $$
-\textcolor{#a855f7}{N}(\textcolor{#10b981}{P}(\textcolor{#fbbf24}{u}) - \textcolor{#10b981}{P}(\textcolor{#fbbf24}{v})) \le K \cdot \frac{8\textcolor{#fbbf24}{R}^2}{4^n} \quad \forall \textcolor{#fbbf24}{u}, \textcolor{#fbbf24}{v} \in Q_n
+\textcolor{#a855f7}{N}(\textcolor{#10b981}{P}(\textcolor{#fbbf24}{u}) - \textcolor{#10b981}{P}(\textcolor{#fbbf24}{v})) \le K \cdot \frac{8\textcolor{#fbbf24}{R}^2}{4^{\textcolor{#fbbf24}{n}}} \quad \forall \textcolor{#fbbf24}{u}, \textcolor{#fbbf24}{v} \in Q_{\textcolor{#fbbf24}{n}}
 $$
-For sufficiently large $n$, this internal variation becomes strictly less than $\lambda$.
-If the entire perimeter of $Q_n$ maps to points farther than $\lambda$ from the origin, yet the maximum variation across that perimeter is strictly smaller than $\lambda$, the mapped boundary is confined to a tight region that algebraically cannot enclose the origin.
-Uniquely, Axiom 5.1 structurally guarantees that $\textcolor{#fbbf24}{\Delta}(Q_n) \neq 0$ for every $n$. This is a direct contradiction.
+For sufficiently large $\textcolor{#fbbf24}{n}$, this internal variation becomes strictly less than $\lambda$.
+If the entire perimeter of $Q_{\textcolor{#fbbf24}{n}}$ maps to points farther than $\lambda$ from the origin, yet the maximum variation across that perimeter is strictly smaller than $\lambda$, the mapped boundary is confined to a tight region that algebraically cannot enclose the origin.
+Uniquely, Axiom 5.1 structurally guarantees that $\textcolor{#fbbf24}{\Delta}(Q_{\textcolor{#fbbf24}{n}}) \neq 0$ for every $\textcolor{#fbbf24}{n}$. This is a direct contradiction.
 Therefore, the assumption must be false. The sequence's quadrature inevitably drops below any rational bound $\epsilon > 0$, resulting in convergence to exactly zero. $\blacksquare$
 
 This completes the constructive proof that a Cauchy sequence honing in on a pseudo-root can be rigorously established entirely within the rational complex field $\mathbb{Q}(\textcolor{#3b82f6}{i})$.

@@ -19,6 +19,9 @@ import CountersVisualizer from "../../../components/fta/CountersVisualizer";
 import PolynomialEditor from "../../../components/fta/PolynomialEditor";
 import InnerProductWindingVisualizer from "../../../components/fta/InnerProductWindingVisualizer";
 import { OrthogonalProjectionVisualizer, ErrorDiskConstraintVisualizer, AsymptoticScalingVisualizer } from "../../../components/fta/VectorWindingVisualizers";
+import { SternBrocotVisualizer } from "../../../components/pythagorean/SternBrocotVisualizer";
+import { GaussianQuadratureVisualizer } from "../../../components/pythagorean/GaussianQuadratureVisualizer";
+import { BarningHallTreeVisualizer } from "../../../components/pythagorean/BarningHallTreeVisualizer";
 
 interface DraftFile {
   name: string;
@@ -336,7 +339,10 @@ const WIDGET_SUGGESTIONS = [
   "OrthogonalProjectionVisualizer",
   "ErrorDiskConstraintVisualizer",
   "AsymptoticScalingVisualizer",
-  "PasswordManagerWidget"
+  "PasswordManagerWidget",
+  "SternBrocotVisualizer",
+  "GaussianQuadratureVisualizer",
+  "BarningHallTreeVisualizer"
 ];
 
 function getCaretCoordinates(textarea: HTMLTextAreaElement, position: number) {
@@ -1462,6 +1468,9 @@ function BlockContentRenderer({
               {token.widgetName === "ErrorDiskConstraintVisualizer" && <ErrorDiskConstraintVisualizer />}
               {token.widgetName === "AsymptoticScalingVisualizer" && <AsymptoticScalingVisualizer />}
               {token.widgetName === "PasswordManagerWidget" && <PasswordManagerWidget />}
+              {token.widgetName === "SternBrocotVisualizer" && <SternBrocotVisualizer />}
+              {token.widgetName === "GaussianQuadratureVisualizer" && <GaussianQuadratureVisualizer />}
+              {token.widgetName === "BarningHallTreeVisualizer" && <BarningHallTreeVisualizer />}
             </div>
           );
         }
@@ -1637,7 +1646,7 @@ function parseMDXContent(text: string): Token[] {
   // 4. Split by Interactive Widgets
   tokens = splitTokenList(
     tokens,
-    /<(ComplexPlotter|NodeGraftViewer|B3Screener|SudokuViewer|SudokuMiniWidget|QuadtreeVisualizer|MappingVisualizer|CountersVisualizer|PolynomialEditor|InnerProductWindingVisualizer|OrthogonalProjectionVisualizer|ErrorDiskConstraintVisualizer|AsymptoticScalingVisualizer|PasswordManagerWidget)\s*\/>/g,
+    /<(ComplexPlotter|NodeGraftViewer|B3Screener|SudokuViewer|SudokuMiniWidget|QuadtreeVisualizer|MappingVisualizer|CountersVisualizer|PolynomialEditor|InnerProductWindingVisualizer|OrthogonalProjectionVisualizer|ErrorDiskConstraintVisualizer|AsymptoticScalingVisualizer|PasswordManagerWidget|SternBrocotVisualizer|GaussianQuadratureVisualizer|BarningHallTreeVisualizer)\s*\/>/g,
     (match) => ({
       type: "widget",
       widgetName: match[1],
