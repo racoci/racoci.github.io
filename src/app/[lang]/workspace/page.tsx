@@ -182,8 +182,16 @@ function parseInlineMarkdown(inputText: string): React.ReactNode[] {
     if (tok.type === "em") return <em key={idx} className="italic text-zinc-300">{tok.content}</em>;
     if (tok.type === "code") return <code key={idx} className="font-mono text-[12px] text-emerald-400 bg-zinc-900/80 border border-zinc-850 px-1.5 py-0.5 rounded-md">{tok.content}</code>;
     if (tok.type === "link") return <a key={idx} href={tok.href} target="_blank" rel="noopener noreferrer" className="text-emerald-400 hover:underline font-bold">{tok.content}</a>;
-    if (tok.type === "math_block") return <div key={idx} className="my-1.5 text-center block w-full"><BlockMath math={tok.content} /></div>;
-    if (tok.type === "math_inline") return <span key={idx} className="inline-block mx-1 align-middle"><InlineMath math={tok.content} /></span>;
+    if (tok.type === "math_block") return (
+      <div key={idx} className="my-1.5 text-center block w-full max-w-full overflow-x-auto overflow-y-hidden scrollbar-none py-0.5">
+        <BlockMath math={tok.content} />
+      </div>
+    );
+    if (tok.type === "math_inline") return (
+      <span key={idx} className="inline-flex max-w-full overflow-x-auto overflow-y-hidden scrollbar-none align-middle mx-1 py-0.5">
+        <InlineMath math={tok.content} />
+      </span>
+    );
     return tok.content;
   });
 }
@@ -1021,7 +1029,7 @@ function InteractiveTable({ markdown, onUpdate }: InteractiveTableProps) {
         </button>
       </div>
 
-      <div className="overflow-visible w-full">
+      <div className="w-full overflow-x-auto rounded-lg border border-zinc-800/60 scrollbar-thin scrollbar-thumb-zinc-800 scrollbar-track-transparent">
         <table className="min-w-full divide-y divide-zinc-800 text-sm border-collapse">
           <thead>
             <tr className="bg-zinc-900/40">
