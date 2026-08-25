@@ -396,6 +396,7 @@ interface AutosizingBlockTextareaProps {
   onCancel: () => void;
   className?: string;
   onTriggerMath?: (isBlock: boolean) => void;
+  onUploadImage?: (file: File) => Promise<string>;
 }
 
 function AutosizingBlockTextarea({
@@ -404,6 +405,7 @@ function AutosizingBlockTextarea({
   onCancel,
   className,
   onTriggerMath,
+  onUploadImage,
 }: AutosizingBlockTextareaProps) {
   const [val, setVal] = useState(defaultValue);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -513,6 +515,62 @@ function AutosizingBlockTextarea({
             }
           }
           checkAutocomplete(e.currentTarget);
+        }}
+        onPaste={async (e) => {
+          const files = e.clipboardData?.files;
+          if (files && files.length > 0 && onUploadImage) {
+            const file = files[0];
+            if (file.type.startsWith("image/")) {
+              e.preventDefault();
+              try {
+                const url = await onUploadImage(file);
+                const tx = textareaRef.current;
+                if (tx) {
+                  const start = tx.selectionStart;
+                  const end = tx.selectionEnd;
+                  const before = val.substring(0, start);
+                  const after = val.substring(end);
+                  const imageTag = `![image](${url})`;
+                  const newVal = before + imageTag + after;
+                  setVal(newVal);
+                  setTimeout(() => {
+                    tx.focus();
+                    tx.setSelectionRange(start + imageTag.length, start + imageTag.length);
+                  }, 0);
+                }
+              } catch (err) {
+                // Error is handled in WorkspaceDashboard
+              }
+            }
+          }
+        }}
+        onDrop={async (e) => {
+          const files = e.dataTransfer?.files;
+          if (files && files.length > 0 && onUploadImage) {
+            const file = files[0];
+            if (file.type.startsWith("image/")) {
+              e.preventDefault();
+              try {
+                const url = await onUploadImage(file);
+                const tx = textareaRef.current;
+                if (tx) {
+                  const start = tx.selectionStart;
+                  const end = tx.selectionEnd;
+                  const before = val.substring(0, start);
+                  const after = val.substring(end);
+                  const imageTag = `![image](${url})`;
+                  const newVal = before + imageTag + after;
+                  setVal(newVal);
+                  setTimeout(() => {
+                    tx.focus();
+                    tx.setSelectionRange(start + imageTag.length, start + imageTag.length);
+                  }, 0);
+                }
+              } catch (err) {
+                // Error is handled in WorkspaceDashboard
+              }
+            }
+          }
         }}
         onKeyUp={(e) => checkAutocomplete(e.currentTarget)}
         onClick={(e) => checkAutocomplete(e.currentTarget)}
@@ -1921,6 +1979,7 @@ function WorkspaceDashboard({ params }: PageProps) {
   const [geminiKey, setGeminiKey] = useState("");
   const [repo, setRepo] = useState("racoci/racoci.github.io");
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [uploadStatus, setUploadStatus] = useState<string | null>(null);
 
   const searchParams = useSearchParams();
   const urlDraft = searchParams ? searchParams.get("draft") : null;
@@ -2765,6 +2824,74 @@ ${editorText}`;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated, hasUnsavedChanges, activeDraft, editorText]);
 
+  /**
+   * Reads an image file as Base64, uploads it directly to the GitHub repository's main branch,
+   * and returns the final relative Next.js static asset path.
+   */
+  const handleImageUpload = async (file: File): Promise<string> => {
+    if (!token || !repo) {
+      alert("Por favor, configure o token de acesso do GitHub primeiro.");
+      throw new Error("Missing auth credentials");
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      alert("O arquivo excede o limite máximo de 5MB.");
+      throw new Error("File too large");
+    }
+
+    setUploadStatus("Uploading image...");
+
+    try {
+      const base64Data = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const result = reader.result as string;
+          const base64 = result.split(",")[1];
+          resolve(base64);
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, "0");
+      const yyyyMM = `${year}-${month}`;
+      const timestamp = Date.now();
+      const cleanName = file.name.toLowerCase().replace(/[^a-z0-9.]/g, "-");
+      const finalFilename = `${timestamp}-${cleanName}`;
+
+      const res = await fetch(`https://api.github.com/repos/${repo}/contents/public/assets/uploads/${yyyyMM}/${finalFilename}`, {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          message: `media: upload image ${finalFilename}`,
+          content: base64Data,
+          branch: "main",
+        }),
+      });
+
+      if (!res.ok) {
+        const errText = await res.text();
+        throw new Error(`GitHub API upload failed: ${errText}`);
+      }
+
+      setUploadStatus("Sucesso!");
+      setTimeout(() => setUploadStatus(null), 3000);
+
+      return `/assets/uploads/${yyyyMM}/${finalFilename}`;
+    } catch (err) {
+      console.error("Image upload error:", err);
+      setUploadStatus("Erro!");
+      setTimeout(() => setUploadStatus(null), 3000);
+      alert("Falha ao carregar imagem para o repositório GitHub. Verifique suas credenciais e conexão de rede.");
+      throw err;
+    }
+  };
+
   const handleEditorChange = (val: string) => {
     setEditorText(val);
     if (val !== lastSavedTextRef.current) {
@@ -2908,6 +3035,12 @@ ${editorText}`;
 
         {/* Sync/Status indicators */}
         <div className="flex items-center gap-6">
+          {uploadStatus && (
+            <div className="flex items-center gap-1.5 px-2.5 py-1 bg-blue-500/10 border border-blue-500/20 text-blue-400 font-bold rounded-lg text-[10px] font-mono animate-pulse select-none">
+              <span className="h-1.5 w-1.5 rounded-full bg-blue-500 animate-ping"></span>
+              {uploadStatus}
+            </div>
+          )}
           {/* Editor Mode Toggler */}
           <div className="flex bg-zinc-950 border border-zinc-800 rounded-lg p-0.5 font-mono text-[10px]">
             <button
@@ -3068,6 +3201,62 @@ ${editorText}`;
                       onChange={(e) => handleEditorChange(e.target.value)}
                       onKeyUp={(e) => checkMainAutocomplete(e.currentTarget)}
                       onClick={(e) => checkMainAutocomplete(e.currentTarget)}
+                      onPaste={async (e) => {
+                        const files = e.clipboardData?.files;
+                        if (files && files.length > 0) {
+                          const file = files[0];
+                          if (file.type.startsWith("image/")) {
+                            e.preventDefault();
+                            try {
+                              const url = await handleImageUpload(file);
+                              const tx = mainTextareaRef.current;
+                              if (tx) {
+                                const start = tx.selectionStart;
+                                const end = tx.selectionEnd;
+                                const before = editorText.substring(0, start);
+                                const after = editorText.substring(end);
+                                const imageTag = `![image](${url})`;
+                                const newText = before + imageTag + after;
+                                handleEditorChange(newText);
+                                setTimeout(() => {
+                                  tx.focus();
+                                  tx.setSelectionRange(start + imageTag.length, start + imageTag.length);
+                                }, 0);
+                              }
+                            } catch (err) {
+                              // Error is handled in handleImageUpload
+                            }
+                          }
+                        }
+                      }}
+                      onDrop={async (e) => {
+                        const files = e.dataTransfer?.files;
+                        if (files && files.length > 0) {
+                          const file = files[0];
+                          if (file.type.startsWith("image/")) {
+                            e.preventDefault();
+                            try {
+                              const url = await handleImageUpload(file);
+                              const tx = mainTextareaRef.current;
+                              if (tx) {
+                                const start = tx.selectionStart;
+                                const end = tx.selectionEnd;
+                                const before = editorText.substring(0, start);
+                                const after = editorText.substring(end);
+                                const imageTag = `![image](${url})`;
+                                const newText = before + imageTag + after;
+                                handleEditorChange(newText);
+                                setTimeout(() => {
+                                  tx.focus();
+                                  tx.setSelectionRange(start + imageTag.length, start + imageTag.length);
+                                }, 0);
+                              }
+                            } catch (err) {
+                              // Error is handled in handleImageUpload
+                            }
+                          }
+                        }
+                      }}
                       onKeyDown={(e) => {
                         if (mainAutocomplete.isOpen && mainFilteredSuggestions.length > 0) {
                           if (e.key === "ArrowDown") {
@@ -3341,6 +3530,7 @@ ${editorText}`;
                                       const newVal = isBlock ? "$$\n\n$$" : "$$  $$";
                                       handleBlockChange(blockIdx, newVal);
                                     }}
+                                    onUploadImage={handleImageUpload}
                                     className="w-full p-2 bg-zinc-950 text-zinc-100 font-mono text-sm leading-relaxed outline-none border-none resize-none overflow-hidden"
                                   />
                                   <div className="flex justify-between items-center text-[9px] font-mono text-zinc-500 px-1">
@@ -3441,6 +3631,7 @@ ${editorText}`;
                               const newVal = isBlock ? "$$\n\n$$" : "$$  $$";
                               handleBlockChange(blockIdx, newVal);
                             }}
+                            onUploadImage={handleImageUpload}
                             className="w-full p-2 bg-zinc-950 text-zinc-100 font-mono text-sm leading-relaxed outline-none border-none resize-none overflow-hidden"
                           />
                           <div className="flex justify-between items-center text-[9px] font-mono text-zinc-500 px-1">
