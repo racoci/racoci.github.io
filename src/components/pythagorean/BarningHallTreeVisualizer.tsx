@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import "katex/dist/katex.min.css";
 import { BlockMath } from "react-katex";
 
@@ -37,9 +37,20 @@ function multiply(M: Matrix3x3, v: Triple): Triple {
   ];
 }
 
-export function BarningHallTreeVisualizer() {
-  const [triple, setTriple] = useState<Triple>([3, 4, 5]);
+interface BarningHallTreeVisualizerProps {
+  initialTriple?: Triple;
+}
+
+export function BarningHallTreeVisualizer({
+  initialTriple = [3, 4, 5],
+}: BarningHallTreeVisualizerProps = {}) {
+  const [triple, setTriple] = useState<Triple>(initialTriple);
   const [path, setPath] = useState<string>("");
+
+  useEffect(() => {
+    setTriple(initialTriple);
+    setPath("");
+  }, [initialTriple]);
 
   const handleStep = (mat: Matrix3x3, label: string) => {
     setTriple((t) => multiply(mat, t));
@@ -47,7 +58,7 @@ export function BarningHallTreeVisualizer() {
   };
 
   const reset = () => {
-    setTriple([3, 4, 5]);
+    setTriple(initialTriple);
     setPath("");
   };
 
@@ -79,7 +90,7 @@ export function BarningHallTreeVisualizer() {
           </div>
           
           <div className="text-xs font-mono text-zinc-400 text-center break-all mb-4">
-            Path: <span className="text-emerald-400">{path || "Root (3, 4, 5)"}</span>
+            Path: <span className="text-emerald-400">{path || `Root (${initialTriple.join(", ")})`}</span>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 w-full max-w-2xl">

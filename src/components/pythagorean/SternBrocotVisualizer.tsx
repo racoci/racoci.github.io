@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import "katex/dist/katex.min.css";
 import { BlockMath } from "react-katex";
 
@@ -23,11 +23,37 @@ function multiply(A: Matrix2x2, B: Matrix2x2): Matrix2x2 {
   ];
 }
 
-export function SternBrocotVisualizer() {
-  const [path, setPath] = useState<string>("");
-  const [matrix, setMatrix] = useState<Matrix2x2>(IDENT);
-  const [target, setTarget] = useState<number>(Math.PI);
+function calculateMatrixFromPath(p: string): Matrix2x2 {
+  let m = IDENT;
+  for (const char of p) {
+    if (char === "L") {
+      m = multiply(m, MAT_L);
+    } else if (char === "R") {
+      m = multiply(m, MAT_R);
+    }
+  }
+  return m;
+}
+
+interface SternBrocotVisualizerProps {
+  target?: number;
+  initialPath?: string;
+}
+
+export function SternBrocotVisualizer({
+  target: initialTarget = Math.PI,
+  initialPath = "",
+}: SternBrocotVisualizerProps = {}) {
+  const [path, setPath] = useState<string>(initialPath);
+  const [matrix, setMatrix] = useState<Matrix2x2>(() => calculateMatrixFromPath(initialPath));
+  const [target, setTarget] = useState<number>(initialTarget);
   const [autoStepId, setAutoStepId] = useState<any>(null);
+
+  useEffect(() => {
+    setPath(initialPath);
+    setMatrix(calculateMatrixFromPath(initialPath));
+    setTarget(initialTarget);
+  }, [initialPath, initialTarget]);
 
   const num = matrix[0][0] + matrix[0][1];
   const den = matrix[1][0] + matrix[1][1];
@@ -39,8 +65,8 @@ export function SternBrocotVisualizer() {
   };
 
   const reset = () => {
-    setPath("");
-    setMatrix(IDENT);
+    setPath(initialPath);
+    setMatrix(calculateMatrixFromPath(initialPath));
     if (autoStepId) clearInterval(autoStepId);
     setAutoStepId(null);
   };

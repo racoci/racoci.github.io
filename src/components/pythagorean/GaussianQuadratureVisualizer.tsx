@@ -1,12 +1,25 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import "katex/dist/katex.min.css";
 import { BlockMath } from "react-katex";
 
-export function GaussianQuadratureVisualizer() {
-  const [m, setM] = useState<number>(2);
-  const [n, setN] = useState<number>(1);
+interface GaussianQuadratureVisualizerProps {
+  initialM?: number;
+  initialN?: number;
+}
+
+export function GaussianQuadratureVisualizer({
+  initialM = 2,
+  initialN = 1,
+}: GaussianQuadratureVisualizerProps = {}) {
+  const [m, setM] = useState<number>(initialM);
+  const [n, setN] = useState<number>(initialN);
+
+  useEffect(() => {
+    setM(initialM);
+    setN(initialN);
+  }, [initialM, initialN]);
 
   const a = Math.abs(m * m - n * n);
   const b = Math.abs(2 * m * n);

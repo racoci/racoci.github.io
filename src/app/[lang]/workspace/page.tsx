@@ -28,6 +28,8 @@ interface DraftFile {
   path: string;
   sha: string;
   content?: string;
+  branch?: string;
+  category?: string;
 }
 
 interface Token {
@@ -1861,6 +1863,52 @@ function MathBlockEditor({
   );
 }
 
+interface DiffLine {
+  type: "added" | "removed" | "unchanged";
+  text: string;
+}
+
+function computeLineDiff(oldStr: string, newStr: string): DiffLine[] {
+  const oldLines = oldStr.split("\n");
+  const newLines = newStr.split("\n");
+  const m = oldLines.length;
+  const n = newLines.length;
+
+  // DP table for LCS
+  const dp: number[][] = Array.from({ length: m + 1 }, () => Array(n + 1).fill(0));
+
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      if (oldLines[i - 1] === newLines[j - 1]) {
+        dp[i][j] = dp[i - 1][j - 1] + 1;
+      } else {
+        dp[i][j] = Math.max(dp[i - 1][j], dp[i][j - 1]);
+      }
+    }
+  }
+
+  // Backtrack to find diff
+  const diff: DiffLine[] = [];
+  let i = m;
+  let j = n;
+
+  while (i > 0 || j > 0) {
+    if (i > 0 && j > 0 && oldLines[i - 1] === newLines[j - 1]) {
+      diff.unshift({ type: "unchanged", text: oldLines[i - 1] });
+      i--;
+      j--;
+    } else if (j > 0 && (i === 0 || dp[i][j - 1] >= dp[i - 1][j])) {
+      diff.unshift({ type: "added", text: newLines[j - 1] });
+      j--;
+    } else {
+      diff.unshift({ type: "removed", text: oldLines[i - 1] });
+      i--;
+    }
+  }
+
+  return diff;
+}
+
 interface PageProps {
   params: Promise<{ lang: string }>;
 }
@@ -1875,7 +1923,11 @@ function WorkspaceDashboard({ params }: PageProps) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   const searchParams = useSearchParams();
-  const urlDraft = searchParams.get("draft");
+  const urlDraft = searchParams ? searchParams.get("draft") : null;
+  const urlPath = searchParams ? searchParams.get("path") : null;
+  const urlBranch = searchParams ? searchParams.get("branch") : null;
+  const urlCategory = searchParams ? searchParams.get("category") : null;
+  const urlName = searchParams ? searchParams.get("name") : null;
 
   // Drag-to-resize split view panel state
   const [splitWidth, setSplitWidth] = useState(50);
@@ -1916,6 +1968,29 @@ function WorkspaceDashboard({ params }: PageProps) {
   const [viewMode, setViewMode] = useState<"split" | "wysiwyg">("wysiwyg");
 
   // Draft States
+  type WorkspaceMode = "drafts" | "essays" | "projects";
+  const [workspaceMode, setWorkspaceMode] = useState<WorkspaceMode>("drafts");
+
+  interface GitCommit {
+    sha: string;
+    commit: {
+      message: string;
+      author: {
+        name: string;
+        date: string;
+      };
+    };
+    author?: {
+      avatar_url: string;
+    };
+  }
+  const [rightTab, setRightTab] = useState<"preview" | "history">("preview");
+  const [commits, setCommits] = useState<GitCommit[]>([]);
+  const [commitsLoading, setCommitsLoading] = useState(false);
+  const [selectedCommit, setSelectedCommit] = useState<GitCommit | null>(null);
+  const [historicalContent, setHistoricalContent] = useState<string | null>(null);
+  const [showDiff, setShowDiff] = useState(false);
+
   const [drafts, setDrafts] = useState<DraftFile[]>([]);
   const [activeDraft, setActiveDraft] = useState<DraftFile | null>(null);
   const [editorText, setEditorText] = useState("");
@@ -2045,67 +2120,130 @@ function WorkspaceDashboard({ params }: PageProps) {
     setEditorText("");
   };
 
-  async function fetchDraftsList(authToken: string, targetRepo: string) {
+  async function fetchDraftsList(authToken: string, targetRepo: string, mode: WorkspaceMode = "drafts") {
     try {
-      const branchRes = await fetch(`https://api.github.com/repos/${targetRepo}/branches/notes-drafts`, {
-        headers: { Authorization: `Bearer ${authToken}` },
-      });
-
-      if (branchRes.status === 401) {
-        setIsTokenExpired(true);
-        setIsAuthenticated(false);
-        return;
-      }
-
-      if (branchRes.status === 404) {
-        const mainRes = await fetch(`https://api.github.com/repos/${targetRepo}/branches/main`, {
+      if (mode === "drafts") {
+        const branchRes = await fetch(`https://api.github.com/repos/${targetRepo}/branches/notes-drafts`, {
           headers: { Authorization: `Bearer ${authToken}` },
         });
-        if (mainRes.status === 401) {
+
+        if (branchRes.status === 401) {
           setIsTokenExpired(true);
           setIsAuthenticated(false);
           return;
         }
-        if (!mainRes.ok) throw new Error("Branch principal não encontrada.");
-        const mainData = await mainRes.json();
-        const sha = mainData.commit.sha;
 
-        const createRefRes = await fetch(`https://api.github.com/repos/${targetRepo}/git/refs`, {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${authToken}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ ref: "refs/heads/notes-drafts", sha }),
+        if (branchRes.status === 404) {
+          const mainRes = await fetch(`https://api.github.com/repos/${targetRepo}/branches/main`, {
+            headers: { Authorization: `Bearer ${authToken}` },
+          });
+          if (mainRes.status === 401) {
+            setIsTokenExpired(true);
+            setIsAuthenticated(false);
+            return;
+          }
+          if (!mainRes.ok) throw new Error("Branch principal não encontrada.");
+          const mainData = await mainRes.json();
+          const sha = mainData.commit.sha;
+
+          const createRefRes = await fetch(`https://api.github.com/repos/${targetRepo}/git/refs`, {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${authToken}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ ref: "refs/heads/notes-drafts", sha }),
+          });
+          if (createRefRes.status === 401) {
+            setIsTokenExpired(true);
+            setIsAuthenticated(false);
+            return;
+          }
+        }
+
+        const contentRes = await fetch(`https://api.github.com/repos/${targetRepo}/contents/src/content/drafts?ref=notes-drafts`, {
+          headers: { Authorization: `Bearer ${authToken}` },
         });
-        if (createRefRes.status === 401) {
+
+        if (contentRes.status === 401) {
           setIsTokenExpired(true);
           setIsAuthenticated(false);
           return;
         }
-      }
 
-      const contentRes = await fetch(`https://api.github.com/repos/${targetRepo}/contents/src/content/drafts?ref=notes-drafts`, {
-        headers: { Authorization: `Bearer ${authToken}` },
-      });
+        if (contentRes.status === 404) {
+          setDrafts([]);
+          return;
+        }
 
-      if (contentRes.status === 401) {
-        setIsTokenExpired(true);
-        setIsAuthenticated(false);
-        return;
-      }
+        const files = await contentRes.json();
+        if (Array.isArray(files)) {
+          setDrafts(files.filter(f => f.name.endsWith(".mdx")).map(f => ({
+            ...f,
+            branch: "notes-drafts",
+            category: "drafts" as const
+          })));
+        }
+      } else {
+        const branchRes = await fetch(`https://api.github.com/repos/${targetRepo}/branches/main`, {
+          headers: { Authorization: `Bearer ${authToken}` },
+        });
+        if (branchRes.status === 401) {
+          setIsTokenExpired(true);
+          setIsAuthenticated(false);
+          return;
+        }
+        if (!branchRes.ok) throw new Error("Branch principal não encontrada.");
+        const branchData = await branchRes.json();
+        const treeSha = branchData.commit.commit.tree.sha;
 
-      if (contentRes.status === 404) {
-        setDrafts([]);
-        return;
-      }
-
-      const files = await contentRes.json();
-      if (Array.isArray(files)) {
-        setDrafts(files.filter(f => f.name.endsWith(".mdx")));
+        const treeRes = await fetch(`https://api.github.com/repos/${targetRepo}/git/trees/${treeSha}?recursive=true`, {
+          headers: { Authorization: `Bearer ${authToken}` },
+        });
+        if (!treeRes.ok) throw new Error("Falha ao buscar árvore Git.");
+        const treeData = await treeRes.json();
+        
+        const allFiles = treeData.tree || [];
+        if (mode === "essays") {
+          const essayFiles = allFiles.filter((f: any) => 
+            f.type === "blob" && 
+            f.path.startsWith("src/content/essays/") && 
+            f.path.endsWith(".mdx")
+          ).map((f: any) => {
+            const name = f.path.replace("src/content/essays/", "");
+            return {
+              name,
+              path: f.path,
+              sha: f.sha,
+              branch: "main",
+              category: "essays" as const
+            };
+          });
+          setDrafts(essayFiles);
+        } else if (mode === "projects") {
+          const projectFiles = allFiles.filter((f: any) => {
+            if (f.type !== "blob" || !f.path.startsWith("src/content/") || !f.path.endsWith(".mdx")) return false;
+            const isDraft = f.path.startsWith("src/content/drafts/");
+            const isEssay = f.path.startsWith("src/content/essays/");
+            const isAbout = f.path.startsWith("src/content/about/");
+            const isNow = f.path.startsWith("src/content/now/");
+            const isSystems = f.path.startsWith("src/content/systems/");
+            return !isDraft && !isEssay && !isAbout && !isNow && !isSystems;
+          }).map((f: any) => {
+            const name = f.path.replace("src/content/", "");
+            return {
+              name,
+              path: f.path,
+              sha: f.sha,
+              branch: "main",
+              category: "projects" as const
+            };
+          });
+          setDrafts(projectFiles);
+        }
       }
     } catch (err) {
-      console.error("Erro ao carregar lista de rascunhos:", err);
+      console.error("Erro ao carregar lista de arquivos:", err);
     }
   };
 
@@ -2169,7 +2307,8 @@ function WorkspaceDashboard({ params }: PageProps) {
 
     try {
       setSyncStatus("syncing");
-      const res = await fetch(`https://api.github.com/repos/${repo}/contents/${file.path}?ref=notes-drafts`, {
+      const fileBranch = file.branch || "notes-drafts";
+      const res = await fetch(`https://api.github.com/repos/${repo}/contents/${file.path}?ref=${fileBranch}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
@@ -2221,8 +2360,9 @@ ${diffText.slice(0, 1500)}`;
     setSyncStatus("syncing");
 
     try {
-      const isRename = `${slug}.mdx` !== activeDraft.name;
+      const isRename = workspaceMode === "drafts" && `${slug}.mdx` !== activeDraft.name;
       const commitMsg = await generateCommitMessage(editorText);
+      const fileBranch = activeDraft.branch || "notes-drafts";
 
       if (isRename) {
         const newName = `${slug}.mdx`;
@@ -2281,6 +2421,8 @@ ${diffText.slice(0, 1500)}`;
           path: newPath,
           sha: newSha,
           content: editorText,
+          branch: "notes-drafts",
+          category: "drafts" as const
         };
         setActiveDraft(updatedDraft);
 
@@ -2307,7 +2449,7 @@ ${diffText.slice(0, 1500)}`;
             message: commitMsg,
             content: btoa(unescape(encodeURIComponent(editorText))),
             sha: activeDraft.sha,
-            branch: "notes-drafts",
+            branch: fileBranch,
           }),
         });
 
@@ -2485,16 +2627,104 @@ ${editorText}`;
     }
   };
 
+  const fetchCommits = async () => {
+    if (!activeDraft || !token) return;
+    setCommitsLoading(true);
+    try {
+      const fileBranch = activeDraft.branch || "notes-drafts";
+      const res = await fetch(
+        `https://api.github.com/repos/${repo}/commits?path=${activeDraft.path}&sha=${fileBranch}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+      if (res.ok) {
+        const data = await res.json();
+        setCommits(data);
+      }
+    } catch (err) {
+      console.error("Erro ao buscar histórico de commits:", err);
+    } finally {
+      setCommitsLoading(false);
+    }
+  };
+
+  const handleSelectHistoricalCommit = async (commit: GitCommit) => {
+    if (!activeDraft) return;
+    try {
+      setSyncStatus("syncing");
+      const res = await fetch(`https://api.github.com/repos/${repo}/contents/${activeDraft.path}?ref=${commit.sha}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const decodedContent = decodeURIComponent(escape(atob(data.content)));
+        setHistoricalContent(decodedContent);
+        setSelectedCommit(commit);
+        setSyncStatus("saved");
+      } else {
+        alert("Falha ao carregar conteúdo histórico.");
+      }
+    } catch (err) {
+      setSyncStatus("error");
+      alert("Erro de rede ao buscar commit histórico.");
+    }
+  };
+
+  useEffect(() => {
+    if (activeDraft && rightTab === "history") {
+      fetchCommits();
+    }
+  }, [activeDraft, rightTab]);
+
+  useEffect(() => {
+    const handleModeChange = () => {
+      const cachedToken = localStorage.getItem("GITHUB_PAT") || "";
+      const cachedRepo = localStorage.getItem("WORKSPACE_REPO") || "racoci/racoci.github.io";
+      const cachedMode = (localStorage.getItem("WORKSPACE_MODE") as WorkspaceMode) || "drafts";
+      setWorkspaceMode(cachedMode);
+      if (cachedToken && cachedRepo) {
+        fetchDraftsList(cachedToken, cachedRepo, cachedMode);
+      }
+    };
+
+    if (typeof window !== "undefined") {
+      window.addEventListener("workspace-mode-change", handleModeChange);
+      window.addEventListener("workspace-sync", handleModeChange);
+    }
+    return () => {
+      if (typeof window !== "undefined") {
+        window.removeEventListener("workspace-mode-change", handleModeChange);
+        window.removeEventListener("workspace-sync", handleModeChange);
+      }
+    };
+  }, [repo, token]);
+
   // Synchronize URL draft query parameter to load files dynamically from the Sidebar!
   useEffect(() => {
-    if (urlDraft && drafts.length > 0) {
+    if (urlPath && urlBranch) {
+      const match = drafts.find((d) => d.path === urlPath);
+      if (match) {
+        if (activeDraft?.path !== urlPath) {
+          handleSelectDraft(match);
+        }
+      } else {
+        const skeletonFile: DraftFile = {
+          name: urlName || urlPath.split("/").pop() || "",
+          path: urlPath,
+          sha: "",
+          branch: urlBranch,
+          category: urlCategory || "drafts"
+        };
+        handleSelectDraft(skeletonFile);
+      }
+    } else if (urlDraft && drafts.length > 0) {
       const match = drafts.find((d) => d.name === urlDraft);
       if (match && activeDraft?.name !== urlDraft) {
         handleSelectDraft(match);
       }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [urlDraft, drafts]);
+  }, [urlDraft, urlPath, urlBranch, urlCategory, urlName, drafts]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -2511,13 +2741,15 @@ ${editorText}`;
     const cachedToken = localStorage.getItem("GITHUB_PAT") || "";
     const cachedGemini = localStorage.getItem("GEMINI_API_KEY") || "";
     const cachedRepo = localStorage.getItem("WORKSPACE_REPO") || "racoci/racoci.github.io";
+    const cachedMode = (localStorage.getItem("WORKSPACE_MODE") as WorkspaceMode) || "drafts";
 
     if (cachedToken) {
       setToken(cachedToken);
       setGeminiKey(cachedGemini);
       setRepo(cachedRepo);
+      setWorkspaceMode(cachedMode);
       setIsAuthenticated(true);
-      fetchDraftsList(cachedToken, cachedRepo);
+      fetchDraftsList(cachedToken, cachedRepo, cachedMode);
     }
   }, []);
 
@@ -2917,87 +3149,232 @@ ${editorText}`;
                   title="Arraste para redimensionar painéis"
                 />
 
-                {/* Symmetrical Live Preview with Inline Click-to-Edit */}
+                {/* Symmetrical Live Preview / History Panel */}
                 <div style={{ width: `${100 - splitWidth}%` }} className="p-6 space-y-4 overflow-y-visible">
                   <div className="border-b border-zinc-800 pb-2 mb-4 flex items-center justify-between">
-                    <span className="text-[9px] font-mono font-bold tracking-widest text-zinc-500 uppercase block">
-                      Live Rich Preview (Clique em qualquer bloco para editar!)
-                    </span>
+                    {/* Tab Switcher */}
+                    <div className="flex bg-zinc-950 border border-zinc-800 rounded-lg p-0.5 font-mono text-[9px] select-none">
+                      <button
+                        onClick={() => setRightTab("preview")}
+                        className={`px-3 py-1 rounded font-bold transition-all cursor-pointer ${
+                          rightTab === "preview" ? "bg-zinc-800 text-emerald-400" : "text-zinc-500 hover:text-zinc-300"
+                        }`}
+                      >
+                        {isPt ? "Visualização Real" : "Live Preview"}
+                      </button>
+                      <button
+                        onClick={() => setRightTab("history")}
+                        className={`px-3 py-1 rounded font-bold transition-all cursor-pointer ${
+                          rightTab === "history" ? "bg-zinc-800 text-emerald-400" : "text-zinc-500 hover:text-zinc-300"
+                        }`}
+                      >
+                        {isPt ? "Histórico & DAG" : "History & DAG"}
+                      </button>
+                    </div>
+
                     <span className="text-[9px] font-mono text-emerald-500">
                       Slug: {slug}
                     </span>
                   </div>
 
-                  <div className="prose dark:prose-invert prose-emerald max-w-none text-zinc-300 font-serif leading-relaxed text-sm md:text-base space-y-2">
-                    {editorText.split("\n\n").map((blockText, blockIdx) => {
-                      const isEditingThisBlock = editingBlockIndex === blockIdx;
-
-                      if (isEditingThisBlock) {
-                        const isMathBlock = blockText.trim().startsWith("$$") && blockText.trim().endsWith("$$");
-
-                        if (isMathBlock) {
-                          return (
-                            <div key={blockIdx} className="my-4 border border-emerald-500/40 bg-zinc-950 p-4 rounded-xl flex flex-col gap-2" onClick={(e) => e.stopPropagation()}>
-                              <MathBlockEditor
-                                initialValue={blockText}
-                                onChange={(val) => {
-                                  handleBlockChange(blockIdx, val);
-                                }}
-                                onBlur={() => setEditingBlockIndex(null)}
-                                className="w-full"
-                              />
-                              <div className="flex justify-between items-center text-[9px] font-mono text-zinc-500 px-1">
-                                <span>Pressione <kbd className="bg-zinc-900 px-1.5 py-0.5 rounded text-emerald-400">Clique fora</kbd> ou desfocar para salvar e compilar</span>
-                                <span className="uppercase text-emerald-500 font-bold">Editando Fórmula Matemática</span>
-                              </div>
-                            </div>
-                          );
-                        }
-
-                        return (
-                          <div key={blockIdx} className="my-4 border border-emerald-500/40 bg-zinc-950 p-4 rounded-xl flex flex-col gap-2" onClick={(e) => e.stopPropagation()}>
-                            <AutosizingBlockTextarea
-                              defaultValue={blockText}
-                              onSave={(val) => {
-                                handleBlockChange(blockIdx, val);
-                                setEditingBlockIndex(null);
-                              }}
-                              onCancel={() => setEditingBlockIndex(null)}
-                              onTriggerMath={(isBlock) => {
-                                const newVal = isBlock ? "$$\n\n$$" : "$$  $$";
-                                handleBlockChange(blockIdx, newVal);
-                              }}
-                              className="w-full p-2 bg-zinc-950 text-zinc-100 font-mono text-sm leading-relaxed outline-none border-none resize-none overflow-hidden"
-                            />
-                            <div className="flex justify-between items-center text-[9px] font-mono text-zinc-500 px-1">
-                              <span>Pressione <kbd className="bg-zinc-900 px-1.5 py-0.5 rounded text-emerald-400">Shift + Enter</kbd> ou clique fora para compilar</span>
-                              <span className="uppercase text-emerald-500 font-bold">Editando Bloco</span>
-                            </div>
-                          </div>
-                        );
-                      }
-
-                      return (
-                        <div
-                          key={blockIdx}
-                          onClick={() => setEditingBlockIndex(blockIdx)}
-                          className="group relative p-2 -mx-2 hover:bg-zinc-900/30 rounded-xl transition-all cursor-text"
-                          title="Clique para editar este bloco"
-                        >
-                          {/* Hover Edit Icon */}
-                          <div className="absolute top-1 right-2 opacity-0 group-hover:opacity-100 transition-opacity bg-zinc-950/80 border border-zinc-800 text-[9px] text-emerald-400 px-1.5 py-0.5 rounded font-mono font-bold select-none uppercase tracking-widest">
-                            Editar Bloco
-                          </div>
-
-                          <BlockContentRenderer
-                            text={blockText}
-                            onBlockUpdate={(newText) => handleBlockChange(blockIdx, newText)}
-                            lang={lang}
-                          />
+                  {rightTab === "history" ? (
+                    /* --- HISTORY & DAG TAB PANEL --- */
+                    <div className="space-y-6 animate-fade-in">
+                      <h3 className="text-xs font-mono uppercase tracking-widest text-zinc-400 font-bold">
+                        {isPt ? "Histórico de Commits & DAG" : "Commit History & DAG"}
+                      </h3>
+                      {commitsLoading ? (
+                        <div className="text-zinc-500 font-mono text-xs py-10 text-center animate-pulse">
+                          {isPt ? "Carregando histórico do GitHub..." : "Fetching GitHub history..."}
                         </div>
-                      );
-                    })}
-                  </div>
+                      ) : commits.length === 0 ? (
+                        <div className="text-zinc-500 font-mono text-xs py-10 text-center italic">
+                          {isPt ? "Nenhum commit encontrado para este arquivo." : "No commits found for this file."}
+                        </div>
+                      ) : (
+                        <div className="relative pl-8 border-l border-zinc-800/80 space-y-6">
+                          {commits.map((commit) => {
+                            const isActiveCommit = selectedCommit?.sha === commit.sha;
+                            return (
+                              <div key={commit.sha} className="relative group">
+                                {/* DAG circle node */}
+                                <button
+                                  onClick={() => handleSelectHistoricalCommit(commit)}
+                                  className={`absolute -left-[37px] top-1 w-4 h-4 rounded-full border-2 transition-all ${
+                                    isActiveCommit 
+                                      ? "bg-amber-500 border-amber-400 scale-125 shadow-[0_0_8px_rgba(245,158,11,0.5)]" 
+                                      : "bg-zinc-950 border-zinc-700 group-hover:border-emerald-500 group-hover:bg-emerald-500/20"
+                                  }`}
+                                  title={isPt ? "Ver versão deste commit" : "View version at this commit"}
+                                />
+                                
+                                <div className="flex items-start gap-3">
+                                  {/* Author Avatar */}
+                                  {commit.author?.avatar_url ? (
+                                    <img
+                                      src={commit.author.avatar_url}
+                                      alt="avatar"
+                                      className="w-8 h-8 rounded-full border border-zinc-850 shrink-0"
+                                    />
+                                  ) : (
+                                    <div className="w-8 h-8 rounded-full bg-zinc-900 border border-zinc-800 flex items-center justify-center font-bold text-zinc-500 text-xs shrink-0 font-mono">
+                                      {commit.commit.author?.name?.[0] || "?"}
+                                    </div>
+                                  )}
+                                  
+                                  {/* Commit info details */}
+                                  <div className="space-y-1">
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-xs font-mono font-bold text-zinc-300">
+                                        {commit.commit.message.split("\n")[0]}
+                                      </span>
+                                    </div>
+                                    <div className="flex items-center gap-2 text-[10px] text-zinc-500 font-mono">
+                                      <span className="text-emerald-500 font-bold">
+                                        {commit.sha.substring(0, 7)}
+                                      </span>
+                                      <span>•</span>
+                                      <span>
+                                        {new Date(commit.commit.author.date).toLocaleString()}
+                                      </span>
+                                    </div>
+                                    {isActiveCommit && (
+                                      <div className="inline-block mt-1.5 px-2 py-0.5 bg-amber-500/10 border border-amber-500/30 text-[9px] font-bold rounded-md text-amber-400 font-mono animate-fade-in">
+                                        {isPt ? "Versão ativa na visualização" : "Active version in preview"}
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    /* --- PREVIEW TAB PANEL --- */
+                    <div className="space-y-4 animate-fade-in">
+                      {historicalContent !== null && (
+                        <div className="flex bg-zinc-950 border border-zinc-850 rounded-lg p-0.5 font-mono text-[10px] w-fit mb-4">
+                          <button
+                            onClick={() => setShowDiff(false)}
+                            className={`px-3 py-1 rounded font-bold transition-all cursor-pointer ${
+                              !showDiff ? "bg-zinc-800 text-emerald-400" : "text-zinc-500 hover:text-zinc-300"
+                            }`}
+                          >
+                            {isPt ? "Visualização Normal" : "Normal Preview"}
+                          </button>
+                          <button
+                            onClick={() => setShowDiff(true)}
+                            className={`px-3 py-1 rounded font-bold transition-all cursor-pointer ${
+                              showDiff ? "bg-zinc-800 text-emerald-400" : "text-zinc-500 hover:text-zinc-300"
+                            }`}
+                          >
+                            {isPt ? "Ver Diferenças (Unified Diff)" : "View Unified Diff"}
+                          </button>
+                        </div>
+                      )}
+
+                      {showDiff && historicalContent !== null ? (
+                        <div className="bg-zinc-950 border border-zinc-850 rounded-2xl p-4 overflow-auto font-mono text-xs max-h-[600px] scrollbar-thin">
+                          <div className="space-y-1">
+                            {computeLineDiff(historicalContent, editorText).map((line, idx) => {
+                              if (line.type === "added") {
+                                return (
+                                  <div key={idx} className="bg-emerald-950/20 text-emerald-400 border-l-2 border-emerald-500 font-mono py-0.5 px-2 text-xs">
+                                    + {line.text}
+                                  </div>
+                                );
+                              }
+                              if (line.type === "removed") {
+                                return (
+                                  <div key={idx} className="bg-rose-950/20 text-rose-400 border-l-2 border-rose-500 font-mono py-0.5 px-2 text-xs">
+                                    - {line.text}
+                                  </div>
+                                );
+                              }
+                              return (
+                                <div key={idx} className="text-zinc-500 font-mono py-0.5 px-2 text-xs whitespace-pre-wrap">
+                                  &nbsp;&nbsp;{line.text}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="prose dark:prose-invert prose-emerald max-w-none text-zinc-300 font-serif leading-relaxed text-sm md:text-base space-y-2">
+                          {editorText.split("\n\n").map((blockText, blockIdx) => {
+                            const isEditingThisBlock = editingBlockIndex === blockIdx;
+
+                            if (isEditingThisBlock) {
+                              const isMathBlock = blockText.trim().startsWith("$$") && blockText.trim().endsWith("$$");
+
+                              if (isMathBlock) {
+                                return (
+                                  <div key={blockIdx} className="my-4 border border-emerald-500/40 bg-zinc-950 p-4 rounded-xl flex flex-col gap-2" onClick={(e) => e.stopPropagation()}>
+                                    <MathBlockEditor
+                                      initialValue={blockText}
+                                      onChange={(val) => {
+                                        handleBlockChange(blockIdx, val);
+                                      }}
+                                      onBlur={() => setEditingBlockIndex(null)}
+                                      className="w-full"
+                                    />
+                                    <div className="flex justify-between items-center text-[9px] font-mono text-zinc-500 px-1">
+                                      <span>Pressione <kbd className="bg-zinc-900 px-1.5 py-0.5 rounded text-emerald-400">Clique fora</kbd> ou desfocar para salvar e compilar</span>
+                                      <span className="uppercase text-emerald-500 font-bold">Editando Fórmula Matemática</span>
+                                    </div>
+                                  </div>
+                                );
+                              }
+
+                              return (
+                                <div key={blockIdx} className="my-4 border border-emerald-500/40 bg-zinc-950 p-4 rounded-xl flex flex-col gap-2" onClick={(e) => e.stopPropagation()}>
+                                  <AutosizingBlockTextarea
+                                    defaultValue={blockText}
+                                    onSave={(val) => {
+                                      handleBlockChange(blockIdx, val);
+                                      setEditingBlockIndex(null);
+                                    }}
+                                    onCancel={() => setEditingBlockIndex(null)}
+                                    onTriggerMath={(isBlock) => {
+                                      const newVal = isBlock ? "$$\n\n$$" : "$$  $$";
+                                      handleBlockChange(blockIdx, newVal);
+                                    }}
+                                    className="w-full p-2 bg-zinc-950 text-zinc-100 font-mono text-sm leading-relaxed outline-none border-none resize-none overflow-hidden"
+                                  />
+                                  <div className="flex justify-between items-center text-[9px] font-mono text-zinc-500 px-1">
+                                    <span>Pressione <kbd className="bg-zinc-900 px-1.5 py-0.5 rounded text-emerald-400">Shift + Enter</kbd> ou clique fora para compilar</span>
+                                    <span className="uppercase text-emerald-500 font-bold">Editando Bloco</span>
+                                  </div>
+                                </div>
+                              );
+                            }
+
+                            return (
+                              <div
+                                key={blockIdx}
+                                onClick={() => setEditingBlockIndex(blockIdx)}
+                                className="group relative p-2 -mx-2 hover:bg-zinc-900/30 rounded-xl transition-all cursor-text"
+                                title="Clique para editar este bloco"
+                              >
+                                {/* Hover Edit Icon */}
+                                <div className="absolute top-1 right-2 opacity-0 group-hover:opacity-100 transition-opacity bg-zinc-950/80 border border-zinc-800 text-[9px] text-emerald-400 px-1.5 py-0.5 rounded font-mono font-bold select-none uppercase tracking-widest">
+                                  Editar Bloco
+                                </div>
+
+                                <BlockContentRenderer
+                                  text={blockText}
+                                  onBlockUpdate={(newText) => handleBlockChange(blockIdx, newText)}
+                                  lang={lang}
+                                />
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
 
               </div>

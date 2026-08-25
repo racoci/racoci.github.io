@@ -1,57 +1,134 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import LanguageSwitcher from "../app/[lang]/LanguageSwitcher";
 
 interface SidebarProps {
   lang: "en" | "pt";
 }
 
-export default function Sidebar({ lang }: SidebarProps) {
+function SidebarContent({ lang }: SidebarProps) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [isOpen, setIsOpen] = useState(false);
   const [drafts, setDrafts] = useState<any[]>([]);
   const isPt = lang === "pt";
 
+  type WorkspaceMode = "drafts" | "essays" | "projects";
+  const [workspaceMode, setWorkspaceMode] = useState<WorkspaceMode>("drafts");
+
   // Re-fetch drafts whenever user logs in, out, or synchronizes files
-  const fetchDrafts = () => {
+  const fetchDrafts = (mode: WorkspaceMode = "drafts") => {
     const token = typeof window !== "undefined" ? localStorage.getItem("GITHUB_PAT") : null;
     const repo = typeof window !== "undefined" ? localStorage.getItem("WORKSPACE_REPO") || "racoci/racoci.github.io" : "racoci/racoci.github.io";
     if (token) {
-      fetch(`https://api.github.com/repos/${repo}/contents/src/content/drafts?ref=notes-drafts`, {
-        headers: { Authorization: `Bearer ${token}` },
-      })
-        .then((res) => {
-          if (!res.ok) throw new Error();
-          return res.json();
+      if (mode === "drafts") {
+        fetch(`https://api.github.com/repos/${repo}/contents/src/content/drafts?ref=notes-drafts`, {
+          headers: { Authorization: `Bearer ${token}` },
         })
-        .then((files) => {
-          if (Array.isArray(files)) {
-            setDrafts(files.filter((f) => f.name.endsWith(".mdx")));
-          } else {
-            setDrafts([]);
-          }
+          .then((res) => {
+            if (!res.ok) throw new Error();
+            return res.json();
+          })
+          .then((files) => {
+            if (Array.isArray(files)) {
+              setDrafts(files.filter((f) => f.name.endsWith(".mdx")).map((f) => ({
+                name: f.name,
+                path: f.path,
+                sha: f.sha,
+                branch: "notes-drafts",
+                category: "drafts"
+              })));
+            } else {
+              setDrafts([]);
+            }
+          })
+          .catch(() => setDrafts([]));
+      } else {
+        fetch(`https://api.github.com/repos/${repo}/branches/main`, {
+          headers: { Authorization: `Bearer ${token}` },
         })
-        .catch(() => setDrafts([]));
+          .then((res) => {
+            if (!res.ok) throw new Error();
+            return res.json();
+          })
+          .then((branchData) => {
+            const treeSha = branchData.commit.commit.tree.sha;
+            return fetch(`https://api.github.com/repos/${repo}/git/trees/${treeSha}?recursive=true`, {
+              headers: { Authorization: `Bearer ${token}` },
+            });
+          })
+          .then((res) => res.json())
+          .then((treeData) => {
+            const allFiles = treeData.tree || [];
+            if (mode === "essays") {
+              const essayFiles = allFiles.filter((f: any) => 
+                f.type === "blob" && 
+                f.path.startsWith("src/content/essays/") && 
+                f.path.endsWith(".mdx")
+              ).map((f: any) => {
+                const name = f.path.replace("src/content/essays/", "");
+                return {
+                  name,
+                  path: f.path,
+                  sha: f.sha,
+                  branch: "main",
+                  category: "essays"
+                };
+              });
+              setDrafts(essayFiles);
+            } else if (mode === "projects") {
+              const projectFiles = allFiles.filter((f: any) => {
+                if (f.type !== "blob" || !f.path.startsWith("src/content/") || !f.path.endsWith(".mdx")) return false;
+                const isDraft = f.path.startsWith("src/content/drafts/");
+                const isEssay = f.path.startsWith("src/content/essays/");
+                const isAbout = f.path.startsWith("src/content/about/");
+                const isNow = f.path.startsWith("src/content/now/");
+                const isSystems = f.path.startsWith("src/content/systems/");
+                return !isDraft && !isEssay && !isAbout && !isNow && !isSystems;
+              }).map((f: any) => {
+                const name = f.path.replace("src/content/", "");
+                return {
+                  name,
+                  path: f.path,
+                  sha: f.sha,
+                  branch: "main",
+                  category: "projects"
+                };
+              });
+              setDrafts(projectFiles);
+            }
+          })
+          .catch(() => setDrafts([]));
+      }
     } else {
       setDrafts([]);
     }
   };
 
   useEffect(() => {
-    fetchDrafts();
+    const cachedMode = (typeof window !== "undefined" ? localStorage.getItem("WORKSPACE_MODE") as WorkspaceMode : null) || "drafts";
+    setWorkspaceMode(cachedMode);
+    fetchDrafts(cachedMode);
 
-    // Setup event listeners for seamless real-time syncing between Sidebar & Workspace page!
+    const handleSync = () => {
+      const mode = (typeof window !== "undefined" ? localStorage.getItem("WORKSPACE_MODE") as WorkspaceMode : null) || "drafts";
+      setWorkspaceMode(mode);
+      fetchDrafts(mode);
+    };
+
     if (typeof window !== "undefined") {
-      window.addEventListener("storage", fetchDrafts);
-      window.addEventListener("workspace-sync", fetchDrafts);
+      window.addEventListener("storage", handleSync);
+      window.addEventListener("workspace-sync", handleSync);
+      window.addEventListener("workspace-mode-change", handleSync);
     }
     return () => {
       if (typeof window !== "undefined") {
-        window.removeEventListener("storage", fetchDrafts);
-        window.removeEventListener("workspace-sync", fetchDrafts);
+        window.removeEventListener("storage", handleSync);
+        window.removeEventListener("workspace-sync", handleSync);
+        window.removeEventListener("workspace-mode-change", handleSync);
       }
     };
   }, []);
@@ -152,27 +229,64 @@ export default function Sidebar({ lang }: SidebarProps) {
           ))}
         </nav>
 
-        {/* Active Drafts (Visible only when logged in on Workspace) */}
-        {drafts.length > 0 && (
+        {/* Workspace Files List (Visible only when logged in) */}
+        {(drafts.length > 0 || (typeof window !== "undefined" && localStorage.getItem("GITHUB_PAT"))) && (
           <div className="space-y-2 bg-emerald-500/[0.02] border border-emerald-500/10 rounded-2xl p-2.5">
             <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 block px-2.5">
-              ✍️ {isPt ? "Rascunhos" : "Active Drafts"}
+              ✍️ {isPt ? "Workspace CMS" : "Workspace CMS"}
             </span>
-            <nav className="flex flex-col gap-0.5">
-              {drafts.map((d) => (
-                <Link
-                  key={d.name}
-                  href={`/${lang}/workspace?draft=${d.name}`}
-                  onClick={() => setIsOpen(false)}
-                  className={`px-2.5 py-1.5 rounded-lg text-[11px] font-semibold font-mono truncate transition-all flex items-center justify-between ${
-                    pathname.includes("/workspace") && pathname.includes(d.name)
-                      ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 font-bold"
-                      : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-900/30"
-                  }`}
-                >
-                  <span className="truncate">📄 {d.name.replace(".mdx", "")}</span>
-                </Link>
-              ))}
+            
+            {/* Dropdown Select Mode */}
+            <div className="px-1 py-1">
+              <select
+                value={workspaceMode}
+                onChange={(e) => {
+                  const val = e.target.value as WorkspaceMode;
+                  setWorkspaceMode(val);
+                  localStorage.setItem("WORKSPACE_MODE", val);
+                  fetchDrafts(val);
+                  if (typeof window !== "undefined") {
+                    window.dispatchEvent(new Event("workspace-mode-change"));
+                  }
+                }}
+                className="w-full bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-850 text-zinc-700 dark:text-zinc-300 rounded-lg text-[10px] font-bold px-2 py-1 focus:outline-none focus:border-emerald-500/50 cursor-pointer"
+              >
+                <option value="drafts">{isPt ? "Rascunhos (notes-drafts)" : "Drafts (notes-drafts)"}</option>
+                <option value="essays">{isPt ? "Ensaios Publicados (main)" : "Published Essays (main)"}</option>
+                <option value="projects">{isPt ? "Projetos Publicados (main)" : "Published Projects (main)"}</option>
+              </select>
+            </div>
+
+            <nav className="flex flex-col gap-0.5 max-h-52 overflow-y-auto scrollbar-thin">
+              {drafts.map((d) => {
+                const currentPath = searchParams ? searchParams.get("path") : null;
+                const isSelected = pathname.includes("/workspace") && (
+                  (d.path && d.path === currentPath) || 
+                  (!currentPath && pathname.includes(d.name))
+                );
+                const queryStr = d.path 
+                  ? `path=${d.path}&branch=${d.branch}&category=${d.category}&name=${d.name}`
+                  : `draft=${d.name}`;
+                return (
+                  <Link
+                    key={d.name}
+                    href={`/${lang}/workspace?${queryStr}`}
+                    onClick={() => setIsOpen(false)}
+                    className={`px-2.5 py-1.5 rounded-lg text-[10px] font-semibold font-mono truncate transition-all flex items-center justify-between ${
+                      isSelected
+                        ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 font-bold"
+                        : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-900/30"
+                    }`}
+                  >
+                    <span className="truncate">📄 {d.name.replace(".mdx", "")}</span>
+                  </Link>
+                );
+              })}
+              {drafts.length === 0 && (
+                <span className="text-[10px] text-zinc-500 italic block text-center py-2">
+                  {isPt ? "Nenhum arquivo" : "No files found"}
+                </span>
+              )}
             </nav>
           </div>
         )}
@@ -271,5 +385,13 @@ export default function Sidebar({ lang }: SidebarProps) {
         </div>
       )}
     </>
+  );
+}
+
+export default function Sidebar({ lang }: SidebarProps) {
+  return (
+    <Suspense fallback={<div className="w-6 h-6 m-4" />}>
+      <SidebarContent lang={lang} />
+    </Suspense>
   );
 }
