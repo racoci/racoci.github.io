@@ -65,7 +65,7 @@ graph TD
 
 ## 🚀 The 5 Authoring IDE Epics
 
-### 1. Asset Pipeline (Image Drag/Drop & Paste Upload)
+### 1. Asset Pipeline (Image Drag/Drop & Paste Upload) [COMPLETED]
 Enables seamless visual writing by converting dropped/pasted local images into permanent GitHub-hosted assets.
 
 *   **TDD Red Criteria (Failure Mode):**

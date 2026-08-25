@@ -347,6 +347,76 @@ const WIDGET_SUGGESTIONS = [
   "BarningHallTreeVisualizer"
 ];
 
+interface WidgetPropMeta {
+  type: "number" | "string" | "json";
+  default: any;
+  label?: string;
+}
+
+const WIDGET_METADATA: Record<string, Record<string, WidgetPropMeta>> = {
+  "SternBrocotVisualizer": {
+    target: { type: "number", default: Math.PI, label: "Target (Irrational)" },
+    initialPath: { type: "string", default: "", label: "Initial Path (e.g. LRR)" }
+  },
+  "GaussianQuadratureVisualizer": {
+    initialM: { type: "number", default: 2, label: "Seed m (Real)" },
+    initialN: { type: "number", default: 1, label: "Seed n (Imaginary)" }
+  },
+  "BarningHallTreeVisualizer": {
+    initialTriple: { type: "json", default: [3,4,5], label: "Initial Triple [a,b,c]" }
+  }
+};
+
+function parseWidgetProps(contentStr: string): Record<string, any> {
+  const props: Record<string, any> = {};
+  const attrRegex = /(\w+)\s*=\s*(?:{([^}]+)}|"([^"]*)"|'([^']*)')/g;
+  let match;
+  while ((match = attrRegex.exec(contentStr)) !== null) {
+    const name = match[1];
+    const curlyVal = match[2];
+    const doubleQuoteVal = match[3];
+    const singleQuoteVal = match[4];
+
+    if (curlyVal !== undefined) {
+      const trimmed = curlyVal.trim();
+      if (trimmed === "Math.PI") {
+        props[name] = Math.PI;
+      } else if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
+        try {
+          props[name] = JSON.parse(trimmed);
+        } catch (e) {
+          props[name] = trimmed;
+        }
+      } else {
+        const num = Number(trimmed);
+        props[name] = isNaN(num) ? trimmed : num;
+      }
+    } else if (doubleQuoteVal !== undefined) {
+      props[name] = doubleQuoteVal;
+    } else if (singleQuoteVal !== undefined) {
+      props[name] = singleQuoteVal;
+    }
+  }
+  return props;
+}
+
+function serializeWidget(widgetName: string, props: Record<string, any>): string {
+  const parts = [widgetName];
+  Object.entries(props).forEach(([key, val]) => {
+    if (val === undefined || val === null) return;
+    if (typeof val === "string") {
+      parts.push(`${key}="${val}"`);
+    } else if (typeof val === "number") {
+      parts.push(`${key}={${val}}`);
+    } else if (Array.isArray(val) || typeof val === "object") {
+      parts.push(`${key}={${JSON.stringify(val)}}`);
+    } else {
+      parts.push(`${key}={${val}}`);
+    }
+  });
+  return `<${parts.join(" ")} />`;
+}
+
 function getCaretCoordinates(textarea: HTMLTextAreaElement, position: number) {
   if (typeof window === "undefined") return { top: 0, left: 0 };
   
@@ -1509,6 +1579,8 @@ function BlockContentRenderer({
         }
 
         if (token.type === "widget") {
+          const props = parseWidgetProps(token.content);
+          const keyPropsStr = JSON.stringify(props);
           return (
             <div key={tIdx} className="my-8 border border-zinc-800/50 p-4 bg-zinc-900/10 rounded-2xl relative shadow-inner overflow-hidden" onClick={(e) => e.stopPropagation()}>
               <div className="absolute top-2 right-2 px-2 py-0.5 bg-zinc-950/80 border border-zinc-800 rounded font-mono text-[9px] text-zinc-500 uppercase tracking-widest font-bold z-20">
@@ -1528,9 +1600,9 @@ function BlockContentRenderer({
               {token.widgetName === "ErrorDiskConstraintVisualizer" && <ErrorDiskConstraintVisualizer />}
               {token.widgetName === "AsymptoticScalingVisualizer" && <AsymptoticScalingVisualizer />}
               {token.widgetName === "PasswordManagerWidget" && <PasswordManagerWidget />}
-              {token.widgetName === "SternBrocotVisualizer" && <SternBrocotVisualizer />}
-              {token.widgetName === "GaussianQuadratureVisualizer" && <GaussianQuadratureVisualizer />}
-              {token.widgetName === "BarningHallTreeVisualizer" && <BarningHallTreeVisualizer />}
+              {token.widgetName === "SternBrocotVisualizer" && <SternBrocotVisualizer {...props} key={`stern-${keyPropsStr}`} />}
+              {token.widgetName === "GaussianQuadratureVisualizer" && <GaussianQuadratureVisualizer {...props} key={`gauss-${keyPropsStr}`} />}
+              {token.widgetName === "BarningHallTreeVisualizer" && <BarningHallTreeVisualizer {...props} key={`barning-${keyPropsStr}`} />}
             </div>
           );
         }
@@ -1706,7 +1778,7 @@ function parseMDXContent(text: string): Token[] {
   // 4. Split by Interactive Widgets
   tokens = splitTokenList(
     tokens,
-    /<(ComplexPlotter|NodeGraftViewer|B3Screener|SudokuViewer|SudokuMiniWidget|QuadtreeVisualizer|MappingVisualizer|CountersVisualizer|PolynomialEditor|InnerProductWindingVisualizer|OrthogonalProjectionVisualizer|ErrorDiskConstraintVisualizer|AsymptoticScalingVisualizer|PasswordManagerWidget|SternBrocotVisualizer|GaussianQuadratureVisualizer|BarningHallTreeVisualizer)\s*\/>/g,
+    /<(ComplexPlotter|NodeGraftViewer|B3Screener|SudokuViewer|SudokuMiniWidget|QuadtreeVisualizer|MappingVisualizer|CountersVisualizer|PolynomialEditor|InnerProductWindingVisualizer|OrthogonalProjectionVisualizer|ErrorDiskConstraintVisualizer|AsymptoticScalingVisualizer|PasswordManagerWidget|SternBrocotVisualizer|GaussianQuadratureVisualizer|BarningHallTreeVisualizer)([^>]*?)\/>/g,
     (match) => ({
       type: "widget",
       widgetName: match[1],
@@ -2133,6 +2205,7 @@ function WorkspaceDashboard({ params }: PageProps) {
 
   // Inline Block-based WYSIWYG states
   const [editingBlockIndex, setEditingBlockIndex] = useState<number | null>(null);
+  const [inspectedBlockIdx, setInspectedBlockIdx] = useState<number | null>(null);
 
   // AI Prompt Co-pilot State
   const [aiPrompt, setAiPrompt] = useState("");
@@ -3541,11 +3614,41 @@ ${editorText}`;
                               );
                             }
 
+                            const isWidget = WIDGET_SUGGESTIONS.some(w => blockText.includes(`<${w}`));
+                            const isInspected = inspectedBlockIdx === blockIdx;
+
+                            if (isWidget) {
+                              return (
+                                <div
+                                  key={blockIdx}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setInspectedBlockIdx(blockIdx);
+                                  }}
+                                  className={`group relative p-2 -mx-2 hover:bg-zinc-900/30 rounded-xl transition-all cursor-pointer border ${
+                                    isInspected ? "border-emerald-500/80 bg-emerald-950/5 shadow-lg shadow-emerald-950/20" : "border-transparent"
+                                  }`}
+                                  title="Clique para inspecionar propriedades do componente"
+                                >
+                                  {/* Hover Inspect Icon */}
+                                  <div className="absolute top-1 right-2 opacity-0 group-hover:opacity-100 transition-opacity bg-zinc-950/80 border border-zinc-800 text-[9px] text-emerald-400 px-1.5 py-0.5 rounded font-mono font-bold select-none uppercase tracking-widest z-10">
+                                    {isInspected ? "Selecionado para Inspeção" : "Inspecionar Componente"}
+                                  </div>
+
+                                  <BlockContentRenderer
+                                    text={blockText}
+                                    onBlockUpdate={(newText) => handleBlockChange(blockIdx, newText)}
+                                    lang={lang}
+                                  />
+                                </div>
+                              );
+                            }
+
                             return (
                               <div
                                 key={blockIdx}
                                 onClick={() => setEditingBlockIndex(blockIdx)}
-                                className="group relative p-2 -mx-2 hover:bg-zinc-900/30 rounded-xl transition-all cursor-text"
+                                className="group relative p-2 -mx-2 hover:bg-zinc-900/30 rounded-xl transition-all cursor-text border border-transparent"
                                 title="Clique para editar este bloco"
                               >
                                 {/* Hover Edit Icon */}
@@ -3642,12 +3745,42 @@ ${editorText}`;
                       );
                     }
 
+                    const isWidget = WIDGET_SUGGESTIONS.some(w => blockText.includes(`<${w}`));
+                    const isInspected = inspectedBlockIdx === blockIdx;
+
+                    if (isWidget) {
+                      return (
+                        <div
+                          key={blockIdx}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setInspectedBlockIdx(blockIdx);
+                          }}
+                          className={`group relative my-4 p-2 -mx-2 hover:bg-zinc-900/30 rounded-xl transition-all cursor-pointer border ${
+                            isInspected ? "border-emerald-500/80 bg-emerald-950/5 shadow-lg shadow-emerald-950/20" : "border-transparent"
+                          }`}
+                          title="Clique para inspecionar propriedades do componente"
+                        >
+                          {/* Hover Inspect Icon */}
+                          <div className="absolute top-1 right-2 opacity-0 group-hover:opacity-100 transition-opacity bg-zinc-950/80 border border-zinc-800 text-[9px] text-emerald-400 px-1.5 py-0.5 rounded font-mono font-bold select-none uppercase tracking-widest z-10">
+                            {isInspected ? "Selecionado para Inspeção" : "Inspecionar Componente"}
+                          </div>
+
+                          <BlockContentRenderer
+                            text={blockText}
+                            onBlockUpdate={(newText) => handleBlockChange(blockIdx, newText)}
+                            lang={lang}
+                          />
+                        </div>
+                      );
+                    }
+
                     // Render block visually with edit click handler
                     return (
                       <div
                         key={blockIdx}
                         onClick={() => setEditingBlockIndex(blockIdx)}
-                        className="group relative my-4 p-2 -mx-2 hover:bg-zinc-900/30 rounded-xl transition-all cursor-text"
+                        className="group relative my-4 p-2 -mx-2 hover:bg-zinc-900/30 rounded-xl transition-all cursor-text border border-transparent"
                         title="Clique para editar este bloco"
                       >
                         {/* Hover Edit Icon */}
@@ -3686,8 +3819,217 @@ ${editorText}`;
           </div>
         )}
 
+        {inspectedBlockIdx !== null && (
+          <InspectorPanel
+            blockIdx={inspectedBlockIdx}
+            editorText={editorText}
+            onBlockChange={(idx, newVal) => {
+              handleBlockChange(idx, newVal);
+            }}
+            onClose={() => setInspectedBlockIdx(null)}
+            onEditRaw={() => {
+              setEditingBlockIndex(inspectedBlockIdx);
+              setInspectedBlockIdx(null);
+            }}
+            isPt={isPt}
+          />
+        )}
+
       </div>
 
+    </div>
+  );
+}
+
+function InspectorPanel({
+  blockIdx,
+  editorText,
+  onBlockChange,
+  onClose,
+  onEditRaw,
+  isPt,
+}: {
+  blockIdx: number;
+  editorText: string;
+  onBlockChange: (idx: number, newVal: string) => void;
+  onClose: () => void;
+  onEditRaw: () => void;
+  isPt: boolean;
+}) {
+  const blockText = editorText.split("\n\n")[blockIdx] || "";
+  const widgetMatch = blockText.match(/<(\w+)/);
+  const widgetName = widgetMatch ? widgetMatch[1] : "";
+  const parsedProps = parseWidgetProps(blockText);
+  const meta = widgetName ? WIDGET_METADATA[widgetName] : null;
+
+  const [localValues, setLocalValues] = useState<Record<string, any>>({});
+  const [jsonErrors, setJsonErrors] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    setLocalValues(parsedProps);
+    setJsonErrors({});
+  }, [blockIdx, blockText]);
+
+  const updateProp = (key: string, val: any, isJson: boolean = false) => {
+    const updatedLocal = { ...localValues, [key]: val };
+    setLocalValues(updatedLocal);
+
+    if (isJson) {
+      try {
+        const parsed = JSON.parse(val);
+        setJsonErrors(prev => ({ ...prev, [key]: "" }));
+        const updatedProps = { ...parsedProps, [key]: parsed };
+        const serialized = serializeWidget(widgetName, updatedProps);
+        onBlockChange(blockIdx, serialized);
+      } catch (err: any) {
+        setJsonErrors(prev => ({ ...prev, [key]: err.message || "Invalid JSON" }));
+      }
+    } else {
+      const updatedProps = { ...parsedProps, [key]: val };
+      const serialized = serializeWidget(widgetName, updatedProps);
+      onBlockChange(blockIdx, serialized);
+    }
+  };
+
+  return (
+    <div className="fixed top-0 right-0 h-screen w-80 md:w-96 bg-zinc-950/95 backdrop-blur-md border-l border-zinc-800/85 z-50 shadow-2xl flex flex-col p-6 text-zinc-100 font-sans transition-all duration-300">
+      {/* Header */}
+      <div className="flex justify-between items-center border-b border-zinc-800 pb-4 mb-6">
+        <div>
+          <span className="text-[10px] font-mono font-bold tracking-widest text-emerald-500 uppercase block mb-1">
+            Component Inspector
+          </span>
+          <h2 className="text-sm font-mono font-bold text-zinc-200 truncate">
+            &lt;{widgetName} /&gt;
+          </h2>
+        </div>
+        <button
+          onClick={onClose}
+          className="p-1.5 hover:bg-zinc-900 rounded-lg text-zinc-400 hover:text-zinc-100 transition-all cursor-pointer"
+          title={isPt ? "Fechar" : "Close"}
+        >
+          ✕
+        </button>
+      </div>
+
+      {/* Inputs Area */}
+      <div className="flex-1 overflow-y-auto space-y-6 pr-1 scrollbar-thin">
+        {meta ? (
+          Object.entries(meta).map(([key, propMeta]) => {
+            const label = propMeta.label || key;
+            const currentVal = localValues[key] !== undefined ? localValues[key] : propMeta.default;
+
+            if (propMeta.type === "number") {
+              const min = key === "initialM" || key === "initialN" ? 1 : 0.1;
+              const max = key === "initialM" || key === "initialN" ? 10 : 10;
+              const step = key === "initialM" || key === "initialN" ? 1 : 0.1;
+
+              return (
+                <div key={key} className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <label className="text-xs font-mono font-bold text-zinc-400 uppercase">
+                      {label}
+                    </label>
+                    <span className="text-xs font-mono text-emerald-400 font-bold bg-zinc-900/60 px-2 py-0.5 rounded border border-zinc-800/40">
+                      {typeof currentVal === "number" ? currentVal.toFixed(2) : currentVal}
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    min={min}
+                    max={max}
+                    step={step}
+                    value={typeof currentVal === "number" ? currentVal : Number(currentVal) || propMeta.default}
+                    onChange={(e) => {
+                      updateProp(key, Number(e.target.value));
+                    }}
+                    className="w-full accent-emerald-500 h-1.5 bg-zinc-900 rounded-lg appearance-none cursor-pointer"
+                  />
+                  <div className="flex justify-between text-[9px] text-zinc-500 font-mono">
+                    <span>Min: {min}</span>
+                    <span>Max: {max}</span>
+                  </div>
+                </div>
+              );
+            }
+
+            if (propMeta.type === "string") {
+              return (
+                <div key={key} className="space-y-2">
+                  <label className="text-xs font-mono font-bold text-zinc-400 uppercase block">
+                    {label}
+                  </label>
+                  <input
+                    type="text"
+                    value={currentVal || ""}
+                    onChange={(e) => {
+                      updateProp(key, e.target.value);
+                    }}
+                    className="w-full p-2.5 bg-zinc-900 border border-zinc-800 rounded-xl text-xs font-mono text-zinc-200 outline-none focus:border-emerald-500/50 transition-all"
+                    placeholder={String(propMeta.default)}
+                  />
+                </div>
+              );
+            }
+
+            if (propMeta.type === "json") {
+              const displayVal = typeof currentVal === "string" ? currentVal : JSON.stringify(currentVal);
+              const error = jsonErrors[key];
+
+              return (
+                <div key={key} className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <label className="text-xs font-mono font-bold text-zinc-400 uppercase">
+                      {label}
+                    </label>
+                    <span className="text-[10px] font-mono text-zinc-500">JSON</span>
+                  </div>
+                  <textarea
+                    rows={3}
+                    value={displayVal}
+                    onChange={(e) => {
+                      updateProp(key, e.target.value, true);
+                    }}
+                    className={`w-full p-2.5 bg-zinc-900 border ${
+                      error ? "border-rose-500/50" : "border-zinc-800"
+                    } rounded-xl text-xs font-mono text-zinc-200 outline-none focus:border-emerald-500/50 transition-all resize-none`}
+                    placeholder={JSON.stringify(propMeta.default)}
+                  />
+                  {error && (
+                    <p className="text-[10px] font-mono text-rose-400 mt-1 leading-snug">
+                      ⚠️ {error}
+                    </p>
+                  )}
+                </div>
+              );
+            }
+
+            return null;
+          })
+        ) : (
+          <div className="text-center py-10">
+            <p className="text-xs text-zinc-500 italic">
+              {isPt ? "Nenhuma propriedade editável configurada para este componente." : "No editable properties configured for this component."}
+            </p>
+          </div>
+        )}
+      </div>
+
+      {/* Actions / Footer */}
+      <div className="border-t border-zinc-800 pt-4 mt-6 space-y-2.5">
+        <button
+          onClick={onEditRaw}
+          className="w-full py-2 bg-zinc-900 hover:bg-zinc-850 text-emerald-400 hover:text-emerald-300 border border-zinc-800/80 rounded-xl text-xs font-mono font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5"
+        >
+          📝 {isPt ? "Editar XML Manual (Raw)" : "Edit Raw XML"}
+        </button>
+        <button
+          onClick={onClose}
+          className="w-full py-2 bg-emerald-500 hover:bg-emerald-400 text-zinc-950 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5"
+        >
+          {isPt ? "Salvar e Fechar" : "Save and Close"}
+        </button>
+      </div>
     </div>
   );
 }
