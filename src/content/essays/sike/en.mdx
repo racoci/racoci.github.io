@@ -1,0 +1,103 @@
+import EllipticCurveVisualizer from "../../../components/sike/EllipticCurveVisualizer";
+import IsogenyFoldVisualizer from "../../../components/sike/IsogenyFoldVisualizer";
+import SIDHDiagramVisualizer from "../../../components/sike/SIDHDiagramVisualizer";
+import Genus2RadarVisualizer from "../../../components/sike/Genus2RadarVisualizer";
+
+# The Rise and Fall of SIKE: A Geometric Story of Isogenies and Genus-2 Splits
+
+In the landscape of modern cryptography, a silent panic has been brewing for decades. The mathematical shields that protect our digital lives—RSA and Elliptic Curve Diffie-Hellman—rely on a simple asymmetrical barrier: multiplying prime numbers or adding points on a curve is easy, but reversing those operations (factoring and discrete logarithms) is practically impossible for classical computers.
+
+But quantum computers change the rules of the game. Utilizing Shor's algorithm, a sufficiently powerful quantum machine can slice through these mathematical shields in a matter of seconds.
+
+To survive, mathematicians had to find new, quantum-hard puzzles. One of the most elegant and promising candidates was **SIKE (Supersingular Isogeny Key Encapsulation)**, a post-quantum algorithm built upon the complex, non-abelian world of elliptic curve mappings. Yet, in the summer of 2022, this seemingly invincible vault was breached. Not by a supercomputer, but by a single CPU core running an elegant, decades-old theorem of algebraic geometry.
+
+This is the story of how SIKE was built, how it worked, and how it fell.
+
+---
+
+## I. Elliptic Curves and the Limits of Point Arithmetic
+
+Before we can deform the grid, we must understand the baseline geometry. Standard elliptic curve cryptography operates on the group structure of points. An elliptic curve $\textcolor{#10b981}{E}$ is defined by a cubic equation:
+
+$$
+\textcolor{#10b981}{E}: y^2 = x^3 - x + 1
+$$
+
+If we take two points $\textcolor{#fbbf24}{P}$ and $\textcolor{#fbbf24}{Q}$ on this curve, we can define an addition operation geometrically. Draw a line passing through $\textcolor{#fbbf24}{P}$ and $\textcolor{#fbbf24}{Q}$. This line will intersect the curve at a third point $\textcolor{#fbbf24}{R}$. Reflecting $\textcolor{#fbbf24}{R}$ across the horizontal $x$-axis gives us the point $\textcolor{#fbbf24}{P} + \textcolor{#fbbf24}{Q}$.
+
+<EllipticCurveVisualizer />
+
+While this point addition group $(\mathbb{F}_p, +)$ is incredibly strong against classical attacks, it has a fatal flaw in the quantum era: it is **abelian** (commutative). Shor's algorithm exploits this algebraic symmetry to solve the discrete logarithm problem. If we want quantum resistance, we must abandon simple point addition and step into a much more chaotic, non-abelian structure.
+
+---
+
+## II. Isogenies: Deforming the Coordinate Grid
+
+Instead of moving points *on* a curve, what if we mapped curves *to other curves*? 
+
+An **isogeny** $\textcolor{#a855f7}{\phi}: \textcolor{#10b981}{E} \to \textcolor{#10b981}{E}/\textcolor{#f43f5e}{A}$ is a map between two elliptic curves that preserves their group structures. Think of it as a wrapping or folding function. Given a finite subgroup $\textcolor{#f43f5e}{A}$ of the curve $\textcolor{#10b981}{E}$, we can "quotient" the curve by this subgroup. This process deforms the coordinate grid, horizontal distances are compressed, and the entire subgroup $\textcolor{#f43f5e}{A}$ collapses to the identity element (the point at infinity).
+
+$$
+\textcolor{#a855f7}{\phi}: \textcolor{#10b981}{E} \to \textcolor{#10b981}{E}/\textcolor{#f43f5e}{A}
+$$
+
+Under this quotient map, multiple points on $\textcolor{#10b981}{E}$ fold onto a single point on $\textcolor{#10b981}{E}/\textcolor{#f43f5e}{A}$. If the subgroup (kernel) $\textcolor{#f43f5e}{A}$ has size $d$, the mapping is $d$-to-1.
+
+<IsogenyFoldVisualizer />
+
+By walking randomly from one curve to another along these wrapping maps, we can construct an incredibly dense, labyrinthine network: the **Supersingular Isogeny Graph**. Because this graph lacks the simple abelian symmetry of a single curve group, quantum computers cannot use Shor's algorithm to navigate it. Finding the path between two curves is a quantum-hard problem.
+
+---
+
+## III. SIDH: The Commutative Commute
+
+To build a key exchange (Supersingular Isogeny Diffie-Hellman, or SIDH) out of these graphs, Alice and Bob must perform a coordinate-free dance:
+
+1. Alice chooses a secret subgroup $\textcolor{#f43f5e}{A}$ and computes the isogeny $\textcolor{#a855f7}{\phi}_{\textcolor{#f43f5e}{A}}: \textcolor{#10b981}{E} \to \textcolor{#10b981}{E}/\textcolor{#f43f5e}{A}$.
+2. Bob chooses a secret subgroup $\textcolor{#3b82f6}{B}$ and computes the isogeny $\textcolor{#a855f7}{\phi}_{\textcolor{#3b82f6}{B}}: \textcolor{#10b981}{E} \to \textcolor{#10b981}{E}/\textcolor{#3b82f6}{B}$.
+3. They exchange their public curves $\textcolor{#10b981}{E}/\textcolor{#f43f5e}{A}$ and $\textcolor{#10b981}{E}/\textcolor{#3b82f6}{B}$.
+4. Finally, Alice computes the quotient of Bob's curve by her secret subgroup, while Bob computes the quotient of Alice's curve by his. Both converge to the exact same shared secret curve:
+
+$$
+\textcolor{#10b981}{E}/\langle \textcolor{#f43f5e}{A},\textcolor{#3b82f6}{B} \rangle
+$$
+
+<SIDHDiagramVisualizer />
+
+But there was a catch. To ensure that Alice can compute her secret isogeny on Bob's curve, and vice versa, they had to share more than just the curves $\textcolor{#10b981}{E}/\textcolor{#f43f5e}{A}$ and $\textcolor{#10b981}{E}/\textcolor{#3b82f6}{B}$. They also had to publish the images of specific basis points under their secret maps. 
+
+These are known as the **auxiliary points**. For years, mathematicians wondered: *Do these extra points leak information about the secret isogenies?*
+
+---
+
+## IV. The Genus-2 Crack: Kani's Theorem
+
+In July 2022, Wouter Castryck and Thomas Decru published a paper that shocked the cryptographic community. They proved that the auxiliary points did indeed leak everything, but only if you looked at them from a higher-dimensional perspective.
+
+Instead of trying to find the secret path on the 1-dimensional elliptic curve grid, they stepped up to a 2-dimensional surface: a hyperelliptic curve of **Genus 2** (which topologically resembles a double-holed torus).
+
+Using a beautiful result from 1997 known as **Kani's Theorem**, they showed that if you construct a specific Genus-2 curve using the public curves and those published auxiliary points, the geometry of this surface behaves like a radar. 
+
+$$
+\textcolor{#a855f7}{\Delta} = 0
+$$
+
+If the secret isogeny $\textcolor{#a855f7}{\phi}_{\textcolor{#f43f5e}{A}}$ exists, the Kani discriminant $\textcolor{#a855f7}{\Delta}$ drops exactly to $0$. When this happens, the complex Genus-2 surface "unfolds" or splits into a product of two ordinary 1-dimensional elliptic curves:
+
+$$
+\textcolor{#10b981}{E}_1 \times \textcolor{#10b981}{E}_2
+$$
+
+By sweeping through the possible isogeny paths and checking when this split occurs, an attacker can reconstruct Alice's secret key piece-by-piece, bit-by-bit.
+
+<Genus2RadarVisualizer />
+
+With this elegant attack, the seemingly quantum-proof vault of SIKE was completely solved. An key that was supposed to protect global secrets for centuries was extracted in under 10 minutes on a standard commercial laptop.
+
+---
+
+## V. Epilogue: The Elegance of Vulnerability
+
+The fall of SIKE was not a failure of engineering, but a triumph of pure, abstract mathematics. It proved that in the realm of cryptography, security is an illusion born from the limits of our geometric perspective. 
+
+An algorithm built upon the complex, non-abelian structure of elliptic curves was ultimately dismantled because mathematicians forgot that a double-torus can be sliced in half to reveal two perfect circles. As we design the next generation of cryptographic defenses, the story of SIKE remains a beautiful, cautionary reminder: the most formidable shields are often broken not by brute force, but by a simple, elegant shift of perspective.

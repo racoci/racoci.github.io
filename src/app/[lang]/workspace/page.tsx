@@ -22,6 +22,10 @@ import { OrthogonalProjectionVisualizer, ErrorDiskConstraintVisualizer, Asymptot
 import { SternBrocotVisualizer } from "../../../components/pythagorean/SternBrocotVisualizer";
 import { GaussianQuadratureVisualizer } from "../../../components/pythagorean/GaussianQuadratureVisualizer";
 import { BarningHallTreeVisualizer } from "../../../components/pythagorean/BarningHallTreeVisualizer";
+import EllipticCurveVisualizer from "../../../components/sike/EllipticCurveVisualizer";
+import IsogenyFoldVisualizer from "../../../components/sike/IsogenyFoldVisualizer";
+import SIDHDiagramVisualizer from "../../../components/sike/SIDHDiagramVisualizer";
+import Genus2RadarVisualizer from "../../../components/sike/Genus2RadarVisualizer";
 
 interface DraftFile {
   name: string;
@@ -423,7 +427,11 @@ const WIDGET_SUGGESTIONS = [
   "PasswordManagerWidget",
   "SternBrocotVisualizer",
   "GaussianQuadratureVisualizer",
-  "BarningHallTreeVisualizer"
+  "BarningHallTreeVisualizer",
+  "EllipticCurveVisualizer",
+  "IsogenyFoldVisualizer",
+  "SIDHDiagramVisualizer",
+  "Genus2RadarVisualizer"
 ];
 
 interface WidgetPropMeta {
@@ -443,7 +451,11 @@ const WIDGET_METADATA: Record<string, Record<string, WidgetPropMeta>> = {
   },
   "BarningHallTreeVisualizer": {
     initialTriple: { type: "json", default: [3,4,5], label: "Initial Triple [a,b,c]" }
-  }
+  },
+  "EllipticCurveVisualizer": {},
+  "IsogenyFoldVisualizer": {},
+  "SIDHDiagramVisualizer": {},
+  "Genus2RadarVisualizer": {}
 };
 
 function parseWidgetProps(contentStr: string): Record<string, any> {
@@ -1682,6 +1694,10 @@ function BlockContentRenderer({
               {token.widgetName === "SternBrocotVisualizer" && <SternBrocotVisualizer {...props} key={`stern-${keyPropsStr}`} />}
               {token.widgetName === "GaussianQuadratureVisualizer" && <GaussianQuadratureVisualizer {...props} key={`gauss-${keyPropsStr}`} />}
               {token.widgetName === "BarningHallTreeVisualizer" && <BarningHallTreeVisualizer {...props} key={`barning-${keyPropsStr}`} />}
+              {token.widgetName === "EllipticCurveVisualizer" && <EllipticCurveVisualizer />}
+              {token.widgetName === "IsogenyFoldVisualizer" && <IsogenyFoldVisualizer />}
+              {token.widgetName === "SIDHDiagramVisualizer" && <SIDHDiagramVisualizer />}
+              {token.widgetName === "Genus2RadarVisualizer" && <Genus2RadarVisualizer />}
             </div>
           );
         }
@@ -1857,7 +1873,7 @@ function parseMDXContent(text: string): Token[] {
   // 4. Split by Interactive Widgets
   tokens = splitTokenList(
     tokens,
-    /<(ComplexPlotter|NodeGraftViewer|B3Screener|SudokuViewer|SudokuMiniWidget|QuadtreeVisualizer|MappingVisualizer|CountersVisualizer|PolynomialEditor|InnerProductWindingVisualizer|OrthogonalProjectionVisualizer|ErrorDiskConstraintVisualizer|AsymptoticScalingVisualizer|PasswordManagerWidget|SternBrocotVisualizer|GaussianQuadratureVisualizer|BarningHallTreeVisualizer)([^>]*?)\/>/g,
+    /<(ComplexPlotter|NodeGraftViewer|B3Screener|SudokuViewer|SudokuMiniWidget|QuadtreeVisualizer|MappingVisualizer|CountersVisualizer|PolynomialEditor|InnerProductWindingVisualizer|OrthogonalProjectionVisualizer|ErrorDiskConstraintVisualizer|AsymptoticScalingVisualizer|PasswordManagerWidget|SternBrocotVisualizer|GaussianQuadratureVisualizer|BarningHallTreeVisualizer|EllipticCurveVisualizer|IsogenyFoldVisualizer|SIDHDiagramVisualizer|Genus2RadarVisualizer)([^>]*?)\/>/g,
     (match) => ({
       type: "widget",
       widgetName: match[1],

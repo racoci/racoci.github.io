@@ -42,72 +42,92 @@ const colorRules: Record<string, string> = {
   'U': '#a855f7', 'A': '#a855f7', 'D': '#a855f7', 'T': '#a855f7'
 };
 
-const vars = Object.keys(colorRules).sort((a, b) => b.length - a.length);
-const varsPattern = vars.map(v => v.replace(/\\/g, '\\\\').replace(/\{/g, '\\{').replace(/\}/g, '\\}')).join('|');
-const varRegex = new RegExp(`^(${varsPattern})(?![a-zA-Z])`);
+const sikeColorRules: Record<string, string> = {
+  'P': '#fbbf24',
+  'Q': '#fbbf24',
+  'R': '#fbbf24',
+  'E': '#10b981',
+  'A': '#f43f5e',
+  'B': '#3b82f6',
+  '\\phi': '#a855f7',
+  '\\Delta': '#a855f7',
+};
 
-export function colorizeMath(tex: string): string {
-  // 1. Clean existing manual colors completely
-  tex = tex.replace(/\\textcolor\{#[a-fA-F0-9]+\}\{([^}]+)\}/g, '$1');
-  tex = tex.replace(/\\color\{#[a-fA-F0-9]+\}\{([^}]+)\}/g, '$1');
-  tex = tex.replace(/\\color\{#[a-fA-F0-9]+\}\s*/g, '');
+export function makeColorizer(rules: Record<string, string>) {
+  const vars = Object.keys(rules).sort((a, b) => b.length - a.length);
+  const varsPattern = vars.map(v => v.replace(/\\/g, '\\\\').replace(/\{/g, '\\{').replace(/\}/g, '\\}')).join('|');
+  const varRegex = new RegExp(`^(${varsPattern})(?![a-zA-Z])`);
 
-  let out = "";
-  let i = 0;
-  while (i < tex.length) {
-    // Protected blocks
-    const protectedMatch = tex.slice(i).match(/^\\(mathbb|text|mathrm|mathbf)\{[^}]+\}/);
-    if (protectedMatch) {
-      out += protectedMatch[0];
-      i += protectedMatch[0].length;
-      continue;
-    }
+  return (tex: string): string => {
+    // 1. Clean existing manual colors completely
+    tex = tex.replace(/\\textcolor\{#[a-fA-F0-9]+\}\{([^}]+)\}/g, '$1');
+    tex = tex.replace(/\\color\{#[a-fA-F0-9]+\}\{([^}]+)\}/g, '$1');
+    tex = tex.replace(/\\color\{#[a-fA-F0-9]+\}\s*/g, '');
 
-    // Variables matching
-    const varMatch = tex.slice(i).match(varRegex);
-    if (varMatch) {
-      const v = varMatch[0];
-      const color = colorRules[v];
-      if (color) {
-        // Strict guard: if this colored token is preceded directly by ^ or _,
-        // we MUST wrap it in curly braces to ensure valid KaTeX parsing!
-        const isExpOrSub = out.endsWith('^') || out.endsWith('_');
-        if (isExpOrSub) {
-          out += `{\\textcolor{${color}}{${v}}}`;
-        } else {
-          out += `\\textcolor{${color}}{${v}}`;
-        }
-      } else {
-        out += v;
+    let out = "";
+    let i = 0;
+    while (i < tex.length) {
+      // Protected blocks
+      const protectedMatch = tex.slice(i).match(/^\\(mathbb|text|mathrm|mathbf)\{[^}]+\}/);
+      if (protectedMatch) {
+        out += protectedMatch[0];
+        i += protectedMatch[0].length;
+        continue;
       }
-      i += v.length;
-      continue;
-    }
 
-    // LaTeX Commands
-    const cmdMatch = tex.slice(i).match(/^\\[a-zA-Z]+/);
-    if (cmdMatch) {
-      out += cmdMatch[0];
-      i += cmdMatch[0].length;
-      continue;
-    }
+      // Variables matching
+      const varMatch = tex.slice(i).match(varRegex);
+      if (varMatch) {
+        const v = varMatch[0];
+        const color = rules[v];
+        if (color) {
+          // Strict guard: if this colored token is preceded directly by ^ or _,
+          // we MUST wrap it in curly braces to ensure valid KaTeX parsing!
+          const isExpOrSub = out.endsWith('^') || out.endsWith('_');
+          if (isExpOrSub) {
+            out += `{\\textcolor{${color}}{${v}}}`;
+          } else {
+            out += `\\textcolor{${color}}{${v}}`;
+          }
+        } else {
+          out += v;
+        }
+        i += v.length;
+        continue;
+      }
 
-    out += tex[i];
-    i++;
-  }
+      // LaTeX Commands
+      const cmdMatch = tex.slice(i).match(/^\\[a-zA-Z]+/);
+      if (cmdMatch) {
+        out += cmdMatch[0];
+        i += cmdMatch[0].length;
+        continue;
+      }
+
+      out += tex[i];
+      i++;
+    }
+    return out;
+  };
+}
+
+// Default colorizer for legacy support
+export const colorizeMath = makeColorizer(colorRules);
+
+export function processMarkdownWithColorizer(md: string, colorizer: (tex: string) => string): string {
+  let out = md.replace(/\$\$([\s\S]+?)\$\$/g, (match, tex) => {
+    return `$$\n${colorizer(tex.trim())}\n$$`;
+  });
+  
+  out = out.replace(/(?<!\$)\$([^$\n]+?)\$(?!\$)/g, (match, tex) => {
+    return `$${colorizer(tex.trim())}$`;
+  });
+  
   return out;
 }
 
 export function processMarkdown(md: string): string {
-  let out = md.replace(/\$\$([\s\S]+?)\$\$/g, (match, tex) => {
-    return `$$\n${colorizeMath(tex.trim())}\n$$`;
-  });
-  
-  out = out.replace(/(?<!\$)\$([^$\n]+?)\$(?!\$)/g, (match, tex) => {
-    return `$${colorizeMath(tex.trim())}$`;
-  });
-  
-  return out;
+  return processMarkdownWithColorizer(md, colorizeMath);
 }
 
 // Strictly validates that the generated markdown contains zero unbraced LaTeX commands under ^ or _
@@ -178,6 +198,26 @@ async function runTests() {
       '\\textcolor{#a855f7}{N}(\\textcolor{#fbbf24}{z})^{\\textcolor{#3b82f6}{d}}'
     );
   });
+
+  test('SIKE colorizer works correctly with custom overrides', () => {
+    const sikeColorizer = makeColorizer(sikeColorRules);
+    assert.strictEqual(
+      sikeColorizer('P + Q = R'),
+      '\\textcolor{#fbbf24}{P} + \\textcolor{#fbbf24}{Q} = \\textcolor{#fbbf24}{R}'
+    );
+    assert.strictEqual(
+      sikeColorizer('E/\\phi'),
+      '\\textcolor{#10b981}{E}/\\textcolor{#a855f7}{\\phi}'
+    );
+    assert.strictEqual(
+      sikeColorizer('A \\times B'),
+      '\\textcolor{#f43f5e}{A} \\times \\textcolor{#3b82f6}{B}'
+    );
+    assert.strictEqual(
+      sikeColorizer('\\Delta^2'),
+      '\\textcolor{#a855f7}{\\Delta}^2'
+    );
+  });
 }
 
 function processFiles() {
@@ -185,13 +225,26 @@ function processFiles() {
     path.resolve(__dirname, '../src/content/essays/fta/pt.mdx'),
     path.resolve(__dirname, '../src/content/essays/fta/en.mdx'),
     path.resolve(__dirname, '../src/content/essays/pythagorean-trees/pt.mdx'),
-    path.resolve(__dirname, '../src/content/essays/pythagorean-trees/en.mdx')
+    path.resolve(__dirname, '../src/content/essays/pythagorean-trees/en.mdx'),
+    path.resolve(__dirname, '../src/content/essays/sike/pt.mdx'),
+    path.resolve(__dirname, '../src/content/essays/sike/en.mdx')
   ];
 
   files.forEach(file => {
+    if (!fs.existsSync(file)) {
+      console.warn(`⚠️ Warning: file ${file} does not exist yet (skipping)`);
+      return;
+    }
     console.log(`Processing ${file}...`);
     const content = fs.readFileSync(file, 'utf-8');
-    const updated = processMarkdown(content);
+    
+    let updated;
+    if (file.includes('sike')) {
+      const sikeColorizer = makeColorizer(sikeColorRules);
+      updated = processMarkdownWithColorizer(content, sikeColorizer);
+    } else {
+      updated = processMarkdown(content);
+    }
     
     // Run pre-deploy static syntax validations
     validateMDXMath(updated, file);

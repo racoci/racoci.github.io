@@ -1,0 +1,103 @@
+import EllipticCurveVisualizer from "../../../components/sike/EllipticCurveVisualizer";
+import IsogenyFoldVisualizer from "../../../components/sike/IsogenyFoldVisualizer";
+import SIDHDiagramVisualizer from "../../../components/sike/SIDHDiagramVisualizer";
+import Genus2RadarVisualizer from "../../../components/sike/Genus2RadarVisualizer";
+
+# A Ascensão e Queda do SIKE: Uma História Geométrica de Isogenias e Divisões de Gênero 2
+
+No panorama da criptografia moderna, um pânico silencioso vem se formando há décadas. Os escudos matemáticos que protegem nossas vidas digitais—RSA e a troca de chaves Diffie-Hellman em curvas elípticas—baseiam-se em uma barreira assimétrica simples: multiplicar números primos ou somar pontos em uma curva é fácil, mas reverter essas operações (fatoração e logaritmos discretos) é praticamente impossível para computadores clássicos.
+
+Mas os computadores quânticos mudam as regras do jogo. Ao utilizar o algoritmo de Shor, uma máquina quântica suficientemente potente é capaz de romper esses escudos matemáticos em questão de segundos.
+
+Para sobreviver, os matemáticos precisaram encontrar novos enigmas difíceis de resolver para computadores quânticos. Um dos candidatos mais elegantes e promissores era o **SIKE (Supersingular Isogeny Key Encapsulation)**, um algoritmo pós-quântico construído sobre o mundo complexo e não-abeliano dos mapeamentos de curvas elípticas. No entanto, no verão de 2022, esse cofre aparentemente invencível foi violado. Não por um supercomputador, mas por um único núcleo de processador executando um teorema elegante e com décadas de existência da geometria algébrica.
+
+Esta é a história de como o SIKE foi construído, como ele funcionava e como ele caiu.
+
+---
+
+## I. Curvas Elípticas e os Limites da Aritmética de Pontos
+
+Antes de podermos deformar a grade de coordenadas, precisamos entender a geometria de base. A criptografia de curvas elípticas tradicional opera na estrutura de grupo de seus pontos. Uma curva elíptica $\textcolor{#10b981}{E}$ é definida por uma equação cúbica:
+
+$$
+\textcolor{#10b981}{E}: y^2 = x^3 - x + 1
+$$
+
+Se tomarmos dois pontos $\textcolor{#fbbf24}{P}$ e $\textcolor{#fbbf24}{Q}$ sobre esta curva, podemos definir uma operação de soma geometricamente. Desenhe uma linha que passe por $\textcolor{#fbbf24}{P}$ e $\textcolor{#fbbf24}{Q}$. Essa linha intersectará a curva em um terceiro ponto $\textcolor{#fbbf24}{R}$. Refletir o ponto $\textcolor{#fbbf24}{R}$ verticalmente em relação ao eixo horizontal $x$ nos dá o ponto soma $\textcolor{#fbbf24}{P} + \textcolor{#fbbf24}{Q}$.
+
+<EllipticCurveVisualizer />
+
+Embora este grupo de soma de pontos $(\mathbb{F}_p, +)$ seja incrivelmente robusto contra ataques clássicos, ele possui uma falha fatal na era quântica: ele é **abeliano** (comutativo). O algoritmo de Shor explora essa simetria algébrica para resolver o problema do logaritmo discreto. Se quisermos resistência quântica, devemos abandonar a soma simples de pontos e entrar em uma estrutura muito mais caótica e não-abeliana.
+
+---
+
+## II. Isogenias: Deformando a Grade de Coordenadas
+
+Em vez de mover pontos *sobre* uma única curva, e se mapeássemos curvas *para outras curvas*?
+
+Uma **isogenia** $\textcolor{#a855f7}{\phi}: \textcolor{#10b981}{E} \to \textcolor{#10b981}{E}/\textcolor{#f43f5e}{A}$ é um mapeamento entre duas curvas elípticas que preserva suas estruturas de grupo. Imagine-a como uma função de dobramento ou empacotamento. Dado um subgrupo finito $\textcolor{#f43f5e}{A}$ da curva $\textcolor{#10b981}{E}$, podemos "quocientar" a curva por este subgrupo. Esse processo deforma a grade de coordenadas, as distâncias horizontais são comprimidas, e todo o subgrupo $\textcolor{#f43f5e}{A}$ colapsa para o elemento neutro (o ponto no infinito).
+
+$$
+\textcolor{#a855f7}{\phi}: \textcolor{#10b981}{E} \to \textcolor{#10b981}{E}/\textcolor{#f43f5e}{A}
+$$
+
+Sob este mapeamento quociente, múltiplos pontos em $\textcolor{#10b981}{E}$ se dobram sobre um único ponto em $\textcolor{#10b981}{E}/\textcolor{#f43f5e}{A}$. Se o subgrupo (núcleo) $\textcolor{#f43f5e}{A}$ tiver tamanho $d$, o mapeamento será de tipo $d$-para-1.
+
+<IsogenyFoldVisualizer />
+
+Ao caminhar aleatoriamente de uma curva para outra ao longo desses mapeamentos de dobramento, podemos construir uma rede incrivelmente densa e labiríntica: o **Grafo de Isogenias Supersingulares**. Como esse grafo carece da simetria abeliana simples de um único grupo de curva, os computadores quânticos não podem usar o algoritmo de Shor para navegá-lo. Encontrar o caminho entre duas curvas é um problema pós-quântico extremamente difícil.
+
+---
+
+## III. SIDH: A Caminhada Comutativa
+
+Para construir uma troca de chaves (Supersingular Isogeny Diffie-Hellman, ou SIDH) a partir desses grafos, Alice e Bob realizam uma dança livre de coordenadas:
+
+1. Alice escolhe um subgrupo secreto $\textcolor{#f43f5e}{A}$ e calcula a isogenia $\textcolor{#a855f7}{\phi}_{\textcolor{#f43f5e}{A}}: \textcolor{#10b981}{E} \to \textcolor{#10b981}{E}/\textcolor{#f43f5e}{A}$.
+2. Bob escolhe um subgrupo secreto $\textcolor{#3b82f6}{B}$ e calcula a isogenia $\textcolor{#a855f7}{\phi}_{\textcolor{#3b82f6}{B}}: \textcolor{#10b981}{E} \to \textcolor{#10b981}{E}/\textcolor{#3b82f6}{B}$.
+3. Eles trocam suas curvas públicas $\textcolor{#10b981}{E}/\textcolor{#f43f5e}{A}$ e $\textcolor{#10b981}{E}/\textcolor{#3b82f6}{B}$.
+4. Por fim, Alice calcula o quociente da curva de Bob pelo seu subgrupo secreto, enquanto Bob calcula o quociente da curva de Alice pelo seu próprio. Ambos convergem exatamente para a mesma curva de segredo compartilhado:
+
+$$
+\textcolor{#10b981}{E}/\langle \textcolor{#f43f5e}{A},\textcolor{#3b82f6}{B} \rangle
+$$
+
+<SIDHDiagramVisualizer />
+
+Mas havia um detalhe crucial. Para garantir que Alice possa calcular sua isogenia secreta na curva de Bob, e vice-versa, eles precisavam compartilhar mais do que apenas as curvas $\textcolor{#10b981}{E}/\textcolor{#f43f5e}{A}$ e $\textcolor{#10b981}{E}/\textcolor{#3b82f6}{B}$. Eles também precisavam publicar as imagens de pontos de base específicos sob seus mapeamentos secretos.
+
+Esses pontos são conhecidos como **pontos auxiliares**. Durante anos, os matemáticos se perguntaram: *Será que esses pontos extras vazam alguma informação sobre as isogenias secretas?*
+
+---
+
+## IV. A Quebra de Gênero 2: O Teorema de Kani
+
+Em julho de 2022, Wouter Castryck e Thomas Decru publicaram um artigo que abalou a comunidade criptográfica. Eles provaram que os pontos auxiliares de fato vazavam tudo, mas apenas se fossem analisados sob uma perspectiva de dimensão superior.
+
+Em vez de tentar encontrar o caminho secreto na grade unidimensional da curva elíptica, eles subiram para uma superfície bidimensional: uma curva hiperelíptica de **Gênero 2** (que topologicamente se assemelha a um toro de dois furos).
+
+Usando um belo resultado de 1997 conhecido como **Teorema de Kani**, eles demonstraram que, se você construir uma curva específica de Gênero 2 utilizando as curvas públicas e os pontos auxiliares publicados, a geometria dessa superfície se comporta como um radar.
+
+$$
+\textcolor{#a855f7}{\Delta} = 0
+$$
+
+Se a isogenia secreta $\textcolor{#a855f7}{\phi}_{\textcolor{#f43f5e}{A}}$ existir, o discriminante de Kani $\textcolor{#a855f7}{\Delta}$ cai exatamente para $0$. Quando isso acontece, a superfície complexa de Gênero 2 se "desdobra" ou se divide no produto de duas curvas elípticas comuns de dimensão 1:
+
+$$
+\textcolor{#10b981}{E}_1 \times \textcolor{#10b981}{E}_2
+$$
+
+Ao varrer os caminhos possíveis de isogenia e verificar quando essa divisão ocorre, um atacante consegue reconstruir a chave secreta de Alice parte por parte, bit por bit.
+
+<Genus2RadarVisualizer />
+
+Com este ataque elegante, o cofre pós-quântico do SIKE foi completamente quebrado. Uma chave que deveria proteger segredos globais por séculos foi extraída em menos de 10 minutos em um laptop comercial comum.
+
+---
+
+## V. Epílogo: A Elegância da Vulnerabilidade
+
+A queda do SIKE não foi uma falha de engenharia, mas um triunfo da matemática pura e abstrata. Ela provou que, no reino da criptografia, a segurança é uma ilusão nascida dos limites da nossa própria perspectiva geométrica.
+
+Um algoritmo construído sobre a estrutura complexa e não-abeliana de curvas elípticas acabou sendo desmantelado porque os matemáticos esqueceram que um toro duplo pode ser cortado ao meio para revelar dois círculos perfeitos. À medida que projetamos a próxima geração de defesas criptográficas, a história do SIKE permanece como um belo e cautelar lembrete: os escudos mais formidáveis são frequentemente rompidos não pela força bruta, mas por uma simples e elegante mudança de perspectiva.
