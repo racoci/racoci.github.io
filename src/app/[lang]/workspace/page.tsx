@@ -32,6 +32,11 @@ interface DraftFile {
   category?: string;
 }
 
+interface WorkspaceTab extends DraftFile {
+  isUnsaved?: boolean;
+  localContent?: string;
+}
+
 interface Token {
   type: "text" | "math_inline" | "math_block" | "code" | "widget";
   content: string;
@@ -80,6 +85,80 @@ async function compressPlantUML(text: string): Promise<string> {
   if (!stream) return "";
   const compressedBytes = new Uint8Array(await new Response(stream).arrayBuffer());
   return encode64(compressedBytes);
+}
+
+const DB_NAME = "WorkspaceCMS";
+const STORE_NAME = "files";
+const DB_VERSION = 1;
+
+function getDB(): Promise<IDBDatabase> {
+  return new Promise((resolve, reject) => {
+    if (typeof window === "undefined") {
+      reject(new Error("IndexedDB is only available in the browser"));
+      return;
+    }
+    const request = window.indexedDB.open(DB_NAME, DB_VERSION);
+    request.onerror = () => reject(request.error);
+    request.onsuccess = () => resolve(request.result);
+    request.onupgradeneeded = () => {
+      const db = request.result;
+      if (!db.objectStoreNames.contains(STORE_NAME)) {
+        db.createObjectStore(STORE_NAME, { keyPath: "path" });
+      }
+    };
+  });
+}
+
+async function saveToLocalDB(path: string, content: string): Promise<void> {
+  try {
+    const db = await getDB();
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction(STORE_NAME, "readwrite");
+      const store = transaction.objectStore(STORE_NAME);
+      const request = store.put({ path, content, updatedAt: Date.now() });
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => resolve();
+    });
+  } catch (err) {
+    console.warn("Failed to write to IndexedDB, falling back to memory/local storage if needed:", err);
+  }
+}
+
+async function loadFromLocalDB(path: string): Promise<string | null> {
+  try {
+    const db = await getDB();
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction(STORE_NAME, "readonly");
+      const store = transaction.objectStore(STORE_NAME);
+      const request = store.get(path);
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => {
+        if (request.result) {
+          resolve(request.result.content);
+        } else {
+          resolve(null);
+        }
+      };
+    });
+  } catch (err) {
+    console.warn("Failed to read from IndexedDB:", err);
+    return null;
+  }
+}
+
+async function deleteFromLocalDB(path: string): Promise<void> {
+  try {
+    const db = await getDB();
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction(STORE_NAME, "readwrite");
+      const store = transaction.objectStore(STORE_NAME);
+      const request = store.delete(path);
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => resolve();
+    });
+  } catch (err) {
+    console.warn("Failed to delete from IndexedDB:", err);
+  }
 }
 
 // PlantUML Rendering Component
@@ -2123,7 +2202,27 @@ function WorkspaceDashboard({ params }: PageProps) {
   const [showDiff, setShowDiff] = useState(false);
 
   const [drafts, setDrafts] = useState<DraftFile[]>([]);
-  const [activeDraft, setActiveDraft] = useState<DraftFile | null>(null);
+  const [openTabs, setOpenTabs] = useState<WorkspaceTab[]>([]);
+  const [activeTabPath, setActiveTabPath] = useState<string | null>(null);
+  const [isOnline, setIsOnline] = useState(true);
+
+  const activeDraft = openTabs.find((tab) => tab.path === activeTabPath) || null;
+
+  const setActiveDraft = (draft: DraftFile | null) => {
+    if (!draft) {
+      setActiveTabPath(null);
+      return;
+    }
+    setOpenTabs((prev) => {
+      const exists = prev.some((t) => t.path === draft.path);
+      if (!exists) {
+        return [...prev, { ...draft, localContent: draft.content }];
+      }
+      return prev.map((t) => (t.path === draft.path ? { ...t, ...draft } : t));
+    });
+    setActiveTabPath(draft.path);
+  };
+
   const [editorText, setEditorText] = useState("");
   const [slug, setSlug] = useState("");
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
@@ -2248,7 +2347,8 @@ function WorkspaceDashboard({ params }: PageProps) {
     localStorage.removeItem("GEMINI_API_KEY");
     setIsAuthenticated(false);
     setDrafts([]);
-    setActiveDraft(null);
+    setOpenTabs([]);
+    setActiveTabPath(null);
     setEditorText("");
   };
 
@@ -2426,34 +2526,122 @@ function WorkspaceDashboard({ params }: PageProps) {
   };
 
   async function handleSelectDraft(file: DraftFile) {
-    setActiveDraft(file);
-    setSlug(file.name.replace(".mdx", ""));
-
-    if (file.content !== undefined) {
-      setEditorText(file.content);
-      lastSavedTextRef.current = file.content;
-      setHasUnsavedChanges(false);
-      setSyncStatus("saved");
+    // 1. Check if the selected file is already in openTabs
+    const existingTab = openTabs.find((t) => t.path === file.path);
+    if (existingTab) {
+      setActiveTabPath(file.path);
+      setEditorText(existingTab.localContent || existingTab.content || "");
+      lastSavedTextRef.current = existingTab.content || "";
+      setHasUnsavedChanges(!!existingTab.isUnsaved);
+      setSlug(file.name.replace(".mdx", ""));
+      setSyncStatus(existingTab.isUnsaved ? "unsaved" : "saved");
       return;
     }
 
-    try {
-      setSyncStatus("syncing");
-      const fileBranch = file.branch || "notes-drafts";
-      const res = await fetch(`https://api.github.com/repos/${repo}/contents/${file.path}?ref=${fileBranch}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await res.json();
-      const decodedContent = decodeURIComponent(escape(atob(data.content)));
+    // 2. Fetch latest content from GitHub with IndexedDB check & fallback
+    setSyncStatus("syncing");
+    let githubContent = file.content;
+    let githubSha = file.sha;
 
-      const updatedFile = { ...file, content: decodedContent, sha: data.sha };
-      setActiveDraft(updatedFile);
-      setEditorText(decodedContent);
-      lastSavedTextRef.current = decodedContent;
-      setHasUnsavedChanges(false);
-      setSyncStatus("saved");
-    } catch (err) {
-      setSyncStatus("error");
+    if (githubContent === undefined) {
+      try {
+        const fileBranch = file.branch || "notes-drafts";
+        const res = await fetch(`https://api.github.com/repos/${repo}/contents/${file.path}?ref=${fileBranch}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          githubContent = decodeURIComponent(escape(atob(data.content)));
+          githubSha = data.sha;
+        }
+      } catch (err) {
+        console.warn("GitHub fetch failed, relying on IndexedDB fallback", err);
+      }
+    }
+
+    // Check IndexedDB
+    let localContent: string | null = null;
+    try {
+      localContent = await loadFromLocalDB(file.path);
+    } catch (dbErr) {
+      console.error("Failed to read from local IndexedDB:", dbErr);
+    }
+
+    let finalContent = githubContent || "";
+    let isUnsaved = false;
+
+    // Symmetrize and recover if IndexedDB content is newer or different from remote
+    if (localContent !== null && localContent !== githubContent) {
+      finalContent = localContent;
+      isUnsaved = true;
+    }
+
+    const newTab: WorkspaceTab = {
+      ...file,
+      content: githubContent || undefined,
+      sha: githubSha,
+      localContent: finalContent,
+      isUnsaved: isUnsaved,
+    };
+
+    setOpenTabs((prev) => [...prev, newTab]);
+    setActiveTabPath(file.path);
+    setEditorText(finalContent);
+    lastSavedTextRef.current = githubContent || "";
+    setHasUnsavedChanges(isUnsaved);
+    setSlug(file.name.replace(".mdx", ""));
+    setSyncStatus(isUnsaved ? "unsaved" : "saved");
+  }
+
+  const selectTab = (tab: WorkspaceTab) => {
+    setActiveTabPath(tab.path);
+    setEditorText(tab.localContent || tab.content || "");
+    lastSavedTextRef.current = tab.content || "";
+    setHasUnsavedChanges(!!tab.isUnsaved);
+    setSlug(tab.name.replace(".mdx", ""));
+    setSyncStatus(tab.isUnsaved ? "unsaved" : "saved");
+
+    // Update URL search parameters so it stays in sync
+    if (typeof window !== "undefined") {
+      const url = new URL(window.location.href);
+      url.searchParams.set("path", tab.path);
+      url.searchParams.set("branch", tab.branch || "notes-drafts");
+      url.searchParams.set("name", tab.name);
+      url.searchParams.set("category", tab.category || "drafts");
+      window.history.replaceState(null, "", url.pathname + url.search);
+    }
+  };
+
+  const handleCloseTab = (path: string) => {
+    const tabIndex = openTabs.findIndex((t) => t.path === path);
+    if (tabIndex === -1) return;
+
+    const newTabs = openTabs.filter((t) => t.path !== path);
+    setOpenTabs(newTabs);
+
+    if (activeTabPath === path) {
+      if (newTabs.length > 0) {
+        // Fallback to another open tab
+        const nextActiveIndex = Math.min(tabIndex, newTabs.length - 1);
+        const nextTab = newTabs[nextActiveIndex];
+        selectTab(nextTab);
+      } else {
+        setActiveTabPath(null);
+        setEditorText("");
+        lastSavedTextRef.current = "";
+        setHasUnsavedChanges(false);
+        setSyncStatus("saved");
+        
+        // Clean query parameters from URL
+        if (typeof window !== "undefined") {
+          const url = new URL(window.location.href);
+          url.searchParams.delete("path");
+          url.searchParams.delete("branch");
+          url.searchParams.delete("name");
+          url.searchParams.delete("category");
+          window.history.replaceState(null, "", url.pathname + url.search);
+        }
+      }
     }
   };
 
@@ -2546,6 +2734,9 @@ ${diffText.slice(0, 1500)}`;
 
         if (!deleteRes.ok) throw new Error("Failed to delete old file during rename");
 
+        // Clear the old file from IndexedDB
+        deleteFromLocalDB(activeDraft.path).catch(console.error);
+
         // 3. Update the local activeDraft state with the new path, name, and SHA
         const updatedDraft = {
           ...activeDraft,
@@ -2556,7 +2747,14 @@ ${diffText.slice(0, 1500)}`;
           branch: "notes-drafts",
           category: "drafts" as const
         };
-        setActiveDraft(updatedDraft);
+
+        // Update openTabs to map the old path to the new one and clear unsaved indicator
+        setOpenTabs(prev => prev.map(t => t.path === activeDraft.path ? {
+          ...updatedDraft,
+          localContent: editorText,
+          isUnsaved: false
+        } : t));
+        setActiveTabPath(newPath);
 
         // 4. Update the local drafts state list to map the old file path to the new one
         setDrafts(prev => prev.map(d => d.path === activeDraft.path ? updatedDraft : d));
@@ -2594,8 +2792,17 @@ ${diffText.slice(0, 1500)}`;
         if (!res.ok) throw new Error();
         const data = await res.json();
 
+        // Clear IndexedDB entry on successful GitHub save
+        deleteFromLocalDB(activeDraft.path).catch(console.error);
+
         const updatedDraft = { ...activeDraft, content: editorText, sha: data.content.sha };
-        setActiveDraft(updatedDraft);
+        setOpenTabs(prev => prev.map(t => t.path === activeDraft.path ? {
+          ...t,
+          content: editorText,
+          localContent: editorText,
+          sha: data.content.sha,
+          isUnsaved: false
+        } : t));
         setDrafts(prev => prev.map(d => d.path === activeDraft.path ? updatedDraft : d));
         lastSavedTextRef.current = editorText;
         setHasUnsavedChanges(false);
@@ -2642,10 +2849,12 @@ ${diffText.slice(0, 1500)}`;
         }),
       });
 
-      setDrafts(prev => prev.filter(d => d.path !== activeDraft.path));
-      setActiveDraft(null);
-      setEditorText("");
-      setSyncStatus("saved");
+      // Clear IndexedDB entry and close the tab on successful publishing
+      deleteFromLocalDB(activeDraft.path).catch(console.error);
+      const pathToClose = activeDraft.path;
+
+      setDrafts(prev => prev.filter(d => d.path !== pathToClose));
+      handleCloseTab(pathToClose);
       alert("Sucesso! Nota publicada com sucesso na branch main. O deploy automático será engatilhado no GitHub Pages!");
     } catch (err) {
       setSyncStatus("error");
@@ -2870,6 +3079,17 @@ ${editorText}`;
         console.error("Failed to load MathLive:", err);
       });
 
+    let handleOnline = () => {};
+    let handleOffline = () => {};
+
+    if (typeof window !== "undefined") {
+      setIsOnline(navigator.onLine);
+      handleOnline = () => setIsOnline(true);
+      handleOffline = () => setIsOnline(false);
+      window.addEventListener("online", handleOnline);
+      window.addEventListener("offline", handleOffline);
+    }
+
     const cachedToken = localStorage.getItem("GITHUB_PAT") || "";
     const cachedGemini = localStorage.getItem("GEMINI_API_KEY") || "";
     const cachedRepo = localStorage.getItem("WORKSPACE_REPO") || "racoci/racoci.github.io";
@@ -2883,6 +3103,13 @@ ${editorText}`;
       setIsAuthenticated(true);
       fetchDraftsList(cachedToken, cachedRepo, cachedMode);
     }
+
+    return () => {
+      if (typeof window !== "undefined") {
+        window.removeEventListener("online", handleOnline);
+        window.removeEventListener("offline", handleOffline);
+      }
+    };
   }, []);
 
   // Background Auto-Sync Engine: commit every 60 seconds if hasUnsavedChanges
@@ -2967,13 +3194,32 @@ ${editorText}`;
 
   const handleEditorChange = (val: string) => {
     setEditorText(val);
-    if (val !== lastSavedTextRef.current) {
-      setHasUnsavedChanges(true);
-      setSyncStatus("unsaved");
-    } else {
-      setHasUnsavedChanges(false);
-      setSyncStatus("saved");
-    }
+    if (!activeTabPath) return;
+
+    // Update openTabs state immediately with the new content
+    setOpenTabs((prev) =>
+      prev.map((tab) => {
+        if (tab.path === activeTabPath) {
+          const isChanged = val !== tab.content;
+          return {
+            ...tab,
+            localContent: val,
+            isUnsaved: isChanged,
+          };
+        }
+        return tab;
+      })
+    );
+
+    // Update hasUnsavedChanges and syncStatus
+    const isChanged = val !== lastSavedTextRef.current;
+    setHasUnsavedChanges(isChanged);
+    setSyncStatus(isChanged ? "unsaved" : "saved");
+
+    // Save to IndexedDB immediately in background
+    saveToLocalDB(activeTabPath, val).catch((err) => {
+      console.error("Failed to save to local IndexedDB:", err);
+    });
   };
 
   // Inline WYSIWYG block edit helpers
@@ -3134,6 +3380,14 @@ ${editorText}`;
             </button>
           </div>
 
+          {/* Connection Status Indicator */}
+          <div className="flex items-center gap-2 border-r border-zinc-800 pr-4">
+            <span className={`h-2 w-2 rounded-full ${isOnline ? "bg-emerald-500" : "bg-red-500 animate-pulse"}`} />
+            <span className="text-[10px] font-mono tracking-wider font-bold uppercase text-zinc-400">
+              {isOnline ? "Online" : "Offline"}
+            </span>
+          </div>
+
           <div className="flex items-center gap-2">
             <span className={`h-2 w-2 rounded-full ${
               syncStatus === "saved" ? "bg-emerald-500" :
@@ -3171,7 +3425,42 @@ ${editorText}`;
       </header>
 
       {/* Main flow-based container (Natural page scrolling!) */}
-      <div className="max-w-full w-full px-6 md:px-12 mt-8">
+      <div className="max-w-full w-full px-6 md:px-12 mt-8 space-y-6">
+        
+        {/* Tab Bar UI */}
+        {openTabs.length > 0 && (
+          <div className="flex items-center gap-1.5 border-b border-zinc-800/80 pb-2 overflow-x-auto scrollbar-none select-none">
+            {openTabs.map((tab) => {
+              const isActive = tab.path === activeTabPath;
+              return (
+                <div
+                  key={tab.path}
+                  onClick={() => selectTab(tab)}
+                  className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border transition-all text-xs font-mono font-bold cursor-pointer shrink-0 ${
+                    isActive
+                      ? "bg-zinc-900 border-zinc-700/80 text-emerald-400 shadow-md"
+                      : "bg-zinc-950/45 border-zinc-900/50 text-zinc-500 hover:text-zinc-300 hover:border-zinc-800"
+                  }`}
+                >
+                  <span className="truncate max-w-[150px]">{tab.name}</span>
+                  {tab.isUnsaved && (
+                    <span className="w-1.5 h-1.5 bg-yellow-500 rounded-full animate-pulse" title="Unsaved changes" />
+                  )}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleCloseTab(tab.path);
+                    }}
+                    className="p-0.5 hover:bg-zinc-850 rounded text-zinc-500 hover:text-red-400 transition-colors text-[10px]"
+                  >
+                    ×
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
         {activeDraft ? (
           <div className="w-full space-y-6">
             
