@@ -78,7 +78,7 @@ Enables seamless visual writing by converting dropped/pasted local images into p
 
 ---
 
-### 2. Component Inspector (Visual MDX Props Editor)
+### 2. Component Inspector (Visual MDX Props Editor) [COMPLETED]
 Fuses rich interactive widgets with visual form configurations. Clicking on any component in the MDX preview opens a visual property-inspector card.
 
 ```text
