@@ -108,7 +108,7 @@ graph LR
 
 ---
 
-### 3. Local-First Persistence & Multi-Tabs
+### 3. Local-First Persistence & Multi-Tabs [COMPLETED]
 Shields content creation from browser crashes or network disruption by utilizing a robust IndexedDB local-first database coupled with an intuitive multi-tab interface.
 
 *   **TDD Red Criteria (Failure Mode):**
@@ -120,7 +120,7 @@ Shields content creation from browser crashes or network disruption by utilizing
 
 ---
 
-### 4. MDX Linter & IntelliSense
+### 4. MDX Linter & IntelliSense [COMPLETED]
 Empowers editors with real-time feedback, highlighting syntax problems and unclosed MDX elements as they write.
 
 *   **TDD Red Criteria (Failure Mode):**
@@ -131,7 +131,7 @@ Empowers editors with real-time feedback, highlighting syntax problems and unclo
 
 ---
 
-### 5. Frontmatter GUI
+### 5. Frontmatter GUI [COMPLETED]
 A visual metadata editor that abstracts YAML configuration from authors, parsing and updating markdown frontmatter blocks automatically.
 
 *   **TDD Red Criteria (Failure Mode):**

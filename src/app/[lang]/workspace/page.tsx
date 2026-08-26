@@ -2072,6 +2072,253 @@ function MathBlockEditor({
   );
 }
 
+interface LinterError {
+  line: number;
+  message: string;
+  suggestion?: string;
+  isError: boolean;
+}
+
+function levenshtein(a: string, b: string): number {
+  const tmp: number[][] = [];
+  for (let i = 0; i <= a.length; i++) {
+    tmp[i] = [i];
+  }
+  for (let j = 0; j <= b.length; j++) {
+    tmp[0][j] = j;
+  }
+  for (let i = 1; i <= a.length; i++) {
+    for (let j = 1; j <= b.length; j++) {
+      tmp[i][j] = Math.min(
+        tmp[i - 1][j] + 1,
+        tmp[i][j - 1] + 1,
+        tmp[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1)
+      );
+    }
+  }
+  return tmp[a.length][b.length];
+}
+
+function validateMDX(text: string): LinterError[] {
+  const errors: LinterError[] = [];
+  const lines = text.split("\n");
+
+  // 1. Unclosed Math Blocks
+  let totalMathBlocks = 0;
+  for (let i = 0; i < lines.length; i++) {
+    const lineText = lines[i];
+    let idx = lineText.indexOf("$$");
+    while (idx !== -1) {
+      totalMathBlocks++;
+      idx = lineText.indexOf("$$", idx + 2);
+    }
+  }
+
+  if (totalMathBlocks % 2 !== 0) {
+    let lastMathLine = 1;
+    for (let i = 0; i < lines.length; i++) {
+      if (lines[i].includes("$$")) {
+        lastMathLine = i + 1;
+      }
+    }
+    errors.push({
+      line: lastMathLine,
+      message: "Unclosed display math block",
+      isError: true,
+    });
+  }
+
+  // 2. Unregistered Widgets
+  const widgetRegex = /<([A-Z][a-zA-Z0-9]*)\b/g;
+  for (let i = 0; i < lines.length; i++) {
+    const lineText = lines[i];
+    let match;
+    widgetRegex.lastIndex = 0;
+    while ((match = widgetRegex.exec(lineText)) !== null) {
+      const widgetName = match[1];
+      if (!WIDGET_SUGGESTIONS.includes(widgetName)) {
+        let bestMatch = "";
+        let minDistance = Infinity;
+        for (const widget of WIDGET_SUGGESTIONS) {
+          const dist = levenshtein(widgetName, widget);
+          if (dist < minDistance) {
+            minDistance = dist;
+            bestMatch = widget;
+          }
+        }
+        errors.push({
+          line: i + 1,
+          message: `Unknown widget <${widgetName}>`,
+          suggestion: bestMatch ? `Did you mean <${bestMatch}>?` : undefined,
+          isError: true,
+        });
+      }
+    }
+  }
+
+  return errors;
+}
+
+interface FrontmatterData {
+  title: string;
+  description: string;
+  date: string;
+  tags: string;
+  [key: string]: string;
+}
+
+function parseFrontmatter(text: string): FrontmatterData {
+  const defaultData: FrontmatterData = {
+    title: "",
+    description: "",
+    date: "",
+    tags: "",
+  };
+
+  const match = text.match(/^---\r?\n([\s\S]*?)\r?\n---/);
+  if (!match) return defaultData;
+
+  const yamlBlock = match[1];
+  const lines = yamlBlock.split("\n");
+  const data: FrontmatterData = { ...defaultData };
+
+  for (const line of lines) {
+    const colonIdx = line.indexOf(":");
+    if (colonIdx === -1) continue;
+    const key = line.substring(0, colonIdx).trim().toLowerCase();
+    let val = line.substring(colonIdx + 1).trim();
+    if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
+      val = val.substring(1, val.length - 1);
+    }
+    if (key === "title") data.title = val;
+    else if (key === "description") data.description = val;
+    else if (key === "date") data.date = val;
+    else if (key === "tags") data.tags = val;
+    else data[key] = val;
+  }
+
+  return data;
+}
+
+function serializeFrontmatter(data: FrontmatterData, originalText: string): string {
+  let yamlLines = ["---"];
+  yamlLines.push(`title: "${data.title.replace(/"/g, '\\"')}"`);
+  yamlLines.push(`description: "${data.description.replace(/"/g, '\\"')}"`);
+  yamlLines.push(`date: ${data.date}`);
+  yamlLines.push(`tags: ${data.tags}`);
+  
+  for (const [key, val] of Object.entries(data)) {
+    if (!["title", "description", "date", "tags"].includes(key)) {
+      yamlLines.push(`${key}: ${val}`);
+    }
+  }
+  yamlLines.push("---");
+  const newYamlBlock = yamlLines.join("\n");
+
+  const match = originalText.match(/^---\r?\n([\s\S]*?)\r?\n---/);
+  if (match) {
+    return newYamlBlock + originalText.substring(match[0].length);
+  } else {
+    return newYamlBlock + "\n\n" + originalText;
+  }
+}
+
+interface FrontmatterEditorProps {
+  value: string;
+  onChange: (newValue: string) => void;
+  isPt: boolean;
+}
+
+function FrontmatterEditor({ value, onChange, isPt }: FrontmatterEditorProps) {
+  const [isOpen, setIsOpen] = useState(true);
+  const data = parseFrontmatter(value);
+
+  const updateField = (key: keyof FrontmatterData, val: string) => {
+    const updated = { ...data, [key]: val };
+    const serialized = serializeFrontmatter(updated, value);
+    onChange(serialized);
+  };
+
+  return (
+    <div className="mb-6 bg-zinc-950/60 border border-zinc-800 rounded-2xl overflow-hidden transition-all duration-300">
+      <div 
+        className="px-5 py-3 bg-zinc-900/40 flex items-center justify-between cursor-pointer hover:bg-zinc-900/60 transition-all select-none"
+        onClick={() => setIsOpen(!isOpen)}
+      >
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-mono font-extrabold text-emerald-400 tracking-wider">
+            📝 {isPt ? "METADADOS (FRONTMATTER)" : "FRONTMATTER METADATA"}
+          </span>
+          <span className="text-[10px] font-mono bg-zinc-800 text-zinc-400 px-1.5 py-0.5 rounded font-bold">
+            YAML
+          </span>
+        </div>
+        <button className="text-zinc-500 hover:text-emerald-400 transition-all text-xs font-bold font-mono">
+          {isOpen ? (isPt ? "▲ Recolher" : "▲ Collapse") : (isPt ? "▼ Expandir" : "▼ Expand")}
+        </button>
+      </div>
+
+      {isOpen && (
+        <div className="p-5 space-y-4 border-t border-zinc-800/60 font-sans">
+          <div className="space-y-1">
+            <label className="text-[10px] font-mono font-bold text-zinc-500 uppercase tracking-wider block">
+              {isPt ? "Título" : "Title"}
+            </label>
+            <input
+              type="text"
+              value={data.title}
+              onChange={(e) => updateField("title", e.target.value)}
+              className="w-full px-3.5 py-2.5 bg-zinc-900/90 hover:bg-zinc-900 border border-zinc-800 rounded-xl text-zinc-100 placeholder-zinc-600 focus:border-emerald-500/50 outline-none transition-all text-sm font-semibold"
+              placeholder={isPt ? "Insira o título da postagem..." : "Enter post title..."}
+            />
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-[10px] font-mono font-bold text-zinc-500 uppercase tracking-wider block">
+              {isPt ? "Descrição" : "Description"}
+            </label>
+            <textarea
+              rows={3}
+              value={data.description}
+              onChange={(e) => updateField("description", e.target.value)}
+              className="w-full px-3.5 py-2.5 bg-zinc-900/90 hover:bg-zinc-900 border border-zinc-800 rounded-xl text-zinc-200 placeholder-zinc-600 focus:border-emerald-500/50 outline-none transition-all text-sm resize-none leading-relaxed"
+              placeholder={isPt ? "Insira uma breve descrição..." : "Enter a brief description..."}
+            />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-1">
+              <label className="text-[10px] font-mono font-bold text-zinc-500 uppercase tracking-wider block">
+                {isPt ? "Data" : "Date"}
+              </label>
+              <input
+                type="text"
+                value={data.date}
+                onChange={(e) => updateField("date", e.target.value)}
+                className="w-full px-3.5 py-2.5 bg-zinc-900/90 hover:bg-zinc-900 border border-zinc-800 rounded-xl text-zinc-200 placeholder-zinc-600 focus:border-emerald-500/50 outline-none transition-all text-sm font-mono"
+                placeholder="YYYY-MM-DD"
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-[10px] font-mono font-bold text-zinc-500 uppercase tracking-wider block">
+                Tags
+              </label>
+              <input
+                type="text"
+                value={data.tags}
+                onChange={(e) => updateField("tags", e.target.value)}
+                className="w-full px-3.5 py-2.5 bg-zinc-900/90 hover:bg-zinc-900 border border-zinc-800 rounded-xl text-zinc-200 placeholder-zinc-600 focus:border-emerald-500/50 outline-none transition-all text-sm font-mono"
+                placeholder="tag1, tag2, tag3"
+              />
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 interface DiffLine {
   type: "added" | "removed" | "unchanged";
   text: string;
@@ -2224,6 +2471,7 @@ function WorkspaceDashboard({ params }: PageProps) {
   };
 
   const [editorText, setEditorText] = useState("");
+  const linterErrors = React.useMemo(() => validateMDX(editorText), [editorText]);
   const [slug, setSlug] = useState("");
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [syncStatus, setSyncStatus] = useState<"saved" | "unsaved" | "syncing" | "error">("saved");
@@ -2815,6 +3063,14 @@ ${diffText.slice(0, 1500)}`;
 
   const handlePublish = async () => {
     if (!activeDraft) return;
+
+    // Safety Lock: Prevent publishing if there are critical MDX errors
+    const errors = validateMDX(editorText);
+    if (errors.length > 0) {
+      alert(`Não é possível publicar: Seu documento contém ${errors.length} erro(s) de validação de MDX que podem quebrar o build do Next.js. Por favor, corrija os erros exibidos nas "Diagnósticos" antes de publicar.`);
+      return;
+    }
+
     setSyncStatus("syncing");
 
     try {
@@ -3380,6 +3636,28 @@ ${editorText}`;
             </button>
           </div>
 
+          {/* Diagnostics Status Indicator */}
+          <div className="flex items-center gap-2 border-r border-zinc-800 pr-4">
+            {linterErrors.length === 0 ? (
+              <>
+                <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                <span className="text-[10px] font-mono tracking-wider font-bold uppercase text-emerald-400">
+                  ✓ 0 {isPt ? "Erros" : "Errors"}
+                </span>
+              </>
+            ) : (
+              <>
+                <span className="h-2 w-2 rounded-full bg-rose-500 animate-pulse" />
+                <span 
+                  className="text-[10px] font-mono tracking-wider font-bold uppercase text-rose-400 cursor-help" 
+                  title={linterErrors.map(e => `Linha ${e.line}: ${e.message}`).join("\n")}
+                >
+                  ⚠ {linterErrors.length} {linterErrors.length === 1 ? (isPt ? "Erro" : "Error") : (isPt ? "Erros" : "Errors")}
+                </span>
+              </>
+            )}
+          </div>
+
           {/* Connection Status Indicator */}
           <div className="flex items-center gap-2 border-r border-zinc-800 pr-4">
             <span className={`h-2 w-2 rounded-full ${isOnline ? "bg-emerald-500" : "bg-red-500 animate-pulse"}`} />
@@ -3854,74 +4132,164 @@ ${editorText}`;
                         </div>
                       ) : (
                         <div className="prose dark:prose-invert prose-emerald max-w-none text-zinc-300 font-serif leading-relaxed text-sm md:text-base space-y-2">
-                          {editorText.split("\n\n").map((blockText, blockIdx) => {
-                            const isEditingThisBlock = editingBlockIndex === blockIdx;
+                          <FrontmatterEditor
+                            value={editorText}
+                            onChange={handleEditorChange}
+                            isPt={isPt}
+                          />
+                          {(() => {
+                            let currentLine = 1;
+                            return editorText.split("\n\n").map((blockText, blockIdx) => {
+                              const startLine = currentLine;
+                              const lineCount = blockText.split("\n").length;
+                              const endLine = startLine + lineCount - 1;
+                              currentLine = endLine + 2; // +2 for double newline separator
 
-                            if (isEditingThisBlock) {
-                              const isMathBlock = blockText.trim().startsWith("$$") && blockText.trim().endsWith("$$");
+                              // Epic 5: Completely hide YAML frontmatter block from visual list rendering
+                              const trimmed = blockText.trim();
+                              if (trimmed.startsWith("---") && trimmed.endsWith("---") && trimmed.length > 5) {
+                                return null;
+                              }
 
-                              if (isMathBlock) {
+                              const isEditingThisBlock = editingBlockIndex === blockIdx;
+
+                              // Epic 4: Get linter errors falling within this block's line range
+                              const blockErrors = linterErrors.filter(err => err.line >= startLine && err.line <= endLine);
+                              const hasError = blockErrors.length > 0;
+
+                              if (isEditingThisBlock) {
+                                const isMathBlock = trimmed.startsWith("$$") && trimmed.endsWith("$$");
+
+                                if (isMathBlock) {
+                                  return (
+                                    <div key={blockIdx} className={`my-4 border ${hasError ? "border-rose-500/50 bg-rose-950/5" : "border-emerald-500/40"} bg-zinc-950 p-4 rounded-xl flex flex-col gap-2`} onClick={(e) => e.stopPropagation()}>
+                                      <MathBlockEditor
+                                        initialValue={blockText}
+                                        onChange={(val) => {
+                                          handleBlockChange(blockIdx, val);
+                                        }}
+                                        onBlur={() => setEditingBlockIndex(null)}
+                                        className="w-full"
+                                      />
+                                      <div className="flex justify-between items-center text-[9px] font-mono text-zinc-500 px-1">
+                                        <span>Pressione <kbd className="bg-zinc-900 px-1.5 py-0.5 rounded text-emerald-400">Clique fora</kbd> ou desfocar para salvar e compilar</span>
+                                        <span className="uppercase text-emerald-500 font-bold">Editando Fórmula Matemática</span>
+                                      </div>
+                                      {hasError && (
+                                        <div className="mt-2 p-3 bg-rose-950/25 border border-rose-500/30 rounded-xl text-xs text-rose-400 space-y-1.5 font-sans">
+                                          {blockErrors.map((err, errIdx) => (
+                                            <div key={errIdx} className="flex flex-col gap-0.5">
+                                              <div className="flex items-center gap-1.5 font-semibold">
+                                                <span className="text-rose-500">⚠</span>
+                                                <span>Linha {err.line}: {err.message}</span>
+                                              </div>
+                                              {err.suggestion && (
+                                                <div className="text-rose-300 pl-4 italic font-medium">{err.suggestion}</div>
+                                              )}
+                                            </div>
+                                          ))}
+                                        </div>
+                                      )}
+                                    </div>
+                                  );
+                                }
+
                                 return (
-                                  <div key={blockIdx} className="my-4 border border-emerald-500/40 bg-zinc-950 p-4 rounded-xl flex flex-col gap-2" onClick={(e) => e.stopPropagation()}>
-                                    <MathBlockEditor
-                                      initialValue={blockText}
-                                      onChange={(val) => {
+                                  <div key={blockIdx} className={`my-4 border ${hasError ? "border-rose-500/50 bg-rose-950/5" : "border-emerald-500/40"} bg-zinc-950 p-4 rounded-xl flex flex-col gap-2`} onClick={(e) => e.stopPropagation()}>
+                                    <AutosizingBlockTextarea
+                                      defaultValue={blockText}
+                                      onSave={(val) => {
                                         handleBlockChange(blockIdx, val);
+                                        setEditingBlockIndex(null);
                                       }}
-                                      onBlur={() => setEditingBlockIndex(null)}
-                                      className="w-full"
+                                      onCancel={() => setEditingBlockIndex(null)}
+                                      onTriggerMath={(isBlock) => {
+                                        const newVal = isBlock ? "$$\n\n$$" : "$$  $$";
+                                        handleBlockChange(blockIdx, newVal);
+                                      }}
+                                      onUploadImage={handleImageUpload}
+                                      className="w-full p-2 bg-zinc-950 text-zinc-100 font-mono text-sm leading-relaxed outline-none border-none resize-none overflow-hidden"
                                     />
                                     <div className="flex justify-between items-center text-[9px] font-mono text-zinc-500 px-1">
-                                      <span>Pressione <kbd className="bg-zinc-900 px-1.5 py-0.5 rounded text-emerald-400">Clique fora</kbd> ou desfocar para salvar e compilar</span>
-                                      <span className="uppercase text-emerald-500 font-bold">Editando Fórmula Matemática</span>
+                                      <span>Pressione <kbd className="bg-zinc-900 px-1.5 py-0.5 rounded text-emerald-400">Shift + Enter</kbd> ou clique fora para compilar</span>
+                                      <span className="uppercase text-emerald-500 font-bold">Editando Bloco</span>
                                     </div>
+                                    {hasError && (
+                                      <div className="mt-2 p-3 bg-rose-950/25 border border-rose-500/30 rounded-xl text-xs text-rose-400 space-y-1.5 font-sans">
+                                        {blockErrors.map((err, errIdx) => (
+                                          <div key={errIdx} className="flex flex-col gap-0.5">
+                                            <div className="flex items-center gap-1.5 font-semibold">
+                                              <span className="text-rose-500">⚠</span>
+                                              <span>Linha {err.line}: {err.message}</span>
+                                            </div>
+                                            {err.suggestion && (
+                                              <div className="text-rose-300 pl-4 italic font-medium">{err.suggestion}</div>
+                                            )}
+                                          </div>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              }
+
+                              const isWidget = WIDGET_SUGGESTIONS.some(w => blockText.includes(`<${w}`));
+                              const isInspected = inspectedBlockIdx === blockIdx;
+
+                              if (isWidget) {
+                                return (
+                                  <div
+                                    key={blockIdx}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setInspectedBlockIdx(blockIdx);
+                                    }}
+                                    className={`group relative my-4 p-2 -mx-2 hover:bg-zinc-900/30 rounded-xl transition-all cursor-pointer border ${
+                                      hasError ? "border-dashed border-rose-500 bg-rose-950/5 shadow-lg shadow-rose-950/10" :
+                                      isInspected ? "border-emerald-500/80 bg-emerald-950/5 shadow-lg shadow-emerald-950/20" : "border-transparent"
+                                    }`}
+                                    title="Clique para inspecionar propriedades do componente"
+                                  >
+                                    <div className="absolute top-1 right-2 opacity-0 group-hover:opacity-100 transition-opacity bg-zinc-950/80 border border-zinc-800 text-[9px] text-emerald-400 px-1.5 py-0.5 rounded font-mono font-bold select-none uppercase tracking-widest z-10">
+                                      {isInspected ? "Selecionado para Inspeção" : "Inspecionar Componente"}
+                                    </div>
+
+                                    <BlockContentRenderer
+                                      text={blockText}
+                                      onBlockUpdate={(newText) => handleBlockChange(blockIdx, newText)}
+                                      lang={lang}
+                                    />
+
+                                    {hasError && (
+                                      <div className="mt-2 p-3 bg-rose-950/25 border border-rose-500/30 rounded-xl text-xs text-rose-400 space-y-1.5 font-sans">
+                                        {blockErrors.map((err, errIdx) => (
+                                          <div key={errIdx} className="flex flex-col gap-0.5">
+                                            <div className="flex items-center gap-1.5 font-semibold">
+                                              <span className="text-rose-500">⚠</span>
+                                              <span>Linha {err.line}: {err.message}</span>
+                                            </div>
+                                            {err.suggestion && (
+                                              <div className="text-rose-300 pl-4 italic font-medium">{err.suggestion}</div>
+                                            )}
+                                          </div>
+                                        ))}
+                                      </div>
+                                    )}
                                   </div>
                                 );
                               }
 
                               return (
-                                <div key={blockIdx} className="my-4 border border-emerald-500/40 bg-zinc-950 p-4 rounded-xl flex flex-col gap-2" onClick={(e) => e.stopPropagation()}>
-                                  <AutosizingBlockTextarea
-                                    defaultValue={blockText}
-                                    onSave={(val) => {
-                                      handleBlockChange(blockIdx, val);
-                                      setEditingBlockIndex(null);
-                                    }}
-                                    onCancel={() => setEditingBlockIndex(null)}
-                                    onTriggerMath={(isBlock) => {
-                                      const newVal = isBlock ? "$$\n\n$$" : "$$  $$";
-                                      handleBlockChange(blockIdx, newVal);
-                                    }}
-                                    onUploadImage={handleImageUpload}
-                                    className="w-full p-2 bg-zinc-950 text-zinc-100 font-mono text-sm leading-relaxed outline-none border-none resize-none overflow-hidden"
-                                  />
-                                  <div className="flex justify-between items-center text-[9px] font-mono text-zinc-500 px-1">
-                                    <span>Pressione <kbd className="bg-zinc-900 px-1.5 py-0.5 rounded text-emerald-400">Shift + Enter</kbd> ou clique fora para compilar</span>
-                                    <span className="uppercase text-emerald-500 font-bold">Editando Bloco</span>
-                                  </div>
-                                </div>
-                              );
-                            }
-
-                            const isWidget = WIDGET_SUGGESTIONS.some(w => blockText.includes(`<${w}`));
-                            const isInspected = inspectedBlockIdx === blockIdx;
-
-                            if (isWidget) {
-                              return (
                                 <div
                                   key={blockIdx}
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setInspectedBlockIdx(blockIdx);
-                                  }}
-                                  className={`group relative p-2 -mx-2 hover:bg-zinc-900/30 rounded-xl transition-all cursor-pointer border ${
-                                    isInspected ? "border-emerald-500/80 bg-emerald-950/5 shadow-lg shadow-emerald-950/20" : "border-transparent"
+                                  onClick={() => setEditingBlockIndex(blockIdx)}
+                                  className={`group relative p-2 -mx-2 hover:bg-zinc-900/30 rounded-xl transition-all cursor-text border ${
+                                    hasError ? "border-dashed border-rose-500 bg-rose-950/5" : "border-transparent"
                                   }`}
-                                  title="Clique para inspecionar propriedades do componente"
+                                  title="Clique para editar este bloco"
                                 >
-                                  {/* Hover Inspect Icon */}
-                                  <div className="absolute top-1 right-2 opacity-0 group-hover:opacity-100 transition-opacity bg-zinc-950/80 border border-zinc-800 text-[9px] text-emerald-400 px-1.5 py-0.5 rounded font-mono font-bold select-none uppercase tracking-widest z-10">
-                                    {isInspected ? "Selecionado para Inspeção" : "Inspecionar Componente"}
+                                  <div className="absolute top-1 right-2 opacity-0 group-hover:opacity-100 transition-opacity bg-zinc-950/80 border border-zinc-800 text-[9px] text-emerald-400 px-1.5 py-0.5 rounded font-mono font-bold select-none uppercase tracking-widest">
+                                    Editar Bloco
                                   </div>
 
                                   <BlockContentRenderer
@@ -3929,30 +4297,26 @@ ${editorText}`;
                                     onBlockUpdate={(newText) => handleBlockChange(blockIdx, newText)}
                                     lang={lang}
                                   />
+
+                                  {hasError && (
+                                    <div className="mt-2 p-3 bg-rose-950/25 border border-rose-500/30 rounded-xl text-xs text-rose-400 space-y-1.5 font-sans">
+                                      {blockErrors.map((err, errIdx) => (
+                                        <div key={errIdx} className="flex flex-col gap-0.5">
+                                          <div className="flex items-center gap-1.5 font-semibold">
+                                            <span className="text-rose-500">⚠</span>
+                                            <span>Linha {err.line}: {err.message}</span>
+                                          </div>
+                                          {err.suggestion && (
+                                            <div className="text-rose-300 pl-4 italic font-medium">{err.suggestion}</div>
+                                          )}
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
                                 </div>
                               );
-                            }
-
-                            return (
-                              <div
-                                key={blockIdx}
-                                onClick={() => setEditingBlockIndex(blockIdx)}
-                                className="group relative p-2 -mx-2 hover:bg-zinc-900/30 rounded-xl transition-all cursor-text border border-transparent"
-                                title="Clique para editar este bloco"
-                              >
-                                {/* Hover Edit Icon */}
-                                <div className="absolute top-1 right-2 opacity-0 group-hover:opacity-100 transition-opacity bg-zinc-950/80 border border-zinc-800 text-[9px] text-emerald-400 px-1.5 py-0.5 rounded font-mono font-bold select-none uppercase tracking-widest">
-                                  Editar Bloco
-                                </div>
-
-                                <BlockContentRenderer
-                                  text={blockText}
-                                  onBlockUpdate={(newText) => handleBlockChange(blockIdx, newText)}
-                                  lang={lang}
-                                />
-                              </div>
-                            );
-                          })}
+                            });
+                          })()}
                         </div>
                       )}
                     </div>
@@ -3985,74 +4349,164 @@ ${editorText}`;
                 </div>
 
                 <div className="prose dark:prose-invert prose-emerald max-w-none text-zinc-300 font-serif leading-relaxed text-sm md:text-base space-y-2">
-                  {editorText.split("\n\n").map((blockText, blockIdx) => {
-                    const isEditingThisBlock = editingBlockIndex === blockIdx;
+                  <FrontmatterEditor
+                    value={editorText}
+                    onChange={handleEditorChange}
+                    isPt={isPt}
+                  />
+                  {(() => {
+                    let currentLine = 1;
+                    return editorText.split("\n\n").map((blockText, blockIdx) => {
+                      const startLine = currentLine;
+                      const lineCount = blockText.split("\n").length;
+                      const endLine = startLine + lineCount - 1;
+                      currentLine = endLine + 2; // +2 for double newline separator
 
-                    if (isEditingThisBlock) {
-                      const isMathBlock = blockText.trim().startsWith("$$") && blockText.trim().endsWith("$$");
+                      // Epic 5: Completely hide YAML frontmatter block from visual list rendering
+                      const trimmed = blockText.trim();
+                      if (trimmed.startsWith("---") && trimmed.endsWith("---") && trimmed.length > 5) {
+                        return null;
+                      }
 
-                      if (isMathBlock) {
+                      const isEditingThisBlock = editingBlockIndex === blockIdx;
+
+                      // Epic 4: Get linter errors falling within this block's line range
+                      const blockErrors = linterErrors.filter(err => err.line >= startLine && err.line <= endLine);
+                      const hasError = blockErrors.length > 0;
+
+                      if (isEditingThisBlock) {
+                        const isMathBlock = trimmed.startsWith("$$") && trimmed.endsWith("$$");
+
+                        if (isMathBlock) {
+                          return (
+                            <div key={blockIdx} className={`my-4 border ${hasError ? "border-rose-500/50 bg-rose-950/5" : "border-emerald-500/40"} bg-zinc-950 p-4 rounded-xl flex flex-col gap-2`} onClick={(e) => e.stopPropagation()}>
+                              <MathBlockEditor
+                                initialValue={blockText}
+                                onChange={(val) => {
+                                  handleBlockChange(blockIdx, val);
+                                }}
+                                onBlur={() => setEditingBlockIndex(null)}
+                                className="w-full"
+                              />
+                              <div className="flex justify-between items-center text-[9px] font-mono text-zinc-500 px-1">
+                                <span>Pressione <kbd className="bg-zinc-900 px-1.5 py-0.5 rounded text-emerald-400">Clique fora</kbd> ou desfocar para salvar e compilar</span>
+                                <span className="uppercase text-emerald-500 font-bold">Editando Fórmula Matemática</span>
+                              </div>
+                              {hasError && (
+                                <div className="mt-2 p-3 bg-rose-950/25 border border-rose-500/30 rounded-xl text-xs text-rose-400 space-y-1.5 font-sans">
+                                  {blockErrors.map((err, errIdx) => (
+                                    <div key={errIdx} className="flex flex-col gap-0.5">
+                                      <div className="flex items-center gap-1.5 font-semibold">
+                                        <span className="text-rose-500">⚠</span>
+                                        <span>Linha {err.line}: {err.message}</span>
+                                      </div>
+                                      {err.suggestion && (
+                                        <div className="text-rose-300 pl-4 italic font-medium">{err.suggestion}</div>
+                                      )}
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        }
+
                         return (
-                          <div key={blockIdx} className="my-4 border border-emerald-500/40 bg-zinc-950 p-4 rounded-xl flex flex-col gap-2" onClick={(e) => e.stopPropagation()}>
-                            <MathBlockEditor
-                              initialValue={blockText}
-                              onChange={(val) => {
+                          <div key={blockIdx} className={`my-4 border ${hasError ? "border-rose-500/50 bg-rose-950/5" : "border-emerald-500/40"} bg-zinc-950 p-4 rounded-xl flex flex-col gap-2`}>
+                            <AutosizingBlockTextarea
+                              defaultValue={blockText}
+                              onSave={(val) => {
                                 handleBlockChange(blockIdx, val);
+                                setEditingBlockIndex(null);
                               }}
-                              onBlur={() => setEditingBlockIndex(null)}
-                              className="w-full"
+                              onCancel={() => setEditingBlockIndex(null)}
+                              onTriggerMath={(isBlock) => {
+                                const newVal = isBlock ? "$$\n\n$$" : "$$  $$";
+                                handleBlockChange(blockIdx, newVal);
+                              }}
+                              onUploadImage={handleImageUpload}
+                              className="w-full p-2 bg-zinc-950 text-zinc-100 font-mono text-sm leading-relaxed outline-none border-none resize-none overflow-hidden"
                             />
                             <div className="flex justify-between items-center text-[9px] font-mono text-zinc-500 px-1">
-                              <span>Pressione <kbd className="bg-zinc-900 px-1.5 py-0.5 rounded text-emerald-400">Clique fora</kbd> ou desfocar para salvar e compilar</span>
-                              <span className="uppercase text-emerald-500 font-bold">Editando Fórmula Matemática</span>
+                              <span>Pressione <kbd className="bg-zinc-900 px-1.5 py-0.5 rounded text-emerald-400">Shift + Enter</kbd> ou clique fora para compilar</span>
+                              <span className="uppercase text-emerald-500 font-bold">Editando Bloco</span>
                             </div>
+                            {hasError && (
+                              <div className="mt-2 p-3 bg-rose-950/25 border border-rose-500/30 rounded-xl text-xs text-rose-400 space-y-1.5 font-sans">
+                                {blockErrors.map((err, errIdx) => (
+                                  <div key={errIdx} className="flex flex-col gap-0.5">
+                                    <div className="flex items-center gap-1.5 font-semibold">
+                                      <span className="text-rose-500">⚠</span>
+                                      <span>Linha {err.line}: {err.message}</span>
+                                    </div>
+                                    {err.suggestion && (
+                                      <div className="text-rose-300 pl-4 italic font-medium">{err.suggestion}</div>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      }
+
+                      const isWidget = WIDGET_SUGGESTIONS.some(w => blockText.includes(`<${w}`));
+                      const isInspected = inspectedBlockIdx === blockIdx;
+
+                      if (isWidget) {
+                        return (
+                          <div
+                            key={blockIdx}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setInspectedBlockIdx(blockIdx);
+                            }}
+                            className={`group relative my-4 p-2 -mx-2 hover:bg-zinc-900/30 rounded-xl transition-all cursor-pointer border ${
+                              hasError ? "border-dashed border-rose-500 bg-rose-950/5 shadow-lg shadow-rose-950/10" :
+                              isInspected ? "border-emerald-500/80 bg-emerald-950/5 shadow-lg shadow-emerald-950/20" : "border-transparent"
+                            }`}
+                            title="Clique para inspecionar propriedades do componente"
+                          >
+                            <div className="absolute top-1 right-2 opacity-0 group-hover:opacity-100 transition-opacity bg-zinc-950/80 border border-zinc-800 text-[9px] text-emerald-400 px-1.5 py-0.5 rounded font-mono font-bold select-none uppercase tracking-widest z-10">
+                              {isInspected ? "Selecionado para Inspeção" : "Inspecionar Componente"}
+                            </div>
+
+                            <BlockContentRenderer
+                              text={blockText}
+                              onBlockUpdate={(newText) => handleBlockChange(blockIdx, newText)}
+                              lang={lang}
+                            />
+
+                            {hasError && (
+                              <div className="mt-2 p-3 bg-rose-950/25 border border-rose-500/30 rounded-xl text-xs text-rose-400 space-y-1.5 font-sans">
+                                {blockErrors.map((err, errIdx) => (
+                                  <div key={errIdx} className="flex flex-col gap-0.5">
+                                    <div className="flex items-center gap-1.5 font-semibold">
+                                      <span className="text-rose-500">⚠</span>
+                                      <span>Linha {err.line}: {err.message}</span>
+                                    </div>
+                                    {err.suggestion && (
+                                      <div className="text-rose-300 pl-4 italic font-medium">{err.suggestion}</div>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
                           </div>
                         );
                       }
 
                       return (
-                        <div key={blockIdx} className="my-4 border border-emerald-500/40 bg-zinc-950 p-4 rounded-xl flex flex-col gap-2">
-                          <AutosizingBlockTextarea
-                            defaultValue={blockText}
-                            onSave={(val) => {
-                              handleBlockChange(blockIdx, val);
-                              setEditingBlockIndex(null);
-                            }}
-                            onCancel={() => setEditingBlockIndex(null)}
-                            onTriggerMath={(isBlock) => {
-                              const newVal = isBlock ? "$$\n\n$$" : "$$  $$";
-                              handleBlockChange(blockIdx, newVal);
-                            }}
-                            onUploadImage={handleImageUpload}
-                            className="w-full p-2 bg-zinc-950 text-zinc-100 font-mono text-sm leading-relaxed outline-none border-none resize-none overflow-hidden"
-                          />
-                          <div className="flex justify-between items-center text-[9px] font-mono text-zinc-500 px-1">
-                            <span>Pressione <kbd className="bg-zinc-900 px-1.5 py-0.5 rounded text-emerald-400">Shift + Enter</kbd> ou clique fora para compilar</span>
-                            <span className="uppercase text-emerald-500 font-bold">Editando Bloco</span>
-                          </div>
-                        </div>
-                      );
-                    }
-
-                    const isWidget = WIDGET_SUGGESTIONS.some(w => blockText.includes(`<${w}`));
-                    const isInspected = inspectedBlockIdx === blockIdx;
-
-                    if (isWidget) {
-                      return (
                         <div
                           key={blockIdx}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setInspectedBlockIdx(blockIdx);
-                          }}
-                          className={`group relative my-4 p-2 -mx-2 hover:bg-zinc-900/30 rounded-xl transition-all cursor-pointer border ${
-                            isInspected ? "border-emerald-500/80 bg-emerald-950/5 shadow-lg shadow-emerald-950/20" : "border-transparent"
+                          onClick={() => setEditingBlockIndex(blockIdx)}
+                          className={`group relative my-4 p-2 -mx-2 hover:bg-zinc-900/30 rounded-xl transition-all cursor-text border ${
+                            hasError ? "border-dashed border-rose-500 bg-rose-950/5" : "border-transparent"
                           }`}
-                          title="Clique para inspecionar propriedades do componente"
+                          title="Clique para editar este bloco"
                         >
-                          {/* Hover Inspect Icon */}
-                          <div className="absolute top-1 right-2 opacity-0 group-hover:opacity-100 transition-opacity bg-zinc-950/80 border border-zinc-800 text-[9px] text-emerald-400 px-1.5 py-0.5 rounded font-mono font-bold select-none uppercase tracking-widest z-10">
-                            {isInspected ? "Selecionado para Inspeção" : "Inspecionar Componente"}
+                          <div className="absolute top-1 right-2 opacity-0 group-hover:opacity-100 transition-opacity bg-zinc-950/80 border border-zinc-800 text-[9px] text-emerald-400 px-1.5 py-0.5 rounded font-mono font-bold select-none uppercase tracking-widest">
+                            Editar Bloco
                           </div>
 
                           <BlockContentRenderer
@@ -4060,31 +4514,26 @@ ${editorText}`;
                             onBlockUpdate={(newText) => handleBlockChange(blockIdx, newText)}
                             lang={lang}
                           />
+
+                          {hasError && (
+                            <div className="mt-2 p-3 bg-rose-950/25 border border-rose-500/30 rounded-xl text-xs text-rose-400 space-y-1.5 font-sans">
+                              {blockErrors.map((err, errIdx) => (
+                                <div key={errIdx} className="flex flex-col gap-0.5">
+                                  <div className="flex items-center gap-1.5 font-semibold">
+                                    <span className="text-rose-500">⚠</span>
+                                    <span>Linha {err.line}: {err.message}</span>
+                                  </div>
+                                  {err.suggestion && (
+                                    <div className="text-rose-300 pl-4 italic font-medium">{err.suggestion}</div>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       );
-                    }
-
-                    // Render block visually with edit click handler
-                    return (
-                      <div
-                        key={blockIdx}
-                        onClick={() => setEditingBlockIndex(blockIdx)}
-                        className="group relative my-4 p-2 -mx-2 hover:bg-zinc-900/30 rounded-xl transition-all cursor-text border border-transparent"
-                        title="Clique para editar este bloco"
-                      >
-                        {/* Hover Edit Icon */}
-                        <div className="absolute top-1 right-2 opacity-0 group-hover:opacity-100 transition-opacity bg-zinc-950/80 border border-zinc-800 text-[9px] text-emerald-400 px-1.5 py-0.5 rounded font-mono font-bold select-none uppercase tracking-widest">
-                          Editar Bloco
-                        </div>
-
-                        <BlockContentRenderer
-                          text={blockText}
-                          onBlockUpdate={(newText) => handleBlockChange(blockIdx, newText)}
-                          lang={lang}
-                        />
-                      </div>
-                    );
-                  })}
+                    });
+                  })()}
                 </div>
               </div>
             )}
