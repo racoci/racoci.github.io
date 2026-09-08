@@ -26,6 +26,7 @@ import EllipticCurveVisualizer from "../../../components/sike/EllipticCurveVisua
 import IsogenyFoldVisualizer from "../../../components/sike/IsogenyFoldVisualizer";
 import SIDHDiagramVisualizer from "../../../components/sike/SIDHDiagramVisualizer";
 import Genus2RadarVisualizer from "../../../components/sike/Genus2RadarVisualizer";
+import MatrixMultiplicationVisualizer from "../../../components/math/MatrixMultiplicationVisualizer";
 
 interface DraftFile {
   name: string;
@@ -431,7 +432,8 @@ const WIDGET_SUGGESTIONS = [
   "EllipticCurveVisualizer",
   "IsogenyFoldVisualizer",
   "SIDHDiagramVisualizer",
-  "Genus2RadarVisualizer"
+  "Genus2RadarVisualizer",
+  "MatrixMultiplicationVisualizer"
 ];
 
 interface WidgetPropMeta {
@@ -455,7 +457,8 @@ const WIDGET_METADATA: Record<string, Record<string, WidgetPropMeta>> = {
   "EllipticCurveVisualizer": {},
   "IsogenyFoldVisualizer": {},
   "SIDHDiagramVisualizer": {},
-  "Genus2RadarVisualizer": {}
+  "Genus2RadarVisualizer": {},
+  "MatrixMultiplicationVisualizer": {}
 };
 
 function parseWidgetProps(contentStr: string): Record<string, any> {
@@ -1698,6 +1701,7 @@ function BlockContentRenderer({
               {token.widgetName === "IsogenyFoldVisualizer" && <IsogenyFoldVisualizer />}
               {token.widgetName === "SIDHDiagramVisualizer" && <SIDHDiagramVisualizer />}
               {token.widgetName === "Genus2RadarVisualizer" && <Genus2RadarVisualizer />}
+              {token.widgetName === "MatrixMultiplicationVisualizer" && <MatrixMultiplicationVisualizer />}
             </div>
           );
         }
@@ -1873,7 +1877,7 @@ function parseMDXContent(text: string): Token[] {
   // 4. Split by Interactive Widgets
   tokens = splitTokenList(
     tokens,
-    /<(ComplexPlotter|NodeGraftViewer|B3Screener|SudokuViewer|SudokuMiniWidget|QuadtreeVisualizer|MappingVisualizer|CountersVisualizer|PolynomialEditor|InnerProductWindingVisualizer|OrthogonalProjectionVisualizer|ErrorDiskConstraintVisualizer|AsymptoticScalingVisualizer|PasswordManagerWidget|SternBrocotVisualizer|GaussianQuadratureVisualizer|BarningHallTreeVisualizer|EllipticCurveVisualizer|IsogenyFoldVisualizer|SIDHDiagramVisualizer|Genus2RadarVisualizer)([^>]*?)\/>/g,
+    /<(ComplexPlotter|NodeGraftViewer|B3Screener|SudokuViewer|SudokuMiniWidget|QuadtreeVisualizer|MappingVisualizer|CountersVisualizer|PolynomialEditor|InnerProductWindingVisualizer|OrthogonalProjectionVisualizer|ErrorDiskConstraintVisualizer|AsymptoticScalingVisualizer|PasswordManagerWidget|SternBrocotVisualizer|GaussianQuadratureVisualizer|BarningHallTreeVisualizer|EllipticCurveVisualizer|IsogenyFoldVisualizer|SIDHDiagramVisualizer|Genus2RadarVisualizer|MatrixMultiplicationVisualizer)([^>]*?)\/>/g,
     (match) => ({
       type: "widget",
       widgetName: match[1],
