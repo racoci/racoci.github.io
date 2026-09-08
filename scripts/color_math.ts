@@ -35,6 +35,8 @@ const colorRules: Record<string, string> = {
   'c': '#f43f5e',
   'm': '#fbbf24', 'n': '#fbbf24', 'm_1': '#fbbf24', 'm_2': '#fbbf24', 'n_1': '#fbbf24', 'n_2': '#fbbf24',
   '\\pi': '#fbbf24',
+  'C': '#10b981', 'B': '#3b82f6',
+  't': '#fbbf24', 's': '#fbbf24', 'x': '#fbbf24', 'y': '#fbbf24',
 
   // Operators / Functions / Matrices (Purple)
   'N': '#a855f7',
@@ -227,7 +229,9 @@ function processFiles() {
     path.resolve(__dirname, '../src/content/essays/pythagorean-trees/pt.mdx'),
     path.resolve(__dirname, '../src/content/essays/pythagorean-trees/en.mdx'),
     path.resolve(__dirname, '../src/content/essays/sike/pt.mdx'),
-    path.resolve(__dirname, '../src/content/essays/sike/en.mdx')
+    path.resolve(__dirname, '../src/content/essays/sike/en.mdx'),
+    path.resolve(__dirname, '../src/content/essays/matrix-tensor/pt.mdx'),
+    path.resolve(__dirname, '../src/content/essays/matrix-tensor/en.mdx')
   ];
 
   files.forEach(file => {

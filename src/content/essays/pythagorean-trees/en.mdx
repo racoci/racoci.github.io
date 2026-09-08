@@ -56,12 +56,12 @@ $$
 
 In linear algebra, we can track the state of the bounds using a $2 \times 2$ matrix:
 $$
-\textcolor{#a855f7}{M} = \begin{pmatrix} \textcolor{#fbbf24}{m_1} & \textcolor{#fbbf24}{m_2} \\ \textcolor{#fbbf24}{n_1} & \textcolor{#fbbf24}{n_2} \end{pmatrix}
+\textcolor{#a855f7}{M} = \begin{pmatri\textcolor{#fbbf24}{x}} \textcolor{#fbbf24}{m_1} & \textcolor{#fbbf24}{m_2} \\ \textcolor{#fbbf24}{n_1} & \textcolor{#fbbf24}{n_2} \end{pmatri\textcolor{#fbbf24}{x}}
 $$
 
 Navigating down the tree to the left or right is completely isomorphic to multiplying the current state matrix by constant transformation matrices $\textcolor{#3b82f6}{L}$ and $\textcolor{#fbbf24}{R}$:
 $$
-\textcolor{#3b82f6}{L} = \begin{pmatrix} 1 & 0 \\ 1 & 1 \end{pmatrix} \quad \textcolor{#fbbf24}{R} = \begin{pmatrix} 1 & 1 \\ 0 & 1 \end{pmatrix}
+\textcolor{#3b82f6}{L} = \begin{pmatri\textcolor{#fbbf24}{x}} 1 & 0 \\ 1 & 1 \end{pmatri\textcolor{#fbbf24}{x}} \quad \textcolor{#fbbf24}{R} = \begin{pmatri\textcolor{#fbbf24}{x}} 1 & 1 \\ 0 & 1 \end{pmatri\textcolor{#fbbf24}{x}}
 $$
 
 Because the Stern-Brocot tree contains *all* rational numbers, we can use it to find extremely precise fractional approximations of irrational limits like $\textcolor{#fbbf24}{\pi}$.
@@ -76,18 +76,18 @@ If the 2D matrices of the Stern-Brocot tree generate all $(\textcolor{#fbbf24}{m
 
 In 1934, Barning discovered that the linear 2D transformations of the Stern-Brocot tree induce strictly orthogonal 3D transformations on the resulting Pythagorean triples. This forms the **Barning-Hall Tree**, an infinite ternary tree (each node has 3 children) that generates every single primitive Pythagorean triple exactly once!
 
-Instead of $2 \times 2$ matrices on $\textcolor{#fbbf24}{m}$ and $\textcolor{#fbbf24}{n}$, we use $3 \times 3$ matrices acting directly on the column vector $\begin{pmatrix} \textcolor{#10b981}{a} \\ \textcolor{#3b82f6}{b} \\ \textcolor{#f43f5e}{c} \end{pmatrix}$:
+Instead of $2 \times 2$ matrices on $\textcolor{#fbbf24}{m}$ and $\textcolor{#fbbf24}{n}$, we use $3 \times 3$ matrices acting directly on the column vector $\begin{pmatri\textcolor{#fbbf24}{x}} \textcolor{#10b981}{a} \\ \textcolor{#3b82f6}{b} \\ \textcolor{#f43f5e}{c} \end{pmatri\textcolor{#fbbf24}{x}}$:
 
 $$
-\textcolor{#a855f7}{U} = \begin{pmatrix} 1 & -2 & 2 \\ 2 & -1 & 2 \\ 2 & -2 & 3 \end{pmatrix}
-$$
-
-$$
-\textcolor{#a855f7}{A} = \begin{pmatrix} 1 & 2 & 2 \\ 2 & 1 & 2 \\ 2 & 2 & 3 \end{pmatrix}
+\textcolor{#a855f7}{U} = \begin{pmatri\textcolor{#fbbf24}{x}} 1 & -2 & 2 \\ 2 & -1 & 2 \\ 2 & -2 & 3 \end{pmatri\textcolor{#fbbf24}{x}}
 $$
 
 $$
-\textcolor{#a855f7}{D} = \begin{pmatrix} -1 & 2 & 2 \\ -2 & 1 & 2 \\ -2 & 2 & 3 \end{pmatrix}
+\textcolor{#a855f7}{A} = \begin{pmatri\textcolor{#fbbf24}{x}} 1 & 2 & 2 \\ 2 & 1 & 2 \\ 2 & 2 & 3 \end{pmatri\textcolor{#fbbf24}{x}}
+$$
+
+$$
+\textcolor{#a855f7}{D} = \begin{pmatri\textcolor{#fbbf24}{x}} -1 & 2 & 2 \\ -2 & 1 & 2 \\ -2 & 2 & 3 \end{pmatri\textcolor{#fbbf24}{x}}
 $$
 
 Starting strictly from the root triangle $(3, 4, 5)$, applying these three matrices recursively will map out the entire infinite fractal topology of right-angled triangles.

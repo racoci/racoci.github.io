@@ -56,12 +56,12 @@ $$
 
 Em álgebra linear, podemos rastrear o estado dos limites usando uma matriz $2 \times 2$:
 $$
-\textcolor{#a855f7}{M} = \begin{pmatrix} \textcolor{#fbbf24}{m_1} & \textcolor{#fbbf24}{m_2} \\ \textcolor{#fbbf24}{n_1} & \textcolor{#fbbf24}{n_2} \end{pmatrix}
+\textcolor{#a855f7}{M} = \begin{pmatri\textcolor{#fbbf24}{x}} \textcolor{#fbbf24}{m_1} & \textcolor{#fbbf24}{m_2} \\ \textcolor{#fbbf24}{n_1} & \textcolor{#fbbf24}{n_2} \end{pmatri\textcolor{#fbbf24}{x}}
 $$
 
 Navegar pela árvore para a esquerda ou para a direita é completamente isomórfico à multiplicação da matriz de estado atual pelas matrizes de transformação constantes $\textcolor{#3b82f6}{L}$ e $\textcolor{#fbbf24}{R}$:
 $$
-\textcolor{#3b82f6}{L} = \begin{pmatrix} 1 & 0 \\ 1 & 1 \end{pmatrix} \quad \textcolor{#fbbf24}{R} = \begin{pmatrix} 1 & 1 \\ 0 & 1 \end{pmatrix}
+\textcolor{#3b82f6}{L} = \begin{pmatri\textcolor{#fbbf24}{x}} 1 & 0 \\ 1 & 1 \end{pmatri\textcolor{#fbbf24}{x}} \quad \textcolor{#fbbf24}{R} = \begin{pmatri\textcolor{#fbbf24}{x}} 1 & 1 \\ 0 & 1 \end{pmatri\textcolor{#fbbf24}{x}}
 $$
 
 Como a árvore de Stern-Brocot contém *todos* os números racionais, podemos usá-la para encontrar aproximações fracionárias extremamente precisas de limites irracionais como o $\textcolor{#fbbf24}{\pi}$.
@@ -76,18 +76,18 @@ Se as matrizes 2D da árvore de Stern-Brocot geram todos os pares $(\textcolor{#
 
 Em 1934, Barning descobriu que as transformações lineares 2D da árvore de Stern-Brocot induzem transformações 3D estritamente ortogonais nas triplas pitagóricas resultantes. Isso forma a **Árvore de Barning-Hall**, uma árvore ternária infinita (cada nó tem 3 filhos) que gera cada tripla pitagórica primitiva exatamente uma vez!
 
-Em vez de matrizes $2 \times 2$ em $\textcolor{#fbbf24}{m}$ e $\textcolor{#fbbf24}{n}$, usamos matrizes $3 \times 3$ agindo diretamente no vetor coluna $\begin{pmatrix} \textcolor{#10b981}{a} \\ \textcolor{#3b82f6}{b} \\ \textcolor{#f43f5e}{c} \end{pmatrix}$:
+Em vez de matrizes $2 \times 2$ em $\textcolor{#fbbf24}{m}$ e $\textcolor{#fbbf24}{n}$, usamos matrizes $3 \times 3$ agindo diretamente no vetor coluna $\begin{pmatri\textcolor{#fbbf24}{x}} \textcolor{#10b981}{a} \\ \textcolor{#3b82f6}{b} \\ \textcolor{#f43f5e}{c} \end{pmatri\textcolor{#fbbf24}{x}}$:
 
 $$
-\textcolor{#a855f7}{U} = \begin{pmatrix} 1 & -2 & 2 \\ 2 & -1 & 2 \\ 2 & -2 & 3 \end{pmatrix}
-$$
-
-$$
-\textcolor{#a855f7}{A} = \begin{pmatrix} 1 & 2 & 2 \\ 2 & 1 & 2 \\ 2 & 2 & 3 \end{pmatrix}
+\textcolor{#a855f7}{U} = \begin{pmatri\textcolor{#fbbf24}{x}} 1 & -2 & 2 \\ 2 & -1 & 2 \\ 2 & -2 & 3 \end{pmatri\textcolor{#fbbf24}{x}}
 $$
 
 $$
-\textcolor{#a855f7}{D} = \begin{pmatrix} -1 & 2 & 2 \\ -2 & 1 & 2 \\ -2 & 2 & 3 \end{pmatrix}
+\textcolor{#a855f7}{A} = \begin{pmatri\textcolor{#fbbf24}{x}} 1 & 2 & 2 \\ 2 & 1 & 2 \\ 2 & 2 & 3 \end{pmatri\textcolor{#fbbf24}{x}}
+$$
+
+$$
+\textcolor{#a855f7}{D} = \begin{pmatri\textcolor{#fbbf24}{x}} -1 & 2 & 2 \\ -2 & 1 & 2 \\ -2 & 2 & 3 \end{pmatri\textcolor{#fbbf24}{x}}
 $$
 
 Começando estritamente do triângulo raiz $(3, 4, 5)$, a aplicação dessas três matrizes recursivamente mapeará toda a topologia fractal infinita de triângulos retângulos.

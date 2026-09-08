@@ -246,12 +246,12 @@ $$
 **Theorem 4.3: Additivity of Winding Numbers**
 For the product of two complex sequences, the total rotation is additive:
 $$
-\textcolor{#fbbf24}{\Delta}(\textcolor{#a855f7}{A} \cdot B) = \textcolor{#fbbf24}{\Delta}(\textcolor{#a855f7}{A}) + \textcolor{#fbbf24}{\Delta}(B)
+\textcolor{#fbbf24}{\Delta}(\textcolor{#a855f7}{A} \cdot \textcolor{#3b82f6}{B}) = \textcolor{#fbbf24}{\Delta}(\textcolor{#a855f7}{A}) + \textcolor{#fbbf24}{\Delta}(\textcolor{#3b82f6}{B})
 $$
 *Proof:*
 The combinatorial quadrant transitions add up with localized corrections:
 $$
-\textcolor{#a855f7}{U}_{AB(j)} = \textcolor{#a855f7}{U}_{\textcolor{#a855f7}{A}}(j) + \textcolor{#a855f7}{U}_B(j) + \epsilon(j)
+\textcolor{#a855f7}{U}_{A\textcolor{#3b82f6}{B}(j)} = \textcolor{#a855f7}{U}_{\textcolor{#a855f7}{A}}(j) + \textcolor{#a855f7}{U}_{\textcolor{#3b82f6}{B}}(j) + \epsilon(j)
 $$
 As the loop closes perfectly on the mesh, the corrections match at the end, resulting in additivity. $\blacksquare$
 
@@ -273,7 +273,7 @@ Any rotation mismatch would require the difference in counters to pass continuou
 
 Under the hood, the continuous winding of a curve is dictated by the projection of the curve's instantaneous velocity onto the perpendicular direction of positive CCW advance (which we call $\vec{r}^\perp$).
 
-If the inner product between the velocity vector $\vec{\textcolor{#fbbf24}{v}}(t)$ and the rotated position vector $\vec{r}(t)^\perp$ is strictly positive everywhere, the curve is topologically prevented from backtracking, guaranteeing that the final winding number is non-zero. The interactive visualizer below demonstrates this vector mechanics in real time for various complex curves.
+If the inner product between the velocity vector $\vec{\textcolor{#fbbf24}{v}}(\textcolor{#fbbf24}{t})$ and the rotated position vector $\vec{r}(\textcolor{#fbbf24}{t})^\perp$ is strictly positive everywhere, the curve is topologically prevented from backtracking, guaranteeing that the final winding number is non-zero. The interactive visualizer below demonstrates this vector mechanics in real time for various complex curves.
 
 <InnerProductWindingVisualizer />
 
@@ -282,17 +282,17 @@ If the inner product between the velocity vector $\vec{\textcolor{#fbbf24}{v}}(t
 To prove geometrically and directly that the complete polynomial $\textcolor{#10b981}{P}(\textcolor{#fbbf24}{z})$ and the leading term $\textcolor{#3b82f6}{L}(\textcolor{#fbbf24}{z}) = \textcolor{#10b981}{a}_{\textcolor{#fbbf24}{n}} \textcolor{#fbbf24}{z}^{\textcolor{#fbbf24}{n}}$ topologically align, we analyze their vector relationships and the Cauchy-Schwarz inequality as the domain radius $\textcolor{#fbbf24}{R}$ expands.
 
 #### 4.7.1 The Orthogonal Projection Invariant
-The mathematical condition for $\textcolor{#10b981}{P}(t)$ and $\textcolor{#3b82f6}{L}(t)$ to share the same winding number is that the angle between them remains strictly acute ($< 90^\circ$). This is guaranteed if the inner product $\langle \textcolor{#3b82f6}{L}(t), \textcolor{#10b981}{P}(t) \rangle$ is strictly positive, forcing $\textcolor{#10b981}{P}(t)$ to lie entirely inside the positive orthogonal half-plane of $\textcolor{#3b82f6}{L}(t)$.
+The mathematical condition for $\textcolor{#10b981}{P}(\textcolor{#fbbf24}{t})$ and $\textcolor{#3b82f6}{L}(\textcolor{#fbbf24}{t})$ to share the same winding number is that the angle between them remains strictly acute ($< 90^\circ$). This is guaranteed if the inner product $\langle \textcolor{#3b82f6}{L}(\textcolor{#fbbf24}{t}), \textcolor{#10b981}{P}(\textcolor{#fbbf24}{t}) \rangle$ is strictly positive, forcing $\textcolor{#10b981}{P}(\textcolor{#fbbf24}{t})$ to lie entirely inside the positive orthogonal half-plane of $\textcolor{#3b82f6}{L}(\textcolor{#fbbf24}{t})$.
 
 <OrthogonalProjectionVisualizer />
 
 #### 4.7.2 The Geometric Error Disk Constraint
-Since $\textcolor{#10b981}{P}(t) = \textcolor{#3b82f6}{L}(t) + \textcolor{#f43f5e}{E}(t)$ (where $\textcolor{#f43f5e}{E}(t)$ represents the sum of all lower-order terms), the tip of the vector $\textcolor{#10b981}{P}(t)$ is physically constrained to lie within a closed disk of radius $\|\textcolor{#f43f5e}{E}(t)\|$ centered at the tip of the dominant guide vector $\textcolor{#3b82f6}{L}(t)$.
+Since $\textcolor{#10b981}{P}(\textcolor{#fbbf24}{t}) = \textcolor{#3b82f6}{L}(\textcolor{#fbbf24}{t}) + \textcolor{#f43f5e}{E}(\textcolor{#fbbf24}{t})$ (where $\textcolor{#f43f5e}{E}(\textcolor{#fbbf24}{t})$ represents the sum of all lower-order terms), the tip of the vector $\textcolor{#10b981}{P}(\textcolor{#fbbf24}{t})$ is physically constrained to lie within a closed disk of radius $\|\textcolor{#f43f5e}{E}(\textcolor{#fbbf24}{t})\|$ centered at the tip of the dominant guide vector $\textcolor{#3b82f6}{L}(\textcolor{#fbbf24}{t})$.
 
 <ErrorDiskConstraintVisualizer />
 
 #### 4.7.3 Asymptotic Scaling and Radius Convergence
-As the complex plane radius $\textcolor{#fbbf24}{R}$ grows, the norm of the dominant term $\|\textcolor{#3b82f6}{L}(t)\|$ grows at a higher-order polynomial rate ($\textcolor{#fbbf24}{R}^{\textcolor{#fbbf24}{n}}$), while the error disk radius $\|\textcolor{#f43f5e}{E}(t)\|$ grows at a lower-order rate ($\textcolor{#fbbf24}{R}^{\textcolor{#fbbf24}{n}-1}$). This asymptotically forces the entire error disk away from the origin $(0,0)$, locking the vector $\textcolor{#10b981}{P}(t)$ within the positive half-plane and aligning its winding number with the leading term.
+As the complex plane radius $\textcolor{#fbbf24}{R}$ grows, the norm of the dominant term $\|\textcolor{#3b82f6}{L}(\textcolor{#fbbf24}{t})\|$ grows at a higher-order polynomial rate ($\textcolor{#fbbf24}{R}^{\textcolor{#fbbf24}{n}}$), while the error disk radius $\|\textcolor{#f43f5e}{E}(\textcolor{#fbbf24}{t})\|$ grows at a lower-order rate ($\textcolor{#fbbf24}{R}^{\textcolor{#fbbf24}{n}-1}$). This asymptotically forces the entire error disk away from the origin $(0,0)$, locking the vector $\textcolor{#10b981}{P}(\textcolor{#fbbf24}{t})$ within the positive half-plane and aligning its winding number with the leading term.
 
 <AsymptoticScalingVisualizer />
 

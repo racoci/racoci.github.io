@@ -1,0 +1,77 @@
+import MatrixMultiplicationVisualizer from "../../../components/math/MatrixMultiplicationVisualizer";
+
+# The Geometry of Composition: Matrix Multiplication and Continuous Tensor Calculus
+
+Matrix multiplication is often taught as an abstract, tedious algorithm of "row-by-column" dot products. While computationally simple, this view hides the beautiful, high-dimensional geometric structures that arise when we compose linear transformations, particularly over the complex field $\mathbb{C}$.
+
+By shifting our perspective from discrete index-crunching to a sum of outer products—and eventually taking the continuous limit—we can visualize matrix multiplication as a 3D fluid mechanism of waves, phases, and cancellations.
+
+---
+
+## I. Matrix Multiplication as Outer Products
+
+For two complex matrices $\textcolor{#a855f7}{A} \in \mathbb{C}^{\textcolor{#fbbf24}{m} \times \textcolor{#fbbf24}{n}}$ and $\textcolor{#3b82f6}{B} \in \mathbb{C}^{\textcolor{#fbbf24}{n} \times p}$, the standard entry-wise formula for the product $\textcolor{#10b981}{C} = A\textcolor{#3b82f6}{B}$ is:
+$$
+\textcolor{#10b981}{C}_{ij} = \sum_{k} \textcolor{#a855f7}{A}_{ik} \textcolor{#3b82f6}{B}_{kj}
+$$
+
+However, the fundamental structural view decomposes the product into a **sum of outer products**:
+$$
+A\textcolor{#3b82f6}{B} = \sum_{k} \textcolor{#a855f7}{A}_{:k} \textcolor{#3b82f6}{B}_{k:}
+$$
+
+For each contraction index $k$, $\textcolor{#10b981}{P}^{(k)} = \textcolor{#a855f7}{A}_{:k} \textcolor{#3b82f6}{B}_{k:}$ is an $\textcolor{#fbbf24}{m} \times p$ matrix of **rank at most 1**. 
+
+Physically, a single column of $\textcolor{#a855f7}{A}$ meets a single row of $\textcolor{#3b82f6}{B}$, colliding to generate a full 2D layer. Because it is a rank-1 projection, every row of this layer is a scaled copy of $\textcolor{#3b82f6}{B}_{k:}$, and every column is a scaled copy of $\textcolor{#a855f7}{A}_{:k}$. The entire surface is a simple, uniform ripple.
+
+---
+
+## II. Representing Complex Magnitude and Phase
+
+When dealing with complex matrices $\textcolor{#a855f7}{A}_{ik} = r_{\textcolor{#3b82f6}{i}} e^{\textcolor{#3b82f6}{i}\alpha_{\textcolor{#3b82f6}{i}}}$ and $\textcolor{#3b82f6}{B}_{kj} = \textcolor{#fbbf24}{s}_j e^{\textcolor{#3b82f6}{i}\beta_j}$, the rank-1 layers inherit a highly structured phase alignment:
+$$
+\textcolor{#10b981}{P}_{ij}^{(k)} = r_{\textcolor{#3b82f6}{i}} \textcolor{#fbbf24}{s}_j e^{\textcolor{#3b82f6}{i}(\alpha_{\textcolor{#3b82f6}{i}} + \beta_j)}
+$$
+
+To visualize this complex topology in a 3D physical mechanism:
+1.  **Magnitude** ($|\textcolor{#10b981}{P}_{ij}^{(k)}| = r_{\textcolor{#3b82f6}{i}} \textcolor{#fbbf24}{s}_j$): Drives the **height** of the geometric block, mapped using an asymptotic compression function to handle infinite scales:
+$$
+I(r) = 1 - e^{-r}
+$$
+2.  **Phase** ($\arg(\textcolor{#10b981}{P}_{ij}^{(k)}) = \alpha_{\textcolor{#3b82f6}{i}} + \beta_j$): Drives both the **hue** (color mapping) and a **continuous anisotropic orientation field** (micro-relevo) represented by the unit vector:
+$$
+\textcolor{#fbbf24}{u}(\theta) = (\cos \theta, \sin \theta)
+$$
+
+This means the physical surface of each layer acts as a phase vector field, where the direction of the ripples indicates the instantaneous rotation of the complex numbers.
+
+---
+
+## III. The Continuous Tensor Limit
+
+As we make the shared index $k$ arbitrarily dense, we can interpret it as a continuous variable $\textcolor{#fbbf24}{t}$. The sum over $k$ converges naturally to a **continuous volume integral** over the contraction coordinate:
+$$
+\textcolor{#10b981}{C}(\textcolor{#fbbf24}{x},\textcolor{#fbbf24}{y}) = \int \textcolor{#a855f7}{A}(\textcolor{#fbbf24}{x},\textcolor{#fbbf24}{t})\textcolor{#3b82f6}{B}(\textcolor{#fbbf24}{t},\textcolor{#fbbf24}{y}) d\textcolor{#fbbf24}{t}
+$$
+
+The interior of our 3D mechanism becomes a continuous volume of contributions:
+$$
+\textcolor{#10b981}{P}(\textcolor{#fbbf24}{x},\textcolor{#fbbf24}{t},\textcolor{#fbbf24}{y}) = \textcolor{#a855f7}{A}(\textcolor{#fbbf24}{x},\textcolor{#fbbf24}{t})\textcolor{#3b82f6}{B}(\textcolor{#fbbf24}{t},\textcolor{#fbbf24}{y})
+$$
+
+To evaluate the product, we slide a glowing integration slice $\textcolor{#fbbf24}{t} = \textcolor{#fbbf24}{t}_0$ through this volume. As the slice sweeps, it accumulates the running integral in Cartesian coordinates:
+$$
+\textcolor{#10b981}{C}_{\textcolor{#fbbf24}{t}}(\textcolor{#fbbf24}{x},\textcolor{#fbbf24}{y}) = \int_0^{\textcolor{#fbbf24}{t}} \text{Re}(\textcolor{#10b981}{P}(\textcolor{#fbbf24}{x},\textcolor{#fbbf24}{s},\textcolor{#fbbf24}{y})) d\textcolor{#fbbf24}{s} + \textcolor{#3b82f6}{i} \int_0^{\textcolor{#fbbf24}{t}} \text{Im}(\textcolor{#10b981}{P}(\textcolor{#fbbf24}{x},\textcolor{#fbbf24}{s},\textcolor{#fbbf24}{y})) d\textcolor{#fbbf24}{s}
+$$
+
+Because addition happens on the complex plane, waves with opposite phases ($e^{\textcolor{#3b82f6}{i}\theta} + e^{\textcolor{#3b82f6}{i}(\theta + \textcolor{#fbbf24}{\pi})} = 0$) will physically collide and **cancel each other out**. A highly turbulent, tall volumetric region can converge to a perfectly flat, quiet final coordinate in $\textcolor{#10b981}{C}(\textcolor{#fbbf24}{x},\textcolor{#fbbf24}{y})$ due to phase interference.
+
+---
+
+## IV. The Interactive 3D Tensor Mechanism
+
+Below is the interactive WebGL implementation of this exact geometric narrative.
+
+Step through the 9 stages to watch the matrices lift from the floor, duplicate to form the bounding walls of the mechanism, stack into a dense volume, sweep the integration slice, and collapse into the final complex product $\textcolor{#10b981}{C}$.
+
+<MatrixMultiplicationVisualizer />

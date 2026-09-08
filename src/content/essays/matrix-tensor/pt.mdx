@@ -1,0 +1,77 @@
+import MatrixMultiplicationVisualizer from "../../../components/math/MatrixMultiplicationVisualizer";
+
+# A Geometria da Composição: Multiplicação de Matrizes e Cálculo Tensorial Contínuo
+
+A multiplicação de matrizes é frequentemente ensinada como um algoritmo abstrato e tedioso de produtos escalares de "linha por coluna". Embora computacionalmente simples, essa visão esconde as belas estruturas geométricas de alta dimensão que surgem quando compomos transformações lineares, particularmente sobre o corpo complexo $\mathbb{C}$.
+
+Ao mudarmos nossa perspectiva de contas de índices discretos para uma **soma de produtos externos** — e eventualmente tomarmos o limite contínuo — podemos visualizar a multiplicação de matrizes como um mecanismo fluido 3D de ondas, fases e cancelamentos.
+
+---
+
+## I. Multiplicação de Matrizes como Produtos Externos
+
+Para duas matrizes complexas $\textcolor{#a855f7}{A} \in \mathbb{C}^{\textcolor{#fbbf24}{m} \times \textcolor{#fbbf24}{n}}$ e $\textcolor{#3b82f6}{B} \in \mathbb{C}^{\textcolor{#fbbf24}{n} \times p}$, a fórmula padrão para a entrada do produto $\textcolor{#10b981}{C} = A\textcolor{#3b82f6}{B}$ é:
+$$
+\textcolor{#10b981}{C}_{ij} = \sum_{k} \textcolor{#a855f7}{A}_{ik} \textcolor{#3b82f6}{B}_{kj}
+$$
+
+No entanto, a visão estrutural fundamental decompõe o produto em uma **soma de produtos externos**:
+$$
+A\textcolor{#3b82f6}{B} = \sum_{k} \textcolor{#a855f7}{A}_{:k} \textcolor{#3b82f6}{B}_{k:}
+$$
+
+Para cada índice de contração $k$, $\textcolor{#10b981}{P}^{(k)} = \textcolor{#a855f7}{A}_{:k} \textcolor{#3b82f6}{B}_{k:}$ é uma matriz de **posto no máximo 1**.
+
+Fisicamente, uma única coluna de $\textcolor{#a855f7}{A}$ encontra uma única linha de $\textcolor{#3b82f6}{B}$, colidindo para gerar uma camada 2D completa. Por ser uma projeção de posto 1, cada linha desta camada é uma cópia escalada de $\textcolor{#3b82f6}{B}_{k:}$, e cada coluna é uma cópia escalada de $\textcolor{#a855f7}{A}_{:k}$. Toda a superfície é uma ondulação simples e uniforme.
+
+---
+
+## II. Representando Magnitude e Fase Complexas
+
+Ao lidar com matrizes complexas $\textcolor{#a855f7}{A}_{ik} = r_{\textcolor{#3b82f6}{i}} e^{\textcolor{#3b82f6}{i}\alpha_{\textcolor{#3b82f6}{i}}}$ e $\textcolor{#3b82f6}{B}_{kj} = \textcolor{#fbbf24}{s}_j e^{\textcolor{#3b82f6}{i}\beta_j}$, as camadas de posto 1 herdam um alinhamento de fase altamente estruturado:
+$$
+\textcolor{#10b981}{P}_{ij}^{(k)} = r_{\textcolor{#3b82f6}{i}} \textcolor{#fbbf24}{s}_j e^{\textcolor{#3b82f6}{i}(\alpha_{\textcolor{#3b82f6}{i}} + \beta_j)}
+$$
+
+Para visualizar essa topologia complexa em um mecanismo físico 3D:
+1.  **Magnitude** ($|\textcolor{#10b981}{P}_{ij}^{(k)}| = r_{\textcolor{#3b82f6}{i}} \textcolor{#fbbf24}{s}_j$): Controla a **altura** do bloco geométrico, mapeada usando uma função de compressão assintótica para lidar com escalas infinitas:
+$$
+I(r) = 1 - e^{-r}
+$$
+2.  **Fase** ($\arg(\textcolor{#10b981}{P}_{ij}^{(k)}) = \alpha_{\textcolor{#3b82f6}{i}} + \beta_j$): Controla tanto o **matiz** (mapeamento de cores) quanto um **campo de orientação anisotrópica contínuo** (micro-relevo) representado pelo vetor unitário:
+$$
+\textcolor{#fbbf24}{u}(\theta) = (\cos \theta, \sin \theta)
+$$
+
+Isso significa que a superfície física de cada camada atua como um campo vetorial de fase, onde a direção das ondulações indica a rotação instantânea dos números complexos.
+
+---
+
+## III. O Limite Tensorial Contínuo
+
+À medida que tornamos o índice compartilhado $k$ arbitrariamente denso, podemos interpretá-lo como uma variável contínua $\textcolor{#fbbf24}{t}$. A soma sobre $k$ converge naturalmente para uma **integral de volume contínua** sobre a coordenada de contração:
+$$
+\textcolor{#10b981}{C}(\textcolor{#fbbf24}{x},\textcolor{#fbbf24}{y}) = \int \textcolor{#a855f7}{A}(\textcolor{#fbbf24}{x},\textcolor{#fbbf24}{t})\textcolor{#3b82f6}{B}(\textcolor{#fbbf24}{t},\textcolor{#fbbf24}{y}) d\textcolor{#fbbf24}{t}
+$$
+
+O interior do nosso mecanismo 3D torna-se um volume contínuo de contribuições:
+$$
+\textcolor{#10b981}{P}(\textcolor{#fbbf24}{x},\textcolor{#fbbf24}{t},\textcolor{#fbbf24}{y}) = \textcolor{#a855f7}{A}(\textcolor{#fbbf24}{x},\textcolor{#fbbf24}{t})\textcolor{#3b82f6}{B}(\textcolor{#fbbf24}{t},\textcolor{#fbbf24}{y})
+$$
+
+Para avaliar o produto, deslizamos uma fatia de integração brilhante $\textcolor{#fbbf24}{t} = \textcolor{#fbbf24}{t}_0$ por este volume. Conforme a fatia varre, ela acumula a integral contínua em coordenadas cartesianas:
+$$
+\textcolor{#10b981}{C}_{\textcolor{#fbbf24}{t}}(\textcolor{#fbbf24}{x},\textcolor{#fbbf24}{y}) = \int_0^{\textcolor{#fbbf24}{t}} \text{Re}(\textcolor{#10b981}{P}(\textcolor{#fbbf24}{x},\textcolor{#fbbf24}{s},\textcolor{#fbbf24}{y})) d\textcolor{#fbbf24}{s} + \textcolor{#3b82f6}{i} \int_0^{\textcolor{#fbbf24}{t}} \text{Im}(\textcolor{#10b981}{P}(\textcolor{#fbbf24}{x},\textcolor{#fbbf24}{s},\textcolor{#fbbf24}{y})) d\textcolor{#fbbf24}{s}
+$$
+
+Como a adição acontece no plano complexo, ondas com fases opostas ($e^{\textcolor{#3b82f6}{i}\theta} + e^{\textcolor{#3b82f6}{i}(\theta + \textcolor{#fbbf24}{\pi})} = 0$) colidirão fisicamente e **cancelarão umas às outras**. Uma região volumétrica altamente turbulenta e alta pode convergir para uma coordenada final perfeitamente plana e silenciosa em $\textcolor{#10b981}{C}(\textcolor{#fbbf24}{x},\textcolor{#fbbf24}{y})$ devido à interferência de fase.
+
+---
+
+## IV. O Mecanismo Tensorial 3D Interativo
+
+Abaixo está a implementação WebGL interativa desta narrativa geométrica exata.
+
+Navegue pelos 9 estágios para assistir às matrizes se erguerem do chão, duplicarem-se para formar as paredes limitadoras do mecanismo, empilharem-se em um volume denso, varrerem a fatia de integração e colapsarem no produto complexo final $\textcolor{#10b981}{C}$.
+
+<MatrixMultiplicationVisualizer />
