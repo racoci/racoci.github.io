@@ -22,6 +22,9 @@ import { OrthogonalProjectionVisualizer, ErrorDiskConstraintVisualizer, Asymptot
 import { SternBrocotVisualizer } from "../../../components/pythagorean/SternBrocotVisualizer";
 import { GaussianQuadratureVisualizer } from "../../../components/pythagorean/GaussianQuadratureVisualizer";
 import { BarningHallTreeVisualizer } from "../../../components/pythagorean/BarningHallTreeVisualizer";
+import { HueMapVisualizer } from "../../../components/math/HueMapVisualizer";
+import { CartesianColorVisualizer } from "../../../components/math/CartesianColorVisualizer";
+import { NeonGradientVisualizer } from "../../../components/math/NeonGradientVisualizer";
 import EllipticCurveVisualizer from "../../../components/sike/EllipticCurveVisualizer";
 import IsogenyFoldVisualizer from "../../../components/sike/IsogenyFoldVisualizer";
 import SIDHDiagramVisualizer from "../../../components/sike/SIDHDiagramVisualizer";
@@ -433,7 +436,10 @@ const WIDGET_SUGGESTIONS = [
   "IsogenyFoldVisualizer",
   "SIDHDiagramVisualizer",
   "Genus2RadarVisualizer",
-  "MatrixMultiplicationVisualizer"
+  "MatrixMultiplicationVisualizer",
+  "HueMapVisualizer",
+  "CartesianColorVisualizer",
+  "NeonGradientVisualizer"
 ];
 
 interface WidgetPropMeta {
@@ -458,7 +464,10 @@ const WIDGET_METADATA: Record<string, Record<string, WidgetPropMeta>> = {
   "IsogenyFoldVisualizer": {},
   "SIDHDiagramVisualizer": {},
   "Genus2RadarVisualizer": {},
-  "MatrixMultiplicationVisualizer": {}
+  "MatrixMultiplicationVisualizer": {},
+  "HueMapVisualizer": {},
+  "CartesianColorVisualizer": {},
+  "NeonGradientVisualizer": {}
 };
 
 function parseWidgetProps(contentStr: string): Record<string, any> {
@@ -1702,6 +1711,9 @@ function BlockContentRenderer({
               {token.widgetName === "SIDHDiagramVisualizer" && <SIDHDiagramVisualizer />}
               {token.widgetName === "Genus2RadarVisualizer" && <Genus2RadarVisualizer />}
               {token.widgetName === "MatrixMultiplicationVisualizer" && <MatrixMultiplicationVisualizer />}
+              {token.widgetName === "HueMapVisualizer" && <HueMapVisualizer />}
+              {token.widgetName === "CartesianColorVisualizer" && <CartesianColorVisualizer />}
+              {token.widgetName === "NeonGradientVisualizer" && <NeonGradientVisualizer />}
             </div>
           );
         }
@@ -1877,7 +1889,7 @@ function parseMDXContent(text: string): Token[] {
   // 4. Split by Interactive Widgets
   tokens = splitTokenList(
     tokens,
-    /<(ComplexPlotter|NodeGraftViewer|B3Screener|SudokuViewer|SudokuMiniWidget|QuadtreeVisualizer|MappingVisualizer|CountersVisualizer|PolynomialEditor|InnerProductWindingVisualizer|OrthogonalProjectionVisualizer|ErrorDiskConstraintVisualizer|AsymptoticScalingVisualizer|PasswordManagerWidget|SternBrocotVisualizer|GaussianQuadratureVisualizer|BarningHallTreeVisualizer|EllipticCurveVisualizer|IsogenyFoldVisualizer|SIDHDiagramVisualizer|Genus2RadarVisualizer|MatrixMultiplicationVisualizer)([^>]*?)\/>/g,
+    /<(ComplexPlotter|NodeGraftViewer|B3Screener|SudokuViewer|SudokuMiniWidget|QuadtreeVisualizer|MappingVisualizer|CountersVisualizer|PolynomialEditor|InnerProductWindingVisualizer|OrthogonalProjectionVisualizer|ErrorDiskConstraintVisualizer|AsymptoticScalingVisualizer|PasswordManagerWidget|SternBrocotVisualizer|GaussianQuadratureVisualizer|BarningHallTreeVisualizer|EllipticCurveVisualizer|IsogenyFoldVisualizer|SIDHDiagramVisualizer|Genus2RadarVisualizer|MatrixMultiplicationVisualizer|HueMapVisualizer|CartesianColorVisualizer|NeonGradientVisualizer)([^>]*?)\/>/g,
     (match) => ({
       type: "widget",
       widgetName: match[1],

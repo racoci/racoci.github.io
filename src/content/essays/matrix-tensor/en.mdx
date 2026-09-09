@@ -1,4 +1,7 @@
 import MatrixMultiplicationVisualizer from "../../../components/math/MatrixMultiplicationVisualizer";
+import { HueMapVisualizer } from "../../../components/math/HueMapVisualizer";
+import { CartesianColorVisualizer } from "../../../components/math/CartesianColorVisualizer";
+import { NeonGradientVisualizer } from "../../../components/math/NeonGradientVisualizer";
 
 # The Geometry of Composition: Matrix Multiplication and Continuous Tensor Calculus
 
@@ -42,6 +45,31 @@ $$
 $$
 \textcolor{#fbbf24}{u}(\theta) = (\cos \theta, \sin \theta)
 $$
+
+### Color Encoding Models and Ideal Scales
+
+To map complex numbers $\mathbb{C}$ to visual coordinates, we must explore different color-encoding philosophies. Each representation emphasizes distinct geometric symmetries, and strictly requires a specific coordinate scale mapping to be readable.
+
+#### 1. HSV Polar Hue-Map (The Rainbow Wheel)
+The most mathematically natural way to represent a complex number $z = r e^{i\theta}$ is to use **Polar Coordinates**. 
+*   **Encoding:** We map the phase angle $\theta$ directly to the **Hue** of the HSV color wheel. Magnitude $r$ maps to **Value** (brightness).
+*   **Ideal Scale (Log-Polar):** Because HSV is intrinsically a circular polar coordinates model, the **Log-Polar Scale** is mathematically ideal. Compressing the radius logarithmically ($\log(r)$) prevents the center from collapsing into a squished point, creating perfectly uniform concentric color bands.
+
+<HueMapVisualizer />
+
+#### 2. Cartesian RGB Channel Mapping (Real / Imaginary)
+If we think of complex numbers in Cartesian form $z = x + iy$, we can decompose the values directly into red, green, and blue light channels.
+*   **Encoding:** We map the positive Real part to **Red**, negative Real part to **Blue**, and the Imaginary part (absolute variation) to **Green**.
+*   **Ideal Scale (Log-Log):** Because this model treats Real and Imaginary components as independent orthogonal vectors, the **Log-Log Cartesian Scale** is the perfect match. It compresses both axes independently, letting us observe detailed real/imaginary changes both near the origin and at massive coordinate bounds.
+
+<CartesianColorVisualizer />
+
+#### 3. Neon High-Contrast Gradients (Restricted Phase Band)
+For dense mathematical models, the full rainbow spectrum can cause visual noise. 
+*   **Encoding:** We restrict the spectrum to a high-contrast neon ramp (such as Cyan to Magenta) mapped entirely to phase.
+*   **Ideal Scale (Linear):** In restricted phase examinations, a **Linear Scale** is preferred. It preserves smooth local gradients without logarithmic warping, showing exact localized phase transitions.
+
+<NeonGradientVisualizer />
 
 This means the physical surface of each layer acts as a phase vector field, where the direction of the ripples indicates the instantaneous rotation of the complex numbers.
 

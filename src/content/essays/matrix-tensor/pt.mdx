@@ -1,4 +1,7 @@
 import MatrixMultiplicationVisualizer from "../../../components/math/MatrixMultiplicationVisualizer";
+import { HueMapVisualizer } from "../../../components/math/HueMapVisualizer";
+import { CartesianColorVisualizer } from "../../../components/math/CartesianColorVisualizer";
+import { NeonGradientVisualizer } from "../../../components/math/NeonGradientVisualizer";
 
 # A Geometria da Composição: Multiplicação de Matrizes e Cálculo Tensorial Contínuo
 
@@ -42,6 +45,31 @@ $$
 $$
 \textcolor{#fbbf24}{u}(\theta) = (\cos \theta, \sin \theta)
 $$
+
+### Modelos de Codificação de Cor e Escalas Ideais
+
+Para mapear números complexos $\mathbb{C}$ para coordenadas visuais, devemos explorar diferentes filosofias de codificação de cores. Cada representação enfatiza simetrias geométricas distintas e exige estritamente um mapeamento de escala de coordenadas específico para ser legível.
+
+#### 1. HSV Polar Hue-Map (A Roda do Arco-Íris)
+A maneira matematicamente mais natural de representar um número complexo $z = r e^{i\theta}$ é usar **Coordenadas Polares**.
+*   **Codificação:** Mapeamos o ângulo de fase $\theta$ diretamente para o **Matiz** (Hue) da roda de cores HSV. A magnitude $r$ mapeia para o **Valor** (brilho).
+*   **Escala Ideal (Log-Polar):** Como o HSV é intrinsecamente um modelo de coordenadas polares circulares, a **Escala Log-Polar** é matematicamente ideal. Comprimir o raio logaritmicamente ($\log(r)$) evita que o centro colapse em um ponto esmagado, criando bandas de cores concêntricas perfeitamente uniformes.
+
+<HueMapVisualizer />
+
+#### 2. Mapeamento de Canais RGB Cartesianos (Real / Imaginário)
+Se pensarmos nos números complexos na forma cartesiana $z = x + iy$, podemos decompor os valores diretamente nos canais de luz vermelha, verde e azul.
+*   **Codificação:** Mapeamos a parte Real positiva para o **Vermelho**, a parte Real negativa para o **Azul** e a parte Imaginária (variação absoluta) para o **Verde**.
+*   **Escala Ideal (Log-Log):** Como este modelo trata as componentes Real e Imaginária como vetores ortogonais independentes, a **Escala Cartesiana Log-Log** é a combinação perfeita. Ela comprime ambos os eixos de forma independente, permitindo-nos observar mudanças detalhadas reais/imaginárias tanto perto da origem quanto em limites de coordenadas massivos.
+
+<CartesianColorVisualizer />
+
+#### 3. Degradês Neon de Alto Contraste (Banda de Fase Restrita)
+Para modelos matemáticos densos, o espectro completo do arco-íris pode causar ruído visual.
+*   **Codificação:** Restringimos o espectro a uma rampa neon de alto contraste (como Ciano a Magenta) mapeada inteiramente para a fase.
+*   **Escala Ideal (Linear):** Em exames de fase restrita, uma **Escala Linear** é preferida. Ela preserva degradês locais suaves sem distorção de achatamento logarítmico, exibindo transições de fase localizadas exatas.
+
+<NeonGradientVisualizer />
 
 Isso significa que a superfície física de cada camada atua como um campo vetorial de fase, onde a direção das ondulações indica a rotação instantânea dos números complexos.
 
