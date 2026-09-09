@@ -57,7 +57,10 @@ function createDataTexture(w: number, h: number, isA: boolean) {
       data[idx + 3] = 0;
     }
   }
+  // Enable linear filtering for smooth continuous interpolation
   const tex = new THREE.DataTexture(data, w, h, THREE.RGBAFormat, THREE.FloatType);
+  tex.minFilter = THREE.LinearFilter;
+  tex.magFilter = THREE.LinearFilter;
   tex.needsUpdate = true;
   return tex;
 }
@@ -159,7 +162,7 @@ function patchMaterial(mat: THREE.Material, sharedUniforms: any, vertexLogic: st
   };
 }
 
-// West/East wall: height scales along local Y and transforms to grow perpendicular along local Z (perpendicular to XY wall)
+// Matrix A (Left): starts on the floor LADO A LADO with B, lifts and rotates to form the WEST wall (plane X = -N/2)
 const vertexA = `
   int realID = gl_InstanceID;
   int copy = realID / (u_N * u_K);
@@ -174,21 +177,25 @@ const vertexA = `
   float h = max(0.01, 1.0 - exp(-r / u_lambda));
   float gapScale = mix(1.0, 0.9, u_gap);
   
-  // Custom height orientation along Z axis (orthogonal to XY plane)
+  // Local height grows along vertical Y on floor, but rotates to point along Z on the West/East walls
   vec3 local = position;
   local.y *= h * 5.0; 
-  transformed = vec3(local.x * gapScale, local.z * gapScale, (copy == 0 ? -1.0 : 1.0) * local.y);
+  vec3 localFloor = vec3(local.x * gapScale, local.y, local.z * gapScale);
+  vec3 localWall = vec3(local.x * gapScale, local.z * gapScale, (copy == 0 ? -1.0 : 1.0) * local.y);
+  transformed = mix(localFloor, localWall, u_lift);
 
   float fN = float(u_N); float fK = float(u_K); float fM = float(u_M);
-  vec3 posFloor = vec3(float(i) - fN/2.0 + 0.5, 0.0, float(k) - fK/2.0 + 0.5);
-  vec3 posWall = vec3(float(i) - fN/2.0 + 0.5, float(k) - fK/2.0 + 0.5, (copy == 0 ? -fM : fM)/2.0);
+  // Floor pos (lado a lado, left side)
+  vec3 posFloor = vec3((float(i) - fN/2.0 + 0.5) - fN/2.0 - 1.5, 0.0, float(k) - fK/2.0 + 0.5);
+  // West/East Wall pos (X = -N/2 or +N/2)
+  vec3 posWall = vec3((copy == 0 ? -fN : fN)/2.0, float(k) - fK/2.0 + 0.5, float(i) - fN/2.0 + 0.5);
 
   transformed += mix(posFloor, posWall, u_lift);
   vVisibility = (copy == 1) ? u_duplicate : 1.0;
   vLocalPos = position;
 `;
 
-// South/North wall: height scales along local Y and transforms to grow perpendicular along local X (perpendicular to YZ wall)
+// Matrix B (Right): starts on the floor LADO A LADO with A, lifts and rotates to form the SOUTH wall (plane Z = +M/2)
 const vertexB = `
   int realID = gl_InstanceID;
   int copy = realID / (u_K * u_M);
@@ -203,14 +210,18 @@ const vertexB = `
   float h = max(0.01, 1.0 - exp(-r / u_lambda));
   float gapScale = mix(1.0, 0.9, u_gap);
   
-  // Custom height orientation along X axis (orthogonal to YZ plane)
+  // Local height grows along vertical Y on floor, but rotates to point along X on the South/North walls
   vec3 local = position;
   local.y *= h * 5.0;
-  transformed = vec3((copy == 0 ? -1.0 : 1.0) * local.y, local.x * gapScale, local.z * gapScale);
+  vec3 localFloor = vec3(local.x * gapScale, local.y, local.z * gapScale);
+  vec3 localWall = vec3((copy == 0 ? 1.0 : -1.0) * local.y, local.x * gapScale, local.z * gapScale);
+  transformed = mix(localFloor, localWall, u_lift);
 
   float fN = float(u_N); float fK = float(u_K); float fM = float(u_M);
-  vec3 posFloor = vec3(float(k) - fK/2.0 + 0.5, 0.0, float(j) - fM/2.0 + 0.5);
-  vec3 posWall = vec3((copy == 0 ? -fN : fN)/2.0, float(k) - fK/2.0 + 0.5, float(j) - fM/2.0 + 0.5);
+  // Floor pos (lado a lado, right side)
+  vec3 posFloor = vec3(float(k) - fK/2.0 + 0.5 + fM/2.0 + 1.5, 0.0, float(j) - fM/2.0 + 0.5);
+  // South/North Wall pos (Z = +M/2 or -M/2)
+  vec3 posWall = vec3(float(j) - fM/2.0 + 0.5, float(k) - fK/2.0 + 0.5, (copy == 0 ? fM : -fM)/2.0);
 
   transformed += mix(posFloor, posWall, u_lift);
   vVisibility = (copy == 1) ? u_duplicate : 1.0;
@@ -249,7 +260,8 @@ const vertexVolume = `
   if (u_isSweeping > 0.5) {
       vis = vis * sweepVis + glow;
   }
-  vVisibility = vis * u_volOpacity;
+  // Fade out discrete volume when continuous volume takes over (t >= 6)
+  vVisibility = vis * u_volOpacity * (1.0 - u_continuousWeight);
   vLocalPos = position;
 `;
 
@@ -290,6 +302,73 @@ const vertexC = `
 
   vVisibility = u_accOpacity;
   vLocalPos = position;
+`;
+
+// Custom Shader for the Single Continuous Volume Box
+const continuousVertexShader = `
+varying vec3 vLocalPos;
+void main() {
+    vLocalPos = position; // Local position in [-0.5, 0.5]
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+}
+`;
+
+const continuousFragmentShader = `
+varying vec3 vLocalPos;
+uniform sampler2D texA;
+uniform sampler2D texB;
+uniform float u_volOpacity;
+uniform float u_continuousWeight;
+uniform float u_sliceSweep;
+uniform float u_isSweeping;
+uniform float u_colorMode;
+uniform float u_lambda;
+
+vec3 hsv2rgb(vec3 c) {
+    vec4 K = vec4(1.0, 2.0 / 3.0, 1.0 / 3.0, 3.0);
+    vec3 p = abs(fract(c.xxx + K.xyz) * 6.0 - K.www);
+    return c.z * mix(K.xxx, clamp(p - K.xxx, 0.0, 1.0), c.y);
+}
+
+void main() {
+    // Map local pos [-0.5, 0.5] to UV coordinates [0, 1]
+    vec3 uvw = vLocalPos + vec3(0.5);
+
+    // Read continuously using linear bilinear filtering
+    vec2 a = texture2D(texA, uvw.xy).xy;
+    vec2 b = texture2D(texB, uvw.yz).xy;
+    vec2 val = vec2(a.x*b.x - a.y*b.y, a.x*b.y + a.y*b.x);
+
+    float r = length(val);
+    float phase = atan(val.y, val.x);
+
+    vec3 pColor;
+    if (u_colorMode == 0.0) {
+        pColor = hsv2rgb(vec3(phase / 6.2831853 + 0.5, 0.8, 0.9));
+    } else if (u_colorMode == 1.0) {
+        pColor = vec3(max(0.0, val.x), max(0.0, val.y), max(0.0, -val.x));
+    } else if (u_colorMode == 2.0) {
+        pColor = mix(vec3(0.0, 1.0, 1.0), vec3(1.0, 0.0, 1.0), phase / 6.2831853 + 0.5);
+    } else {
+        pColor = vec3(0.7);
+    }
+
+    float opacity = (1.0 - exp(-r / u_lambda)) * u_volOpacity * u_continuousWeight * 0.45;
+
+    // Slicing logic
+    if (u_isSweeping > 0.5) {
+        float dist = uvw.y - u_sliceSweep;
+        if (dist < 0.0) {
+            opacity *= 0.1; // Dim processed area
+        }
+        float glow = smoothstep(0.025, 0.0, abs(dist)) * 1.5;
+        pColor += vec3(1.0) * glow;
+        opacity += glow * 0.45;
+    }
+
+    if (opacity < 0.01) discard;
+    gl_FragColor = vec4(pColor, opacity);
+}
 `;
 
 const STEPS = [
@@ -361,6 +440,7 @@ export default function MatrixMultiplicationVisualizer() {
       u_sliceSweep: { value: 0 },
       u_volOpacity: { value: 0 },
       u_accOpacity: { value: 0 },
+      u_continuousWeight: { value: 0 }, // 1.0 means fully continuous volume is active
       u_lambda: { value: 1.0 },
       u_colorMode: { value: colorMode },
       u_K: { value: K },
@@ -384,11 +464,26 @@ export default function MatrixMultiplicationVisualizer() {
     const meshB = new THREE.InstancedMesh(boxGeo, matB, K * M * 2);
     scene.add(meshB);
 
+    // Discrete Volume blocks
     const matVol = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.2, metalness: 0.1, transparent: true, side: THREE.DoubleSide, depthWrite: false });
     patchMaterial(matVol, sharedUniforms, vertexVolume);
     const meshVol = new THREE.InstancedMesh(boxGeo, matVol, N * K * M);
     scene.add(meshVol);
 
+    // Continuous Single Volume Box
+    const continuousVolGeo = new THREE.BoxGeometry(N, K, M);
+    const continuousVolMat = new THREE.ShaderMaterial({
+        vertexShader: continuousVertexShader,
+        fragmentShader: continuousFragmentShader,
+        uniforms: sharedUniforms,
+        transparent: true,
+        depthWrite: false,
+        side: THREE.DoubleSide
+    });
+    const continuousVolMesh = new THREE.Mesh(continuousVolGeo, continuousVolMat);
+    scene.add(continuousVolMesh);
+
+    // Accumulator Matrix C
     const matC = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.1, metalness: 0.3, transparent: true, side: THREE.DoubleSide });
     patchMaterial(matC, sharedUniforms, vertexC);
     const meshC = new THREE.InstancedMesh(boxGeo, matC, N * M);
@@ -420,6 +515,8 @@ export default function MatrixMultiplicationVisualizer() {
         sharedUniforms.u_sliceSweep.value = currentT >= 8 ? 1.0 : 0.0;
       }
 
+      // Continuous volume fades in at t >= 6 (Step 6) and fades out at t >= 7.5
+      sharedUniforms.u_continuousWeight.value = cl(currentT, 5.8, 6.4);
       sharedUniforms.u_volOpacity.value = 1.0 - cl(currentT, 7.5, 8.0);
       sharedUniforms.u_accOpacity.value = cl(currentT, 6, 6.2);
 
@@ -442,9 +539,11 @@ export default function MatrixMultiplicationVisualizer() {
       cancelAnimationFrame(reqId);
       renderer.dispose();
       boxGeo.dispose();
+      continuousVolGeo.dispose();
       matA.dispose();
       matB.dispose();
       matVol.dispose();
+      continuousVolMat.dispose();
       matC.dispose();
       texA.dispose();
       texB.dispose();
@@ -481,7 +580,7 @@ export default function MatrixMultiplicationVisualizer() {
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
             Cálculo Tensorial Contínuo
           </h2>
-          <div className="text-xs text-zinc-400 font-mono">
+          <div className="text-xs text-zinc-400 mb-4 font-mono">
             <InlineMath math="C(x,y) = \int A(x,t)B(t,y) dt" />
           </div>
         </div>
