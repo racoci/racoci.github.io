@@ -232,16 +232,113 @@ This theorem mathematically unifies algebraic structure, modal bisimulation, and
 
 ---
 
-## VII. Epilogue: Towards Algorithmic Ethical Alignment
+## VII. From Theorem to Practice: AI Value Alignment, Social Choice, and Human Values Discovery
 
-The results verified in the Unitary Normative Core demonstrate that **ethics is not a subjective swamp of irreconcilable intuitions; it possesses an invariant mathematical anatomy**.
+The formalization of the Unitary Normative Core (UNC) is not merely a speculative exercise in model theory. It speaks directly to the most urgent question in modern Artificial Intelligence governance: **how can we align large language models and autonomous agents with genuine human values without imposing an authoritarian monoculture or collapsing into paralyzing relativism?**
 
-By establishing:
-1.  That ontological disputes do not preclude deontic consensus,
-2.  That normative bisimulations isolate observationally equivalent moral universes,
-3.  That agency and communicative discourse possess unshakeable transcendental grounds, and
-4.  That category theory and game semantics provide rigorous translation protocols,
+In recent years, the frontier of AI alignment research has shifted away from naive univariate reinforcement learning from human feedback (RLHF) toward structured democratic deliberation, social preference inference, and participatory governance. However, to operationalize this domain, we must analytically disentangle **five foundational objectives** that are frequently conflated:
 
-UNC provides the formal foundations needed for verifiable AI alignment, cross-cultural ethical translation, and autonomous moral reasoning. 
+```text
++---------------------------------------------------------------------------------------+
+|                    THE FIVE OBJECTIVES OF HUMAN VALUE ALIGNMENT                       |
++----+--------------------------------+-------------------------------------------------+
+| 1. | Value Elicitation              | Discover which values individuals hold/prioritize|
+| 2. | Shared Value Discovery         | Isolate invariant principles across cultures    |
+| 3. | Moral Deliberation             | Reflective revision of positions via reasons    |
+| 4. | Social Choice (Aggregation)    | Transform conflicting preferences into policy   |
+| 5. | Value Learning (RL / CAI)      | Convert principles into constitutions & rewards |
++----+--------------------------------+-------------------------------------------------+
+```
 
-Through formal verification in Lean 4 and Isabelle/HOL, metaethics leaves behind the era of unresolvable polemics and enters the era of computational rigor.
+> **The Critical Distinction:** A system that merely uncovers what people *superficially prefer* does not discover what they consider *just upon reflection* (Rawlsian reflective equilibrium). Furthermore, an algorithm that extracts a lowest common denominator via majoritarian voting does not discover universal moral truth—it merely projects the dominant demographic bias.
+
+---
+
+### 1. State of the Art in Collective Deliberation and Constitutional AI
+
+Several frontier initiatives attempt to structure how human collectives instruct AI systems on values:
+
+#### A. Collective Constitutional AI (Anthropic & Collective Intelligence Project)
+In 2023, approximately one thousand participants used the Polis platform to propose, deliberate on, and vote for principles to govern a language model's constitution (producing 1,127 statements and 38,252 votes). The resulting public constitution was deployed directly into supervised fine-tuning and RLAIF pipelines.
+
+#### B. Collective Alignment & CoVal (OpenAI)
+Throughout 2025 and 2026, OpenAI broadened public input beyond Western demographics:
+*   **Collective Alignment:** Consulted over a thousand global participants, benchmarking responses against the company's *Model Spec* and using discovered divergences to amend governance directives.
+*   **CoVal (Collective Values, 2026):** Enlisted participants across 19 countries to evaluate value-sensitive scenarios and author their own **rubrics** (explicit evaluation criteria). The researchers preserved the distinction between a *full version* (retaining irreconcilable disagreements) and a *condensed version* (compatible criteria), warning that compressed consensus versions inevitably reflect dominant cultures.
+
+#### C. The Habermas Machine (Google DeepMind, Science 2024)
+In a landmark study involving 5,734 participants, DeepMind deployed an AI system as a **Socratic mediator** in UK democratic assemblies. The AI synthesized common ground, incorporated targeted critiques from opposing factions, and iteratively refined consensus statements. The study proved that consensus is not a static quantity to be tallied, but a dynamic attractor constructed through rational discourse.
+
+#### D. Value Compass & Global AI Values Challenge (Microsoft Research)
+Microsoft designed an interdisciplinary framework centered on moral pluralism and cross-cultural variance:
+*   The **Global AI Values Challenge** (2026) crowd-sourced real-world moral dilemmas coupled with **mandatory structured logical justifications**, rewarding participants not for popular answers, but for argument validity and foundational depth.
+
+---
+
+### 2. Structural Representations: Moral Graphs and Relational Semantics
+
+A core flaw of classical scalar alignment is treating values as scalar numbers or disjoint tags. UNC strongly aligns with architectures that model values as **relational structures**:
+
+*   **Meaning Alignment Institute (MAI) & Moral Graph Elicitation (MGE):** Rather than compiling flat preference lists, MGE extracts a directed graph whose vertices represent articulated values and whose edges signify applicability, hierarchical scope, and counterweights. In trials with 500 participants, 89.1% reported feeling represented by the graph, even when their personal values were not designated as primary.
+*   **AI Objectives Institute (AOI) — Talk to the City & Moral Learning:** Natural language processing infrastructure that clusters open-ended qualitative responses, identifying consensus hubs and irreducible fault lines without forcing premature collapse.
+
+---
+
+### 3. Comparative Taxonomy: From Empirical Elicitation to UNC
+
+| Initiative | Structural Representation | Mandatory Justifications | Dialectical Deliberation | Reciprocal Competence Assessment |
+|---|---|---|---|---|
+| **Anthropic (CCAI / Polis)** | Statistical clustering | Low (Votes on claims) | Iterative voting | No |
+| **OpenAI (CoVal)** | Evaluative rubrics | Medium (Written criteria) | Individual on rubric | No |
+| **DeepMind (Habermas Machine)** | Position synthesis | High (Critique and revision) | High (AI mediation) | Partial (Synthesis appraisal) |
+| **MAI (Moral Graph Elicitation)** | Directed value graphs | High (Wisdom articulation) | High (Value comparisons) | No |
+| **Microsoft (Value Compass)** | Multidimensional taxonomy | High (Justified dilemmas) | Medium (Peer review) | No |
+| **Unitary Normative Core (UNC)** | Category Theory + Kripke | Maximal (Formal witnesses) | Dialogical Games (Lorenzen) | **Yes (Formal Metric $S_{\textcolor{#3b82f6}{i}}$)** |
+
+---
+
+### 4. The Foundational Gap: Deliberative Competence vs. Majoritarian Optimization
+
+An analysis of these initiatives reveals a critical blind spot that UNC formally rectifies: **existing alignment systems routinely confuse the popularity of a conclusion with the deliberative competence of the process that generated it.**
+
+Consider two agents in a moral assembly:
+*   **Agent 1** disagrees with the majority, but can accurately reconstruct the arguments, premises, and counterfactuals of all competing factions, offering a coherent rebuttal while respecting deontic consistency.
+*   **Agent 2** votes with the majority, but cannot articulate the premises underlying the position or demonstrate awareness of the policy's consequences on affected minorities.
+
+Systems that optimize for unweighted agreement grant maximum reward to Agent 2 and disenfranchise Agent 1. UNC formalizes that the normative weight of an agent's contribution must be indexed by their **Reciprocal Deliberative Competence** ($S_{\textcolor{#3b82f6}{i}}$):
+
+$$
+S_{\textcolor{#3b82f6}{i}} = f(\text{Comprehension}, \text{Argumentation}, \text{Coherence}, \text{Defeasibility}, \text{Consensus})
+$$
+
+Where:
+1.  **Comprehension:** The capacity to correctly reconstruct the values and premises of other participants (measured via cross-examination).
+2.  **Argumentation:** The absence of performative contradictions and formal fallacies during debate.
+3.  **Coherence:** Adherence to structural deontic invariants (Axiom D and relational transitivity).
+4.  **Defeasibility:** The willingness to revise a position when presented with decisive counterexamples or empirical facts.
+
+---
+
+### 5. Empirical Corpora and Theoretical Frameworks
+
+UNC provides a rigorous formal semantics for the world's largest empirical databases of human morality:
+
+*   **MIT Moral Machine:** 40 million decisions across 233 countries on autonomous driving dilemmas, highlighting cross-cultural variations that UNC accommodates within the preorder category of perspectives.
+*   **Pluralistic Moral Gap & SCRUPLES:** Demonstrates that standard LLMs exhibit *moral variance collapse*, over-representing dominant Western values while erasing regional ethical frameworks.
+*   **Schwartz Theory of Basic Human Values:** The 10 universal dimensions (Self-Direction, Benevolence, Security, Conformity, etc.) map directly into competing reason dimensions in `UNC/Reasons.lean`.
+*   **Computational Social Choice & FGD-Align:** Aggregation models that preserve ties and incomparabilities in partial orders rather than forcing artificial linear utility functions.
+*   **International Frameworks (UNESCO, OECD, UN):** Provide the minimal agency-constitutive boundary constraints ($\textcolor{#10b981}{C}$) guaranteeing that collective aggregation never violates the fundamental rights of conscious agents.
+
+---
+
+## VIII. Epilogue: The Triumph of Constructive Rigor
+
+The theorems verified in the Unitary Normative Core and their convergence with frontier AI alignment demonstrate an ambitious thesis: **ethics is not a subjective swamp of irreconcilable intuitions; it possesses an invariant mathematical anatomy capable of computational implementation.**
+
+By demonstrating through mechanized proofs in Lean 4 and Isabelle/HOL:
+1.  That profound metaphysical disagreements do not preclude practical action consensus,
+2.  That normative bisimulations establish precise equivalence criteria between complex ethical architectures,
+3.  That Gewirthian agency and Habermasian discourse provide unshakeable barriers against moral skepticism, and
+4.  That Category Theory and Game Semantics formalize rigorous translation protocols across pluralistic worldviews,
+
+UNC erects an unbreakable bridge between continental philosophy and the provable alignment of autonomous superintelligence. Metaethics leaves behind the era of unresolvable polemics to establish itself as an exact science of formal normative guarantees.
