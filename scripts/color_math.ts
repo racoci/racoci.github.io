@@ -38,6 +38,10 @@ const colorRules: Record<string, string> = {
   'C': '#10b981', 'B': '#3b82f6',
   't': '#fbbf24', 's': '#fbbf24', 'x': '#fbbf24', 'y': '#fbbf24',
 
+  // Dialectical & Ordinal Variables
+  '\\alpha': '#fbbf24', '\\beta': '#fbbf24', '\\gamma': '#fbbf24', '\\lambda': '#fbbf24', '\\omega': '#fbbf24', '\\varepsilon_0': '#fbbf24',
+  '\\bot': '#f43f5e', '\\top': '#10b981',
+
   // Operators / Functions / Matrices (Purple)
   'N': '#a855f7',
   'M': '#a855f7', 
@@ -231,7 +235,9 @@ function processFiles() {
     path.resolve(__dirname, '../src/content/essays/sike/pt.mdx'),
     path.resolve(__dirname, '../src/content/essays/sike/en.mdx'),
     path.resolve(__dirname, '../src/content/essays/matrix-tensor/pt.mdx'),
-    path.resolve(__dirname, '../src/content/essays/matrix-tensor/en.mdx')
+    path.resolve(__dirname, '../src/content/essays/matrix-tensor/en.mdx'),
+    path.resolve(__dirname, '../src/content/essays/cantor-hegel/pt.mdx'),
+    path.resolve(__dirname, '../src/content/essays/cantor-hegel/en.mdx')
   ];
 
   files.forEach(file => {

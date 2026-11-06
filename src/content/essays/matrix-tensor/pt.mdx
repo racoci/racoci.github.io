@@ -31,9 +31,9 @@ Fisicamente, uma única coluna de $\textcolor{#a855f7}{A}$ encontra uma única l
 
 ## II. Representando Magnitude e Fase Complexas
 
-Ao lidar com matrizes complexas $\textcolor{#a855f7}{A}_{ik} = r_{\textcolor{#3b82f6}{i}} e^{\textcolor{#3b82f6}{i}\alpha_{\textcolor{#3b82f6}{i}}}$ e $\textcolor{#3b82f6}{B}_{kj} = \textcolor{#fbbf24}{s}_j e^{\textcolor{#3b82f6}{i}\beta_j}$, as camadas de posto 1 herdam um alinhamento de fase altamente estruturado:
+Ao lidar com matrizes complexas $\textcolor{#a855f7}{A}_{ik} = r_{\textcolor{#3b82f6}{i}} e^{\textcolor{#3b82f6}{i}\textcolor{#fbbf24}{\alpha}_{\textcolor{#3b82f6}{i}}}$ e $\textcolor{#3b82f6}{B}_{kj} = \textcolor{#fbbf24}{s}_j e^{\textcolor{#3b82f6}{i}\textcolor{#fbbf24}{\beta}_j}$, as camadas de posto 1 herdam um alinhamento de fase altamente estruturado:
 $$
-\textcolor{#10b981}{P}_{ij}^{(k)} = r_{\textcolor{#3b82f6}{i}} \textcolor{#fbbf24}{s}_j e^{\textcolor{#3b82f6}{i}(\alpha_{\textcolor{#3b82f6}{i}} + \beta_j)}
+\textcolor{#10b981}{P}_{ij}^{(k)} = r_{\textcolor{#3b82f6}{i}} \textcolor{#fbbf24}{s}_j e^{\textcolor{#3b82f6}{i}(\textcolor{#fbbf24}{\alpha}_{\textcolor{#3b82f6}{i}} + \textcolor{#fbbf24}{\beta}_j)}
 $$
 
 Para visualizar essa topologia complexa em um mecanismo físico 3D:
@@ -41,7 +41,7 @@ Para visualizar essa topologia complexa em um mecanismo físico 3D:
 $$
 I(r) = 1 - e^{-r}
 $$
-2.  **Fase** ($\arg(\textcolor{#10b981}{P}_{ij}^{(k)}) = \alpha_{\textcolor{#3b82f6}{i}} + \beta_j$): Controla tanto o **matiz** (mapeamento de cores) quanto um **campo de orientação anisotrópica contínuo** (micro-relevo) representado pelo vetor unitário:
+2.  **Fase** ($\arg(\textcolor{#10b981}{P}_{ij}^{(k)}) = \textcolor{#fbbf24}{\alpha}_{\textcolor{#3b82f6}{i}} + \textcolor{#fbbf24}{\beta}_j$): Controla tanto o **matiz** (mapeamento de cores) quanto um **campo de orientação anisotrópica contínuo** (micro-relevo) representado pelo vetor unitário:
 $$
 \textcolor{#fbbf24}{u}(\theta) = (\cos \theta, \sin \theta)
 $$
@@ -51,14 +51,14 @@ $$
 Para mapear números complexos $\mathbb{C}$ para coordenadas visuais, devemos explorar diferentes filosofias de codificação de cores. Cada representação enfatiza simetrias geométricas distintas e exige estritamente um mapeamento de escala de coordenadas específico para ser legível.
 
 #### 1. HSV Polar Hue-Map (A Roda do Arco-Íris)
-A maneira matematicamente mais natural de representar um número complexo $z = r e^{i\theta}$ é usar **Coordenadas Polares**.
+A maneira matematicamente mais natural de representar um número complexo $\textcolor{#fbbf24}{z} = r e^{\textcolor{#3b82f6}{i}\theta}$ é usar **Coordenadas Polares**.
 *   **Codificação:** Mapeamos o ângulo de fase $\theta$ diretamente para o **Matiz** (Hue) da roda de cores HSV. A magnitude $r$ mapeia para o **Valor** (brilho).
 *   **Escala Ideal (Log-Polar):** Como o HSV é intrinsecamente um modelo de coordenadas polares circulares, a **Escala Log-Polar** é matematicamente ideal. Comprimir o raio logaritmicamente ($\log(r)$) evita que o centro colapse em um ponto esmagado, criando bandas de cores concêntricas perfeitamente uniformes.
 
 <HueMapVisualizer />
 
 #### 2. Mapeamento de Canais RGB Cartesianos (Real / Imaginário)
-Se pensarmos nos números complexos na forma cartesiana $z = x + iy$, podemos decompor os valores diretamente nos canais de luz vermelha, verde e azul.
+Se pensarmos nos números complexos na forma cartesiana $\textcolor{#fbbf24}{z} = \textcolor{#fbbf24}{x} + i\textcolor{#fbbf24}{y}$, podemos decompor os valores diretamente nos canais de luz vermelha, verde e azul.
 *   **Codificação:** Mapeamos a parte Real positiva para o **Vermelho**, a parte Real negativa para o **Azul** e a parte Imaginária (variação absoluta) para o **Verde**.
 *   **Escala Ideal (Log-Log):** Como este modelo trata as componentes Real e Imaginária como vetores ortogonais independentes, a **Escala Cartesiana Log-Log** é a combinação perfeita. Ela comprime ambos os eixos de forma independente, permitindo-nos observar mudanças detalhadas reais/imaginárias tanto perto da origem quanto em limites de coordenadas massivos.
 

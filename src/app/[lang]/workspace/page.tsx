@@ -25,6 +25,7 @@ import { BarningHallTreeVisualizer } from "../../../components/pythagorean/Barni
 import { HueMapVisualizer } from "../../../components/math/HueMapVisualizer";
 import { CartesianColorVisualizer } from "../../../components/math/CartesianColorVisualizer";
 import { NeonGradientVisualizer } from "../../../components/math/NeonGradientVisualizer";
+import DialecticalSpiralVisualizer from "../../../components/math/DialecticalSpiralVisualizer";
 import EllipticCurveVisualizer from "../../../components/sike/EllipticCurveVisualizer";
 import IsogenyFoldVisualizer from "../../../components/sike/IsogenyFoldVisualizer";
 import SIDHDiagramVisualizer from "../../../components/sike/SIDHDiagramVisualizer";
@@ -439,7 +440,8 @@ const WIDGET_SUGGESTIONS = [
   "MatrixMultiplicationVisualizer",
   "HueMapVisualizer",
   "CartesianColorVisualizer",
-  "NeonGradientVisualizer"
+  "NeonGradientVisualizer",
+  "DialecticalSpiralVisualizer"
 ];
 
 interface WidgetPropMeta {
@@ -467,7 +469,8 @@ const WIDGET_METADATA: Record<string, Record<string, WidgetPropMeta>> = {
   "MatrixMultiplicationVisualizer": {},
   "HueMapVisualizer": {},
   "CartesianColorVisualizer": {},
-  "NeonGradientVisualizer": {}
+  "NeonGradientVisualizer": {},
+  "DialecticalSpiralVisualizer": {}
 };
 
 function parseWidgetProps(contentStr: string): Record<string, any> {
@@ -1714,6 +1717,7 @@ function BlockContentRenderer({
               {token.widgetName === "HueMapVisualizer" && <HueMapVisualizer />}
               {token.widgetName === "CartesianColorVisualizer" && <CartesianColorVisualizer />}
               {token.widgetName === "NeonGradientVisualizer" && <NeonGradientVisualizer />}
+              {token.widgetName === "DialecticalSpiralVisualizer" && <DialecticalSpiralVisualizer />}
             </div>
           );
         }
@@ -1889,7 +1893,7 @@ function parseMDXContent(text: string): Token[] {
   // 4. Split by Interactive Widgets
   tokens = splitTokenList(
     tokens,
-    /<(ComplexPlotter|NodeGraftViewer|B3Screener|SudokuViewer|SudokuMiniWidget|QuadtreeVisualizer|MappingVisualizer|CountersVisualizer|PolynomialEditor|InnerProductWindingVisualizer|OrthogonalProjectionVisualizer|ErrorDiskConstraintVisualizer|AsymptoticScalingVisualizer|PasswordManagerWidget|SternBrocotVisualizer|GaussianQuadratureVisualizer|BarningHallTreeVisualizer|EllipticCurveVisualizer|IsogenyFoldVisualizer|SIDHDiagramVisualizer|Genus2RadarVisualizer|MatrixMultiplicationVisualizer|HueMapVisualizer|CartesianColorVisualizer|NeonGradientVisualizer)([^>]*?)\/>/g,
+    /<(ComplexPlotter|NodeGraftViewer|B3Screener|SudokuViewer|SudokuMiniWidget|QuadtreeVisualizer|MappingVisualizer|CountersVisualizer|PolynomialEditor|InnerProductWindingVisualizer|OrthogonalProjectionVisualizer|ErrorDiskConstraintVisualizer|AsymptoticScalingVisualizer|PasswordManagerWidget|SternBrocotVisualizer|GaussianQuadratureVisualizer|BarningHallTreeVisualizer|EllipticCurveVisualizer|IsogenyFoldVisualizer|SIDHDiagramVisualizer|Genus2RadarVisualizer|MatrixMultiplicationVisualizer|HueMapVisualizer|CartesianColorVisualizer|NeonGradientVisualizer|DialecticalSpiralVisualizer)([^>]*?)\/>/g,
     (match) => ({
       type: "widget",
       widgetName: match[1],
