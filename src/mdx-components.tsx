@@ -1,6 +1,7 @@
 import type { MDXComponents } from 'mdx/types';
 import Link from 'next/link';
 import React from 'react';
+import CodeBlock from './components/CodeBlock';
 
 export function useMDXComponents(components: MDXComponents): MDXComponents {
   return {
@@ -103,22 +104,21 @@ export function useMDXComponents(components: MDXComponents): MDXComponents {
     ),
     
     // Blocos e Tags de Código
-    pre: ({ children, ...props }) => (
-      <pre 
-        className="bg-zinc-900 text-zinc-100 p-4 rounded-xl overflow-x-auto my-6 font-mono text-sm leading-relaxed border border-zinc-800 dark:border-zinc-800/50 shadow-inner"
-        {...props}
-      >
-        {children}
-      </pre>
-    ),
-    code: ({ children, ...props }) => (
-      <code 
-        className="bg-zinc-100 dark:bg-zinc-800/80 text-emerald-700 dark:text-emerald-400 px-1.5 py-0.5 rounded-md font-mono text-sm border border-zinc-200/50 dark:border-zinc-700/30"
-        {...props}
-      >
-        {children}
-      </code>
-    ),
+    pre: ({ children }: any) => <>{children}</>,
+    code: ({ children, className, ...props }: any) => {
+      const isBlock = typeof className === 'string' && className.startsWith('language-');
+      if (isBlock) {
+        return <CodeBlock className={className}>{children}</CodeBlock>;
+      }
+      return (
+        <code 
+          className="bg-zinc-100 dark:bg-zinc-800/80 text-emerald-700 dark:text-emerald-400 px-1.5 py-0.5 rounded-md font-mono text-sm border border-zinc-200/50 dark:border-zinc-700/30" 
+          {...props}
+        >
+          {children}
+        </code>
+      );
+    },
     
     // Divisores de Seção
     hr: (props) => (
