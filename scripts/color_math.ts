@@ -237,7 +237,9 @@ function processFiles() {
     path.resolve(__dirname, '../src/content/essays/matrix-tensor/pt.mdx'),
     path.resolve(__dirname, '../src/content/essays/matrix-tensor/en.mdx'),
     path.resolve(__dirname, '../src/content/essays/cantor-hegel/pt.mdx'),
-    path.resolve(__dirname, '../src/content/essays/cantor-hegel/en.mdx')
+    path.resolve(__dirname, '../src/content/essays/cantor-hegel/en.mdx'),
+    path.resolve(__dirname, '../src/content/essays/metaethics/pt.mdx'),
+    path.resolve(__dirname, '../src/content/essays/metaethics/en.mdx')
   ];
 
   files.forEach(file => {

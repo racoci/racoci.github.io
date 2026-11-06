@@ -26,6 +26,8 @@ import { HueMapVisualizer } from "../../../components/math/HueMapVisualizer";
 import { CartesianColorVisualizer } from "../../../components/math/CartesianColorVisualizer";
 import { NeonGradientVisualizer } from "../../../components/math/NeonGradientVisualizer";
 import DialecticalSpiralVisualizer from "../../../components/math/DialecticalSpiralVisualizer";
+import NormativeBisimulationVisualizer from "../../../components/metaethics/NormativeBisimulationVisualizer";
+import MetaethicalConvergenceVisualizer from "../../../components/metaethics/MetaethicalConvergenceVisualizer";
 import EllipticCurveVisualizer from "../../../components/sike/EllipticCurveVisualizer";
 import IsogenyFoldVisualizer from "../../../components/sike/IsogenyFoldVisualizer";
 import SIDHDiagramVisualizer from "../../../components/sike/SIDHDiagramVisualizer";
@@ -441,7 +443,9 @@ const WIDGET_SUGGESTIONS = [
   "HueMapVisualizer",
   "CartesianColorVisualizer",
   "NeonGradientVisualizer",
-  "DialecticalSpiralVisualizer"
+  "DialecticalSpiralVisualizer",
+  "NormativeBisimulationVisualizer",
+  "MetaethicalConvergenceVisualizer"
 ];
 
 interface WidgetPropMeta {
@@ -470,7 +474,9 @@ const WIDGET_METADATA: Record<string, Record<string, WidgetPropMeta>> = {
   "HueMapVisualizer": {},
   "CartesianColorVisualizer": {},
   "NeonGradientVisualizer": {},
-  "DialecticalSpiralVisualizer": {}
+  "DialecticalSpiralVisualizer": {},
+  "NormativeBisimulationVisualizer": {},
+  "MetaethicalConvergenceVisualizer": {}
 };
 
 function parseWidgetProps(contentStr: string): Record<string, any> {
@@ -1718,6 +1724,8 @@ function BlockContentRenderer({
               {token.widgetName === "CartesianColorVisualizer" && <CartesianColorVisualizer />}
               {token.widgetName === "NeonGradientVisualizer" && <NeonGradientVisualizer />}
               {token.widgetName === "DialecticalSpiralVisualizer" && <DialecticalSpiralVisualizer />}
+              {token.widgetName === "NormativeBisimulationVisualizer" && <NormativeBisimulationVisualizer />}
+              {token.widgetName === "MetaethicalConvergenceVisualizer" && <MetaethicalConvergenceVisualizer />}
             </div>
           );
         }
@@ -1893,7 +1901,7 @@ function parseMDXContent(text: string): Token[] {
   // 4. Split by Interactive Widgets
   tokens = splitTokenList(
     tokens,
-    /<(ComplexPlotter|NodeGraftViewer|B3Screener|SudokuViewer|SudokuMiniWidget|QuadtreeVisualizer|MappingVisualizer|CountersVisualizer|PolynomialEditor|InnerProductWindingVisualizer|OrthogonalProjectionVisualizer|ErrorDiskConstraintVisualizer|AsymptoticScalingVisualizer|PasswordManagerWidget|SternBrocotVisualizer|GaussianQuadratureVisualizer|BarningHallTreeVisualizer|EllipticCurveVisualizer|IsogenyFoldVisualizer|SIDHDiagramVisualizer|Genus2RadarVisualizer|MatrixMultiplicationVisualizer|HueMapVisualizer|CartesianColorVisualizer|NeonGradientVisualizer|DialecticalSpiralVisualizer)([^>]*?)\/>/g,
+    /<(ComplexPlotter|NodeGraftViewer|B3Screener|SudokuViewer|SudokuMiniWidget|QuadtreeVisualizer|MappingVisualizer|CountersVisualizer|PolynomialEditor|InnerProductWindingVisualizer|OrthogonalProjectionVisualizer|ErrorDiskConstraintVisualizer|AsymptoticScalingVisualizer|PasswordManagerWidget|SternBrocotVisualizer|GaussianQuadratureVisualizer|BarningHallTreeVisualizer|EllipticCurveVisualizer|IsogenyFoldVisualizer|SIDHDiagramVisualizer|Genus2RadarVisualizer|MatrixMultiplicationVisualizer|HueMapVisualizer|CartesianColorVisualizer|NeonGradientVisualizer|DialecticalSpiralVisualizer|NormativeBisimulationVisualizer|MetaethicalConvergenceVisualizer)([^>]*?)\/>/g,
     (match) => ({
       type: "widget",
       widgetName: match[1],
