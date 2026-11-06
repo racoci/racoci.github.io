@@ -103,11 +103,11 @@ graph TD
 
 ---
 
-### Abordagem 1: Semântica de Bilattice (Belnap-Dunn $\mathcal{FOU\textcolor{#fbbf24}{R}}$)
+### Abordagem 1: Semântica de Bilattice (Belnap-Dunn $\mathcal{FOUR}$)
 
 Na lógica de Belnap-Dunn, as proposições assumem valores em um bilattice de quatro elementos:
 $$
-\mathcal{FOU\textcolor{#fbbf24}{R}} = \{\mathbf{N}, \mathbf{T}, \mathbf{F}, \mathbf{B}\}
+\mathcal{FOUR} = \{\mathbf{N}, \mathbf{T}, \mathbf{F}, \mathbf{B}\}
 $$
 Onde $\mathbf{N}$ é Nem-Verdadeiro-Nem-Falso (*Neither*), $\mathbf{T}$ é Verdadeiro (*True*), $\mathbf{F}$ é Falso (*False*) e $\mathbf{B}$ é **Ambos** (*Both* / dialeteico / contraditório).
 
@@ -259,7 +259,7 @@ $$
 \exists_f \dashv f^* \dashv \forall_f
 $$
 
-A superação (*Aufhebung*) é formalizada como uma **Mônada** (operador de fecho) $\textcolor{#a855f7}{T}: \mathcal{\textcolor{#10b981}{C}} \to \mathcal{\textcolor{#10b981}{C}}$ equipada com uma condição de ponto fixo:
+A superação (*Aufhebung*) é formalizada como uma **Mônada** (operador de fecho) $\textcolor{#a855f7}{T}: \mathcal{C} \to \mathcal{C}$ equipada com uma condição de ponto fixo:
 $$
 \textcolor{#a855f7}{T}(X) \cong X
 $$
@@ -288,7 +288,7 @@ def is_sublated_fixed_point {α : Type} [PartialOrder α] [ClosureOperator α] (
 | Estrutura | Implementação em Lean 4 | Tratamento da Explosão | Fidelidade Dialética | Complexidade Matemática |
 |---|---|---|---|---|
 | **Clássica (ZFC / Coq)** | `Prop` Nativa | **Falha (Explosão)** | Zero (Colapso trivial) | Baixa |
-| **Belnap-Dunn ($\mathcal{FOU\textcolor{#fbbf24}{R}}$)** | Indutivo Customizado `Four` | **Contida (Valor $\mathbf{B}$)** | Alta (Dialeteia Estática) | Baixa |
+| **Belnap-Dunn ($\mathcal{FOUR}$)** | Indutivo Customizado `Four` | **Contida (Valor $\mathbf{B}$)** | Alta (Dialeteia Estática) | Baixa |
 | **Negação Forte de Nelson** | Par Construtivo `(A⁺, A⁻)` | **Contida (Testemunhas)** | Alta (Tensão Construtiva) | Média |
 | **Lógica Modal Discursiva** | Feixes `World → Prop` | **Contida ($\Diamond \textcolor{#a855f7}{A} \wedge \Diamond \neg \textcolor{#a855f7}{A}$)** | Média (Relacional) | Média |
 | **Adjunções Categoriais** | Fecho de Poset / Mônadas | **Estrutural (Ordem Poset)** | Extrema (*Aufhebung* Formal) | Alta |

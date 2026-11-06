@@ -103,11 +103,11 @@ graph TD
 
 ---
 
-### Approach 1: Bilattice Semantics (Belnap-Dunn $\mathcal{FOU\textcolor{#fbbf24}{R}}$)
+### Approach 1: Bilattice Semantics (Belnap-Dunn $\mathcal{FOUR}$)
 
 In Belnap-Dunn logic, propositions take values in a four-element bilattice:
 $$
-\mathcal{FOU\textcolor{#fbbf24}{R}} = \{\mathbf{N}, \mathbf{T}, \mathbf{F}, \mathbf{B}\}
+\mathcal{FOUR} = \{\mathbf{N}, \mathbf{T}, \mathbf{F}, \mathbf{B}\}
 $$
 Where $\mathbf{N}$ is Neither (indeterminate), $\mathbf{T}$ is True, $\mathbf{F}$ is False, and $\mathbf{B}$ is **Both** (contradictory / dialetheic). 
 
@@ -259,7 +259,7 @@ $$
 \exists_f \dashv f^* \dashv \forall_f
 $$
 
-Sublation (*Aufhebung*) is formalized as a **Monad** (closure operator) $\textcolor{#a855f7}{T}: \mathcal{\textcolor{#10b981}{C}} \to \mathcal{\textcolor{#10b981}{C}}$ equipped with a fixed-point condition:
+Sublation (*Aufhebung*) is formalized as a **Monad** (closure operator) $\textcolor{#a855f7}{T}: \mathcal{C} \to \mathcal{C}$ equipped with a fixed-point condition:
 $$
 \textcolor{#a855f7}{T}(X) \cong X
 $$
@@ -288,7 +288,7 @@ def is_sublated_fixed_point {α : Type} [PartialOrder α] [ClosureOperator α] (
 | Framework | Implementation in Lean 4 | Explosion Handling | Dialectical Fidelity | Mathematical Complexity |
 |---|---|---|---|---|
 | **Classical (ZFC / Coq)** | Native `Prop` | **Fails (Explosion)** | Zero (Trivial collapse) | Low |
-| **Belnap-Dunn ($\mathcal{FOU\textcolor{#fbbf24}{R}}$)** | Custom Inductive `Four` | **Contained ($\mathbf{B}$ value)** | High (Static Dialetheia) | Low |
+| **Belnap-Dunn ($\mathcal{FOUR}$)** | Custom Inductive `Four` | **Contained ($\mathbf{B}$ value)** | High (Static Dialetheia) | Low |
 | **Nelson Strong Negation** | Constructive Pair `(A⁺, A⁻)` | **Contained (Witnesses)** | High (Constructive Tension) | Medium |
 | **Discussive Modal Logic** | World Sheaves `World → Prop` | **Contained ($\Diamond \textcolor{#a855f7}{A} \wedge \Diamond \neg \textcolor{#a855f7}{A}$)** | Medium (Relational) | Medium |
 | **Categorical Adjunctions** | Poset Closure / Monads | **Structural (Poset order)** | Extreme (Formal *Aufhebung*) | High |

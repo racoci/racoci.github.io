@@ -74,7 +74,7 @@ export function makeColorizer(rules: Record<string, string>) {
     let i = 0;
     while (i < tex.length) {
       // Protected blocks
-      const protectedMatch = tex.slice(i).match(/^\\(mathbb|text|mathrm|mathbf)\{[^}]+\}/);
+      const protectedMatch = tex.slice(i).match(/^\\(mathbb|text|mathrm|mathbf|mathcal|mathscr)\{[^}]+\}/);
       if (protectedMatch) {
         out += protectedMatch[0];
         i += protectedMatch[0].length;
