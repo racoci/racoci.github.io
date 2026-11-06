@@ -12,7 +12,7 @@ const nextConfig = {
 
 const withMDX = createMDX({
   options: {
-    remarkPlugins: ['remark-math'],
+    remarkPlugins: ['remark-gfm', 'remark-math'],
     rehypePlugins: ['rehype-katex'],
   },
 });
